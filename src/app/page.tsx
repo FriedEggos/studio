@@ -1,3 +1,111 @@
+import Image from "next/image";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { PlaceHolderImages } from "@/lib/placeholder-images";
+import { Logo } from "@/components/logo";
+import { ArrowRight } from "lucide-react";
+
 export default function Home() {
-  return <></>;
+  const heroImage = PlaceHolderImages.find((img) => img.id === "landing-hero");
+
+  return (
+    <div className="flex flex-col min-h-screen">
+      <header className="px-4 lg:px-6 h-16 flex items-center bg-background/95 backdrop-blur-sm fixed top-0 w-full z-50 border-b">
+        <Logo />
+        <nav className="ml-auto flex gap-4 sm:gap-6">
+          <Button variant="ghost" asChild>
+            <Link href="/login">Log Masuk</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/register">
+              Daftar <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        </nav>
+      </header>
+      <main className="flex-1">
+        <section className="w-full pt-24 md:pt-32 lg:pt-40">
+          <div className="px-4 md:px-6 space-y-10 xl:space-y-16">
+            <div className="grid max-w-[1300px] mx-auto gap-4 px-4 sm:px-6 md:px-10 md:grid-cols-2 md:gap-16">
+              <div className="flex flex-col justify-center space-y-4">
+                <h1 className="lg:leading-tighter text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl xl:text-6xl/none font-headline">
+                  Selamat Datang ke JTMK+ Digital Hub
+                </h1>
+                <p className="max-w-[700px] text-muted-foreground md:text-xl">
+                  Sistem Penyertaan Program & Pensijilan Digital Berasaskan QR.
+                  Daftar, sertai, dan jejak pencapaian anda dengan mudah.
+                </p>
+                <div className="flex flex-col gap-2 min-[400px]:flex-row">
+                  <Button size="lg" asChild>
+                    <Link href="/login">Mula Sekarang</Link>
+                  </Button>
+                </div>
+              </div>
+              <div className="w-full h-full min-h-[300px] md:min-h-[400px]">
+                {heroImage && (
+                  <Image
+                    src={heroImage.imageUrl}
+                    alt={heroImage.description}
+                    width={1200}
+                    height={800}
+                    data-ai-hint={heroImage.imageHint}
+                    className="mx-auto aspect-[3/2] overflow-hidden rounded-xl object-cover"
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+        <section className="w-full py-12 md:py-24 lg:py-32 bg-muted/40">
+          <div className="container space-y-12 px-4 md:px-6">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center">
+              <div className="space-y-2">
+                <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl font-headline">
+                  Ciri-ciri Utama
+                </h2>
+                <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+                  Direka untuk memudahkan pengurusan program dan penyertaan
+                  pelajar di JTMK.
+                </p>
+              </div>
+            </div>
+            <div className="mx-auto grid items-start gap-8 sm:max-w-4xl sm:grid-cols-2 md:gap-12 lg:max-w-5xl lg:grid-cols-3">
+              <div className="grid gap-1 p-4 rounded-lg border bg-card shadow-sm hover:shadow-md transition-shadow">
+                <h3 className="text-lg font-bold font-headline">
+                  Pendaftaran QR
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Daftar masuk program dengan pantas menggunakan imbasan kod QR.
+                </p>
+              </div>
+              <div className="grid gap-1 p-4 rounded-lg border bg-card shadow-sm hover:shadow-md transition-shadow">
+                <h3 className="text-lg font-bold font-headline">
+                  Bukti Aktiviti
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Muat naik bukti penyertaan anda dan dapatkan pengesahan dari
+                  pentadbir.
+                </p>
+              </div>
+              <div className="grid gap-1 p-4 rounded-lg border bg-card shadow-sm hover:shadow-md transition-shadow">
+                <h3 className="text-lg font-bold font-headline">
+                  Sijil & Lencana Digital
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Kumpul lencana dan jana e-sijil secara automatik selepas
+                  penyertaan disahkan.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+      <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t">
+        <p className="text-xs text-muted-foreground">
+          &copy; {new Date().getFullYear()} JTMK+ Digital Hub. All rights
+          reserved.
+        </p>
+      </footer>
+    </div>
+  );
 }

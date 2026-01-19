@@ -1,3 +1,40 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "landing-hero",
+      "description": "Students collaborating on a project",
+      "imageUrl": "https://images.unsplash.com/photo-1761427236022-e2a97712bfe6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxzdHVkZW50cyUyMHRlY2hub2xvZ3l8ZW58MHx8fHwxNzY4Nzk2NDI3fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "students technology"
+    },
+    {
+      "id": "program-1",
+      "description": "A workshop on web development",
+      "imageUrl": "https://images.unsplash.com/photo-1581091226033-d5c48150dbaa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxjb2RpbmclMjB3b3Jrc2hvcHxlbnwwfHx8fDE3Njg3OTY0Mjd8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "coding workshop"
+    },
+    {
+      "id": "program-2",
+      "description": "A seminar on cybersecurity",
+      "imageUrl": "https://images.unsplash.com/photo-1719255417989-b6858e87359e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8Y3liZXJzZWN1cml0eSUyMHNlbWluYXJ8ZW58MHx8fHwxNzY4Nzk2NDI3fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "cybersecurity seminar"
+    },
+    {
+      "id": "program-3",
+      "description": "A networking event for tech students",
+      "imageUrl": "https://images.unsplash.com/photo-1550177977-ad69e8f3cae0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxuZXR3b3JraW5nJTIwZXZlbnR8ZW58MHx8fHwxNzY4NzI3MTc1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "networking event"
+    },
+    {
+      "id": "qr-code-placeholder",
+      "description": "A placeholder QR code",
+      "imageUrl": "https://images.unsplash.com/photo-1629128625414-374a9e16d56a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxxciUyMGNvZGV8ZW58MHx8fHwxNzY4NzU5ODAxfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "qr code"
+    },
+    {
+      "id": "evidence-placeholder",
+      "description": "Evidence of participation in an event",
+      "imageUrl": "https://images.unsplash.com/photo-1584072554475-cacee06c7240?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxldmVudCUyMHBob3RvfGVufDB8fHx8MTc2ODc5NjQyN3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "event photo"
+    }
+  ]
 }
