@@ -1,66 +1,15 @@
 import Link from "next/link";
 import {
   Home,
-  LogOut,
   Menu,
   PlusCircle,
   BarChart,
-  User,
 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
+import { UserNav } from "@/components/user-nav";
 
-function UserNav() {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-          <Avatar className="h-9 w-9">
-            <AvatarImage
-              src="https://picsum.photos/seed/admin1/100/100"
-              alt="@admin"
-            />
-            <AvatarFallback>A</AvatarFallback>
-          </Avatar>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">Pentadbir JTMK</p>
-            <p className="text-xs leading-none text-muted-foreground">
-              admin@example.com
-            </p>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="#" className="flex items-center w-full cursor-pointer">
-            <User className="mr-2 h-4 w-4" />
-            <span>Profil</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/" className="flex items-center w-full cursor-pointer">
-            <LogOut className="mr-2 h-4 w-4" />
-            <span>Log Keluar</span>
-          </Link>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
 
 const navLinks = [
   { href: "/admin/dashboard", label: "Papan Pemuka", icon: Home },
@@ -120,7 +69,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </SheetContent>
           </Sheet>
           <div className="w-full flex-1" />
-          <UserNav />
+          <UserNav isAdmin />
         </header>
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-background">
           {children}

@@ -1,26 +1,58 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { Logo } from "@/components/logo";
 import { ArrowRight } from "lucide-react";
+import { useUser } from "@/firebase";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Home() {
   const heroImage = PlaceHolderImages.find((img) => img.id === "landing-hero");
+  const { user, isUserLoading } = useUser();
+
+  const AuthButtons = () => {
+    if (isUserLoading) {
+      return (
+        <div className="flex gap-4">
+          <Skeleton className="h-10 w-24" />
+          <Skeleton className="h-10 w-24" />
+        </div>
+      );
+    }
+
+    if (user) {
+      return (
+        <Button asChild>
+          <Link href="/dashboard">
+            Papan Pemuka <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+        </Button>
+      );
+    }
+
+    return (
+      <>
+        <Button variant="ghost" asChild>
+          <Link href="/login">Log Masuk</Link>
+        </Button>
+        <Button asChild>
+          <Link href="/register">
+            Daftar <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+        </Button>
+      </>
+    );
+  };
 
   return (
     <div className="flex flex-col min-h-screen">
       <header className="px-4 lg:px-6 h-16 flex items-center bg-background/95 backdrop-blur-sm fixed top-0 w-full z-50 border-b">
         <Logo />
         <nav className="ml-auto flex gap-4 sm:gap-6">
-          <Button variant="ghost" asChild>
-            <Link href="/login">Log Masuk</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/register">
-              Daftar <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
+          <AuthButtons />
         </nav>
       </header>
       <main className="flex-1">
@@ -37,7 +69,7 @@ export default function Home() {
                 </p>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
                   <Button size="lg" asChild>
-                    <Link href="/login">Mula Sekarang</Link>
+                    <Link href={user ? "/dashboard" : "/login"}>Mula Sekarang</Link>
                   </Button>
                 </div>
               </div>

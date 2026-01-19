@@ -1,14 +1,6 @@
 import Link from "next/link";
-import { Home, LogOut, Menu, QrCode, User } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Home, Menu, User } from "lucide-react";
+
 import {
   Sheet,
   SheetContent,
@@ -16,48 +8,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
-
-function UserNav() {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-          <Avatar className="h-9 w-9">
-            <AvatarImage
-              src="https://picsum.photos/seed/user1/100/100"
-              alt="@student"
-            />
-            <AvatarFallback>S</AvatarFallback>
-          </Avatar>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">Pelajar JTMK</p>
-            <p className="text-xs leading-none text-muted-foreground">
-              student@example.com
-            </p>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/profile" className="flex items-center w-full cursor-pointer">
-            <User className="mr-2 h-4 w-4" />
-            <span>Profil</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/" className="flex items-center w-full cursor-pointer">
-            <LogOut className="mr-2 h-4 w-4" />
-            <span>Log Keluar</span>
-          </Link>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
+import { UserNav } from "@/components/user-nav";
 
 const navLinks = [
   { href: "/dashboard", label: "Papan Pemuka", icon: Home },
