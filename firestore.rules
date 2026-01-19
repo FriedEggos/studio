@@ -1,0 +1,111 @@
+/**
+ * This ruleset enforces a user-centric security model for the JTMK+ application.
+ *
+ * Core Philosophy:
+ * The rules prioritize strict user ownership of personal data while allowing public
+ * read-access for shared resources like programs. Authorization decisions are
+ * designed to be fast and independent, avoiding cross-collection reads by relying
+ * on denormalized ownership fields (e.g., `adminId` on programs).
+ *
+ * Data Structure:
+ * - /users/{userId}: Contains private user profiles.
+ * - /users/{userId}/participations/{participationId}: A subcollection containing
+ *   participation records, strictly owned by the parent user.
+ * - /programs/{programId}: A top-level collection for program information, which
+ *   is publicly readable.
+ *
+ * Key Security Decisions:
+ * - User Isolation: A user can only access their own data within their `/users/{userId}`
+ *   data tree. They cannot read, write, or even see the existence of other users' data.
+ * - No User Listing: To protect user privacy, listing the top-level `/users`
+ *   collection is explicitly disallowed.
+ * - Public Programs, Private Writes: The `/programs` collection is publicly readable
+ *   by anyone, allowing users to browse available programs. However, write operations
+ *   (create, update, delete) are restricted to the admin who created the program,
+ *   enforced by an `adminId` field on each program document.
+ * - Default Secure: Any path not explicitly matched is denied access. All write
+ *   operations require authentication and specific authorization.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions for reusable logic
+    // ===================================
+
+    /**
+     * Checks if the user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the currently authenticated user's UID matches the provided userId.
+     * This is the core function for enforcing document ownership.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * A stricter version of isOwner for update/delete operations.
+     * Ensures the document exists before checking for ownership.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    // Collection Rules
+    // ================
+
+    /**
+     * @description Manages user profile documents. A user can create their own
+     *   profile and fully control it afterward. Access by any other user is denied.
+     * @path /users/{userId}
+     * @allow (create) An authenticated user creating their own document at /users/abc
+     *   where their UID is 'abc'.
+     * @deny (get) User 'xyz' trying to read the document at /users/abc.
+     * @principle Restricts access to a user's own data tree and prevents user enumeration.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+
+      /**
+       * @description Manages a user's participation records. Only the user who owns
+       *   the parent profile can read or write their own participation entries.
+       * @path /users/{userId}/participations/{participationId}
+       * @allow (list) User 'abc' listing documents from /users/abc/participations.
+       * @deny (get) User 'xyz' trying to read a document from /users/abc/participations.
+       * @principle Enforces strict ownership for user-specific subcollections.
+       */
+      match /participations/{participationId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && request.resource.data.userId == userId;
+        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+        allow delete: if isExistingOwner(userId);
+      }
+    }
+
+    /**
+     * @description Manages program documents. Programs are public and can be read by anyone.
+     *   However, only the authenticated admin who created the program can modify or delete it.
+     * @path /programs/{programId}
+     * @allow (get) Any user, authenticated or not, reading a program document.
+     * @deny (update) An admin trying to update a program document created by another admin.
+     * @principle Implements a "Public Read, Owner-Only Write" pattern using a denormalized 'adminId' field.
+     */
+    match /programs/{programId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isSignedIn() && request.resource.data.adminId == request.auth.uid;
+      allow update: if resource != null && isOwner(resource.data.adminId);
+      allow delete: if resource != null && isOwner(resource.data.adminId);
+    }
+  }
+}
