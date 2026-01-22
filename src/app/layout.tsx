@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { FirebaseClientProvider } from "@/firebase";
 
 export const metadata: Metadata = {
-  title: "JTMK+ Digital Hub",
+  title: "JTMK+",
   description:
     "A QR-Based Program Participation and Digital Certification System",
 };
