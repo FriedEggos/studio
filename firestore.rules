@@ -1,3 +1,4 @@
+
 /**
  * This ruleset enforces a user-centric security model for the JTMK+ application.
  *
@@ -72,7 +73,9 @@ service cloud.firestore {
       allow get: if isOwner(userId);
       allow list: if false;
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow update: if isExistingOwner(userId) 
+                    && request.resource.data.id == resource.data.id
+                    && request.resource.data.role == resource.data.role;
       allow delete: if isExistingOwner(userId);
 
       /**

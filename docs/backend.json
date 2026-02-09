@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -22,6 +23,10 @@
         "role": {
           "type": "string",
           "description": "Role of the user (e.g., student, admin)."
+        },
+        "course": {
+          "type": "string",
+          "description": "The course the student is enrolled in."
         }
       },
       "required": [

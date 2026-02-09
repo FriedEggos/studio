@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -29,11 +30,12 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState("yassin bin kisman");
   const [email, setEmail] = useState("muhammadyassin@gmail.com");
   const [password, setPassword] = useState("yassin123");
+  const [course, setCourse] = useState("Diploma Teknologi Digital");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!fullName || !email || !password) {
+    if (!fullName || !email || !password || !course) {
       toast({
         variant: "destructive",
         title: "Sila isi semua medan",
@@ -54,9 +56,10 @@ export default function RegisterPage() {
           fullName: fullName,
           email: user.email,
           role: role,
+          course: course,
         };
         
-        setDocumentNonBlocking(userDocRef, userData, {});
+        setDocumentNonBlocking(userDocRef, userData, { merge: true });
 
         toast({
           title: "Pendaftaran Berjaya",
@@ -94,10 +97,20 @@ export default function RegisterPage() {
               <Label htmlFor="full-name">Nama Penuh</Label>
               <Input
                 id="full-name"
-                placeholder="John Doe"
+                placeholder="Cth: John Doe"
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
+              />
+            </div>
+             <div className="grid gap-2">
+              <Label htmlFor="course">Kursus</Label>
+              <Input
+                id="course"
+                placeholder="Cth: Diploma Teknologi Digital"
+                required
+                value={course}
+                onChange={(e) => setCourse(e.target.value)}
               />
             </div>
             <div className="grid gap-2">
