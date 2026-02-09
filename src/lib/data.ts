@@ -1,5 +1,5 @@
 export const programs = [
-    { id: '1', name: 'Advanced Web Development Workshop', startDate: '2024-10-15', endDate: '2024-10-17', description: 'Master the latest web development techniques with industry experts.', imageId: 'program-1' },
+    { id: '1', name: 'Advanced Web Development Workshop', startDate: '2024-07-22', endDate: '2024-07-28', description: 'Master the latest web development techniques with industry experts.', imageId: 'program-1' },
     { id: '2', name: 'National Cybersecurity Seminar', startDate: '2024-11-02', endDate: '2024-11-03', description: 'Understand an cyber threats and how to protect against them.', imageId: 'program-2' },
     { id: '3', name: 'Pesta Niaga', startDate: '2026-02-02', endDate: '2026-02-04', description: 'Connect with leading technology companies.', imageId: 'program-3' },
   ];
