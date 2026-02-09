@@ -127,6 +127,8 @@ export default function StudentDashboard() {
     return { text: 'Unknown', variant: 'outline' };
   };
 
+  const ongoingMyPrograms = myPrograms.filter(program => getProgramStatus(program.date).text === 'Ongoing');
+
   return (
     <>
       <div className="space-y-6">
@@ -201,56 +203,64 @@ export default function StudentDashboard() {
           <h2 className="text-xl font-semibold tracking-tight font-headline mb-4">
             My Programs
           </h2>
-           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {myPrograms.map((program) => {
-              const image = PlaceHolderImages.find(
-                (img) => img.id === program.imageId
-              );
-              const status = getProgramStatus(program.date);
-              return (
-                <Card
-                  key={program.id}
-                  className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col"
-                >
-                  {image && (
-                    <Image
-                      src={image.imageUrl}
-                      alt={image.description}
-                      width={600}
-                      height={400}
-                      data-ai-hint={image.imageHint}
-                      className="w-full h-40 object-cover"
-                    />
-                  )}
-                  <CardHeader>
-                    <CardTitle className="font-headline text-lg">
-                      {program.name}
-                    </CardTitle>
-                    <CardDescription className="flex items-center gap-2 pt-1">
-                      <Calendar className="h-4 w-4" />
-                      <span>{program.date}</span>
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex-grow">
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {program.description}
-                    </p>
-                  </CardContent>
-                  <CardFooter className="flex-col items-start gap-3 pt-4">
-                     <Badge variant={status.variant}>{status.text}</Badge>
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => handleOpenProgramModal(program)}
+            {ongoingMyPrograms.length > 0 ? (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {ongoingMyPrograms.map((program) => {
+                  const image = PlaceHolderImages.find(
+                    (img) => img.id === program.imageId
+                  );
+                  const status = getProgramStatus(program.date);
+                  return (
+                    <Card
+                      key={program.id}
+                      className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col"
                     >
-                      View Details{" "}
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </CardFooter>
+                      {image && (
+                        <Image
+                          src={image.imageUrl}
+                          alt={image.description}
+                          width={600}
+                          height={400}
+                          data-ai-hint={image.imageHint}
+                          className="w-full h-40 object-cover"
+                        />
+                      )}
+                      <CardHeader>
+                        <CardTitle className="font-headline text-lg">
+                          {program.name}
+                        </CardTitle>
+                        <CardDescription className="flex items-center gap-2 pt-1">
+                          <Calendar className="h-4 w-4" />
+                          <span>{program.date}</span>
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex-grow">
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {program.description}
+                        </p>
+                      </CardContent>
+                      <CardFooter className="flex-col items-start gap-3 pt-4">
+                         <Badge variant={status.variant}>{status.text}</Badge>
+                        <Button
+                          variant="outline"
+                          className="w-full"
+                          onClick={() => handleOpenProgramModal(program)}
+                        >
+                          View Details{" "}
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  );
+                })}
+              </div>
+            ) : (
+                <Card>
+                    <CardContent className="pt-6">
+                        <p className="text-muted-foreground">You have no ongoing programs at the moment.</p>
+                    </CardContent>
                 </Card>
-              );
-            })}
-          </div>
+            )}
         </section>
       </div>
 
@@ -353,3 +363,5 @@ export default function StudentDashboard() {
     </>
   );
 }
+
+    
