@@ -4,9 +4,8 @@ export const programs = [
     { id: '3', name: 'Pesta Niaga', startDate: '2026-02-02', endDate: '2026-02-04', description: 'Connect with leading technology companies.', imageId: 'program-3' },
   ];
 
-  export const myPrograms = [
-    { id: '4', name: 'Basic Photoshop Course', startDate: '2024-05-20', endDate: '2024-05-21', description: 'Learn the basics of graphic design using Adobe Photoshop.', imageId: 'program-1' }
-  ];
+  // This list will now be populated when a student joins a program from the dashboard.
+  export const myPrograms: any[] = [];
   
   export const participationHistory = [
     { programName: 'Basic Photoshop Course', date: '2024-05-20', status: 'Approved', certificateUrl: '#' },
@@ -23,7 +22,7 @@ export const programs = [
   export const allProgramsAdmin = [
       { id: 'p1', name: 'Advanced Web Development Workshop', participants: 45, status: 'Completed' },
       { id: 'p2', name: 'National Cybersecurity Seminar', participants: 120, status: 'Upcoming' },
-      { id: 'p3', name: 'Tech Career Networking Session', participants: 78, status: 'Upcoming' },
+      { id: 'p3', name: 'Pesta Niaga', participants: 78, status: 'Upcoming' },
       { id: 'p4', name: 'Basic Photoshop Course', participants: 30, status: 'Completed' },
   ]
   

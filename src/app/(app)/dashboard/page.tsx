@@ -43,7 +43,12 @@ interface Program {
 }
 
 export default function StudentDashboard() {
+  const [programs, setPrograms] = useState<Program[]>(staticPrograms);
+  const [myPrograms, setMyPrograms] = useState<Program[]>(staticMyPrograms);
+  
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
+  const [selectedProgramContext, setSelectedProgramContext] = useState<'upcoming' | 'my-program' | null>(null);
+  
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isEvidenceModalOpen, setIsEvidenceModalOpen] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
@@ -58,9 +63,6 @@ export default function StudentDashboard() {
   const storage = useStorage();
   const { toast } = useToast();
   
-  const [programs, setPrograms] = useState<Program[]>(staticPrograms);
-  const [myPrograms, setMyPrograms] = useState<Program[]>(staticMyPrograms);
-
   useEffect(() => {
     if (!isEvidenceModalOpen) return;
 
@@ -81,7 +83,7 @@ export default function StudentDashboard() {
         toast({
           variant: 'destructive',
           title: 'Camera Access Denied',
-          description: 'Please enable camera permissions in your browser settings to use this feature.',
+          description: 'Please enable camera permissions in your browser settings to use this app.',
         });
       }
     };
@@ -89,7 +91,6 @@ export default function StudentDashboard() {
     getCameraPermission();
     
     return () => {
-        // Stop camera stream when component unmounts or modal closes
         if (videoRef.current && videoRef.current.srcObject) {
             const stream = videoRef.current.srcObject as MediaStream;
             stream.getTracks().forEach(track => track.stop());
@@ -97,12 +98,28 @@ export default function StudentDashboard() {
     }
   }, [isEvidenceModalOpen, toast]);
 
-  const handleOpenProgramModal = (program: Program) => {
+  const handleOpenProgramModal = (program: Program, context: 'upcoming' | 'my-program') => {
     setSelectedProgram(program);
+    setSelectedProgramContext(context);
   };
 
   const handleCloseProgramModal = () => {
     setSelectedProgram(null);
+    setSelectedProgramContext(null);
+  };
+
+  const handleJoinProgram = () => {
+    if (!selectedProgram) return;
+
+    setMyPrograms(prev => [...prev, selectedProgram]);
+    setPrograms(prev => prev.filter(p => p.id !== selectedProgram.id));
+    
+    toast({
+      title: "Program Joined",
+      description: `You have successfully joined "${selectedProgram.name}".`,
+    });
+
+    handleCloseProgramModal();
   };
   
   const handleOpenImageModal = () => {
@@ -117,14 +134,14 @@ export default function StudentDashboard() {
 
   const handleOpenEvidenceModal = () => {
     if (selectedProgram) {
-        handleCloseProgramModal(); // Close the details modal first
+        handleCloseProgramModal(); 
         setIsEvidenceModalOpen(true);
     }
   };
 
   const handleCloseEvidenceModal = () => {
       setIsEvidenceModalOpen(false);
-      setCapturedImage(null); // Reset captured image
+      setCapturedImage(null); 
   };
 
   const handleCapture = () => {
@@ -152,20 +169,17 @@ export default function StudentDashboard() {
     setIsSubmitting(true);
 
     try {
-        // 1. Convert data URL to blob
         const blob = await (await fetch(capturedImage)).blob();
 
-        // 2. Create a storage reference and upload
         const storageRef = ref(storage, `evidence/${user.uid}/${selectedProgram.id}/${Date.now()}.jpg`);
         const uploadResult = await uploadBytes(storageRef, blob);
         const downloadURL = await getDownloadURL(uploadResult.ref);
 
-        // 3. Create participation document in Firestore
         const participationsColRef = collection(firestore, `users/${user.uid}/participations`);
         await addDoc(participationsColRef, {
             userId: user.uid,
             programId: selectedProgram.id,
-            programName: selectedProgram.name, // Denormalized for easier display
+            programName: selectedProgram.name,
             participationDate: serverTimestamp(),
             activityEvidenceUrl: downloadURL,
             verificationStatus: 'pending',
@@ -276,7 +290,7 @@ export default function StudentDashboard() {
                     <Button
                       variant="outline"
                       className="w-full"
-                      onClick={() => handleOpenProgramModal(program)}
+                      onClick={() => handleOpenProgramModal(program, 'upcoming')}
                     >
                       View Details{" "}
                       <ArrowRight className="ml-2 h-4 w-4" />
@@ -333,7 +347,7 @@ export default function StudentDashboard() {
                         <Button
                           variant="outline"
                           className="w-full"
-                          onClick={() => handleOpenProgramModal(program)}
+                          onClick={() => handleOpenProgramModal(program, 'my-program')}
                         >
                           View Details{" "}
                           <ArrowRight className="ml-2 h-4 w-4" />
@@ -346,7 +360,7 @@ export default function StudentDashboard() {
             ) : (
                 <Card>
                     <CardContent className="pt-6">
-                        <p className="text-muted-foreground">You have no ongoing programs at the moment.</p>
+                        <p className="text-muted-foreground">You have no ongoing programs at the moment. Join a program from the list above!</p>
                     </CardContent>
                 </Card>
             )}
@@ -384,14 +398,25 @@ export default function StudentDashboard() {
             </div>
           </div>
           <DialogFooter className="sm:justify-center">
-             <Button 
+            {selectedProgramContext === 'upcoming' && (
+              <Button 
+                size="lg"
+                disabled={selectedProgramStatus?.text === 'Completed'}
+                onClick={handleJoinProgram}
+              >
+                Join Program
+              </Button>
+            )}
+            {selectedProgramContext === 'my-program' && (
+              <Button 
                 size="lg"
                 disabled={selectedProgramStatus?.text !== 'Ongoing'}
                 onClick={handleOpenEvidenceModal}
               >
                 <Camera className="mr-2 h-5 w-5" />
-                Upload Evidence
+                Submit Evidence
               </Button>
+            )}
           </DialogFooter>
            <DialogClose onClick={handleCloseProgramModal} className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
               <X className="h-4 w-4" />
@@ -432,7 +457,6 @@ export default function StudentDashboard() {
             </DialogHeader>
             <div className="space-y-4">
               <div className="w-full aspect-video bg-muted rounded-md flex items-center justify-center overflow-hidden border-2 border-dashed relative">
-                {/* The video element is always in the DOM but its visibility is controlled */}
                 <video ref={videoRef} className={`w-full h-full object-cover ${capturedImage || hasCameraPermission !== true ? 'hidden' : ''}`} autoPlay muted playsInline />
 
                 {capturedImage && (
@@ -490,6 +514,3 @@ export default function StudentDashboard() {
     </>
   );
 }
-
-
-    
