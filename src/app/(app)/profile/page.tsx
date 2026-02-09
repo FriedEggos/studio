@@ -20,21 +20,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge as UiBadge } from "@/components/ui/badge";
-import { badges } from "@/lib/data"; // Keep badges static for now
-import { Download, Award, Shield, Code, Lightbulb, Star } from "lucide-react";
+import { Download } from "lucide-react";
 import { useUser, useCollection, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { collection, query, doc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-
-const iconMap: { [key: string]: React.ElementType } = {
-  Award,
-  Shield,
-  Code,
-  Lightbulb,
-  Star,
-};
 
 export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
@@ -67,32 +58,17 @@ export default function ProfilePage() {
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
           Profil Saya
         </h1>
-        <div className="grid gap-6 md:grid-cols-3">
-          <div className="md:col-span-1">
-            <Card>
-              <CardHeader className="items-center text-center">
-                <Skeleton className="w-24 h-24 rounded-full mb-4" />
-                <Skeleton className="h-6 w-3/4" />
-                <Skeleton className="h-4 w-1/2 mt-1" />
-                <Skeleton className="h-4 w-2/3 mt-1" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-10 w-full" />
-              </CardContent>
-            </Card>
-          </div>
-          <div className="md:col-span-2">
-             <Card>
-              <CardHeader>
-                  <Skeleton className="h-6 w-32" />
-                  <Skeleton className="h-4 w-full mt-2" />
-              </CardHeader>
-              <CardContent>
-                 <Skeleton className="h-24 w-full" />
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+        <Card>
+          <CardHeader className="items-center text-center">
+            <Skeleton className="w-24 h-24 rounded-full mb-4" />
+            <Skeleton className="h-6 w-3/4" />
+            <Skeleton className="h-4 w-1/2 mt-1" />
+            <Skeleton className="h-4 w-2/3 mt-1" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-10 w-full" />
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -102,54 +78,22 @@ export default function ProfilePage() {
       <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
         Profil Saya
       </h1>
-      <div className="grid gap-6 md:grid-cols-3">
-        <div className="md:col-span-1">
-          <Card>
-            <CardHeader className="items-center text-center">
-              <Avatar className="w-24 h-24 mb-4">
-                <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`} />
-                <AvatarFallback>{userProfile?.fullName?.[0].toUpperCase() || user.email?.[0].toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <CardTitle className="font-headline">{userProfile?.fullName || "Pelajar JTMK"}</CardTitle>
-              <CardDescription>{userProfile?.email}</CardDescription>
-              <CardDescription className="text-xs">{userProfile?.course}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full" asChild>
-                <Link href="/profile/edit">Kemaskini Profil</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-        <div className="md:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-headline">Lencana Saya</CardTitle>
-              <CardDescription>
-                Kumpul lencana dengan menyertai program dan aktiviti anjuran
-                JTMK.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {badges.map((badge) => {
-                const Icon = iconMap[badge.icon] || Award;
-                return (
-                  <div
-                    key={badge.name}
-                    className="flex flex-col items-center text-center p-4 rounded-lg bg-muted/50"
-                  >
-                    <Icon className="w-10 h-10 text-primary mb-2" />
-                    <p className="font-semibold text-sm">{badge.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {badge.description}
-                    </p>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <Card>
+        <CardHeader className="items-center text-center">
+          <Avatar className="w-24 h-24 mb-4">
+            <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`} />
+            <AvatarFallback>{userProfile?.fullName?.[0].toUpperCase() || user.email?.[0].toUpperCase()}</AvatarFallback>
+          </Avatar>
+          <CardTitle className="font-headline">{userProfile?.fullName || "Pelajar JTMK"}</CardTitle>
+          <CardDescription>{userProfile?.email}</CardDescription>
+          <CardDescription className="text-xs">{userProfile?.course}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button className="w-full" asChild>
+            <Link href="/profile/edit">Kemaskini Profil</Link>
+          </Button>
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle className="font-headline">Sejarah Penyertaan</CardTitle>

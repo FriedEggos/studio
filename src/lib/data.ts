@@ -10,13 +10,6 @@ export const programs = [
     { programName: 'Ceramah Kerjaya IT', date: '2024-03-18', status: 'Menunggu Pengesahan', certificateUrl: null },
   ];
   
-  export const badges = [
-    { name: 'Web Master', description: 'Menyelesaikan 5 bengkel web', icon: 'Code' },
-    { name: 'Cyber Guardian', description: 'Menyertai 3 seminar keselamatan', icon: 'Shield' },
-    { name: 'Active Participant', description: 'Menyertai 10+ program', icon: 'Star' },
-    { name: 'Innovator', description: 'Menang pertandingan inovasi', icon: 'Lightbulb' },
-  ];
-  
   export const pendingVerifications = [
       { id: 'v1', studentName: 'Ahmad bin Ali', programName: 'Bengkel Pembangunan Web Lanjutan', submissionDate: '2024-08-16' },
       { id: 'v2', studentName: 'Siti Nurhaliza', programName: 'Seminar Keselamatan Siber Kebangsaan', submissionDate: '2024-09-03' },
