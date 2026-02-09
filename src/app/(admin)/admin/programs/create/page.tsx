@@ -1,3 +1,5 @@
+'use client';
+
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,12 +13,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
-import { Download } from "lucide-react";
+import { Download, Upload } from "lucide-react";
+import { useState } from "react";
 
 export default function CreateProgramPage() {
   const qrImage = PlaceHolderImages.find(
     (img) => img.id === "qr-code-placeholder"
   );
+  
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setImagePreview(URL.createObjectURL(file));
+      // In a real application, you would also handle the file upload to a storage service here.
+    }
+  };
+
 
   return (
     <div className="grid flex-1 items-start gap-4 md:gap-8 md:grid-cols-3">
@@ -66,6 +80,38 @@ export default function CreateProgramPage() {
         </div>
       </div>
       <div className="grid auto-rows-max items-start gap-4 md:gap-8">
+        <Card>
+            <CardHeader>
+                <CardTitle className="font-headline">Program Image</CardTitle>
+                <CardDescription>
+                    Upload a poster or image for your program.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="grid gap-4">
+                    <div className="aspect-video w-full rounded-md border-2 border-dashed border-muted-foreground/40 flex items-center justify-center overflow-hidden">
+                        {imagePreview ? (
+                        <Image
+                            src={imagePreview}
+                            alt="Program image preview"
+                            width={300}
+                            height={168}
+                            className="object-cover w-full h-full"
+                        />
+                        ) : (
+                        <div className="text-center p-4">
+                            <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
+                            <p className="text-sm text-muted-foreground mt-2">Image Preview</p>
+                        </div>
+                        )}
+                    </div>
+                    <div>
+                        <Label htmlFor="program-image-upload" className="sr-only">Upload Program Image</Label>
+                        <Input id="program-image-upload" type="file" accept="image/*" onChange={handleImageChange} className="w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"/>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Program QR Code</CardTitle>

@@ -67,6 +67,10 @@
         "adminId": {
           "type": "string",
           "description": "Reference to User (admin). (Relationship: User 1:N Program)"
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL of the program's poster image."
         }
       },
       "required": [
