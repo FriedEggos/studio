@@ -319,6 +319,10 @@ export default function StudentDashboard() {
 
       <Dialog open={isImageModalOpen} onOpenChange={(isOpen) => !isOpen && handleCloseImageModal()}>
         <DialogContent className="p-0 border-0 max-w-4xl bg-transparent shadow-none">
+           <DialogHeader className="sr-only">
+             <DialogTitle>{selectedProgram?.name || 'Program'} Image</DialogTitle>
+             <DialogDescription>Enlarged view of the poster for {selectedProgram?.name}.</DialogDescription>
+           </DialogHeader>
            {selectedImage && (
               <Image
                 src={selectedImage.imageUrl}
