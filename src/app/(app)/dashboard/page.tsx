@@ -25,13 +25,14 @@ import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { isFuture, isPast, isToday, parseISO } from 'date-fns';
+import { isFuture, isPast, parseISO, isWithinInterval, format } from 'date-fns';
 
 
 interface Program {
     id: string;
     name: string;
-    date: string;
+    startDate: string;
+    endDate: string;
     description: string;
     imageId: string;
 }
@@ -111,23 +112,28 @@ export default function StudentDashboard() {
     (img) => img.id === "qr-code-placeholder"
   );
   
-  const isEventUpcoming = selectedProgram ? isFuture(parseISO(selectedProgram.date)) : false;
+  const getProgramStatus = (startDateString: string, endDateString: string): { text: string; variant: "default" | "outline" | "secondary" } => {
+    const start = parseISO(startDateString);
+    const end = parseISO(endDateString);
+    const today = new Date();
+    
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
-  const getProgramStatus = (dateString: string): { text: string; variant: "default" | "outline" | "secondary" } => {
-    const date = parseISO(dateString);
-    if (isToday(date)) {
+    if (isWithinInterval(startOfToday, { start, end })) {
         return { text: 'Ongoing', variant: 'default' };
     }
-    if (isFuture(date)) {
+    if (isFuture(start)) {
         return { text: 'Upcoming', variant: 'secondary' };
     }
-    if (isPast(date)) {
+    if (isPast(end)) {
         return { text: 'Completed', variant: 'outline' };
     }
-    return { text: 'Unknown', variant: 'outline' };
+    return { text: 'Upcoming', variant: 'secondary' };
   };
+  
+  const selectedProgramStatus = selectedProgram ? getProgramStatus(selectedProgram.startDate, selectedProgram.endDate) : null;
 
-  const ongoingMyPrograms = myPrograms.filter(program => getProgramStatus(program.date).text === 'Ongoing');
+  const ongoingMyPrograms = myPrograms.filter(program => getProgramStatus(program.startDate, program.endDate).text === 'Ongoing');
 
   return (
     <>
@@ -152,7 +158,7 @@ export default function StudentDashboard() {
               const image = PlaceHolderImages.find(
                 (img) => img.id === program.imageId
               );
-              const status = getProgramStatus(program.date);
+              const status = getProgramStatus(program.startDate, program.endDate);
               return (
                 <Card
                   key={program.id}
@@ -174,7 +180,7 @@ export default function StudentDashboard() {
                     </CardTitle>
                     <CardDescription className="flex items-center gap-2 pt-1">
                       <Calendar className="h-4 w-4" />
-                      <span>{program.date}</span>
+                      <span>{format(parseISO(program.startDate), 'd MMM yyyy')} - {format(parseISO(program.endDate), 'd MMM yyyy')}</span>
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="flex-grow">
@@ -209,7 +215,7 @@ export default function StudentDashboard() {
                   const image = PlaceHolderImages.find(
                     (img) => img.id === program.imageId
                   );
-                  const status = getProgramStatus(program.date);
+                  const status = getProgramStatus(program.startDate, program.endDate);
                   return (
                     <Card
                       key={program.id}
@@ -231,7 +237,7 @@ export default function StudentDashboard() {
                         </CardTitle>
                         <CardDescription className="flex items-center gap-2 pt-1">
                           <Calendar className="h-4 w-4" />
-                          <span>{program.date}</span>
+                          <span>{format(parseISO(program.startDate), 'd MMM yyyy')} - {format(parseISO(program.endDate), 'd MMM yyyy')}</span>
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="flex-grow">
@@ -290,14 +296,14 @@ export default function StudentDashboard() {
                  <p className="text-muted-foreground text-sm">{selectedProgram?.description}</p>
                  <div className="flex items-center text-sm text-muted-foreground">
                     <Calendar className="mr-2 h-4 w-4"/>
-                    <span>{selectedProgram?.date}</span>
+                    {selectedProgram && <span>{format(parseISO(selectedProgram.startDate), 'd MMM yyyy')} - {format(parseISO(selectedProgram.endDate), 'd MMM yyyy')}</span>}
                  </div>
             </div>
           </div>
           <DialogFooter className="sm:justify-center">
              <Button 
                 size="lg"
-                disabled={isEventUpcoming}
+                disabled={selectedProgramStatus?.text !== 'Ongoing'}
                 onClick={handleOpenQrCodeModal}
               >
                 <QrCode className="mr-2 h-5 w-5" />
@@ -363,7 +369,3 @@ export default function StudentDashboard() {
     </>
   );
 }
-
-    
-
-    

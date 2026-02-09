@@ -47,9 +47,15 @@ export default function CreateProgramPage() {
                   className="min-h-32"
                 />
               </div>
-              <div className="grid gap-3">
-                <Label htmlFor="date">Program Date</Label>
-                <Input id="date" type="date" className="w-full" />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="grid gap-3">
+                  <Label htmlFor="startDate">Start Date</Label>
+                  <Input id="startDate" type="date" className="w-full" />
+                </div>
+                <div className="grid gap-3">
+                  <Label htmlFor="endDate">End Date</Label>
+                  <Input id="endDate" type="date" className="w-full" />
+                </div>
               </div>
             </div>
           </CardContent>
