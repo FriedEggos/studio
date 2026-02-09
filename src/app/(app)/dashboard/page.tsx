@@ -19,10 +19,12 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { QrCode, ArrowRight, Calendar, X } from "lucide-react";
-import { programs as staticPrograms } from "@/lib/data";
+import { programs as staticPrograms, myPrograms as staticMyPrograms } from "@/lib/data";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { isFuture, isPast, isToday, parseISO } from 'date-fns';
 
 interface Program {
     id: string;
@@ -36,7 +38,8 @@ export default function StudentDashboard() {
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   
-  const programs: Program[] = staticPrograms;
+  const [programs, setPrograms] = useState<Program[]>(staticPrograms);
+  const [myPrograms, setMyPrograms] = useState<Program[]>(staticMyPrograms);
 
   const handleOpenProgramModal = (program: Program) => {
     setSelectedProgram(program);
@@ -62,6 +65,20 @@ export default function StudentDashboard() {
   
   const isEventUpcoming = selectedProgram ? new Date(selectedProgram.date) > new Date() : false;
 
+  const getProgramStatus = (dateString: string): { text: string; variant: "default" | "outline" | "secondary" } => {
+    const date = parseISO(dateString);
+    if (isToday(date)) {
+        return { text: 'Ongoing', variant: 'default' };
+    }
+    if (isFuture(date)) {
+        return { text: 'Coming Soon', variant: 'secondary' };
+    }
+    if (isPast(date)) {
+        return { text: 'Completed', variant: 'outline' };
+    }
+    return { text: 'Unknown', variant: 'outline' };
+};
+
 
   return (
     <>
@@ -86,10 +103,11 @@ export default function StudentDashboard() {
               const image = PlaceHolderImages.find(
                 (img) => img.id === program.imageId
               );
+              const status = getProgramStatus(program.date);
               return (
                 <Card
                   key={program.id}
-                  className="overflow-hidden hover:shadow-lg transition-shadow"
+                  className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col"
                 >
                   {image && (
                     <Image
@@ -110,12 +128,13 @@ export default function StudentDashboard() {
                       <span>{program.date}</span>
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="flex-grow">
                     <p className="text-sm text-muted-foreground line-clamp-2">
                       {program.description}
                     </p>
                   </CardContent>
-                  <CardFooter>
+                  <CardFooter className="flex-col items-start gap-3 pt-4">
+                     <Badge variant={status.variant}>{status.text}</Badge>
                     <Button
                       variant="outline"
                       className="w-full"
@@ -135,13 +154,56 @@ export default function StudentDashboard() {
           <h2 className="text-xl font-semibold tracking-tight font-headline mb-4">
             Program Saya
           </h2>
-          <Card>
-            <CardContent className="p-0">
-              <div className="p-6 text-center text-muted-foreground">
-                Anda belum mendaftar untuk sebarang program lagi.
-              </div>
-            </CardContent>
-          </Card>
+           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {myPrograms.map((program) => {
+              const image = PlaceHolderImages.find(
+                (img) => img.id === program.imageId
+              );
+              const status = getProgramStatus(program.date);
+              return (
+                <Card
+                  key={program.id}
+                  className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col"
+                >
+                  {image && (
+                    <Image
+                      src={image.imageUrl}
+                      alt={image.description}
+                      width={600}
+                      height={400}
+                      data-ai-hint={image.imageHint}
+                      className="w-full h-40 object-cover"
+                    />
+                  )}
+                  <CardHeader>
+                    <CardTitle className="font-headline text-lg">
+                      {program.name}
+                    </CardTitle>
+                    <CardDescription className="flex items-center gap-2 pt-1">
+                      <Calendar className="h-4 w-4" />
+                      <span>{program.date}</span>
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-grow">
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {program.description}
+                    </p>
+                  </CardContent>
+                  <CardFooter className="flex-col items-start gap-3 pt-4">
+                     <Badge variant={status.variant}>{status.text}</Badge>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => handleOpenProgramModal(program)}
+                    >
+                      Lihat Maklumat Lanjut{" "}
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </CardFooter>
+                </Card>
+              );
+            })}
+          </div>
         </section>
       </div>
 

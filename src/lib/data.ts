@@ -1,7 +1,11 @@
 export const programs = [
-    { id: '1', name: 'Bengkel Pembangunan Web Lanjutan', date: '2024-08-15', description: 'Kuasai teknik terkini dalam pembangunan web dengan pakar industri.', imageId: 'program-1' },
-    { id: '2', name: 'Seminar Keselamatan Siber Kebangsaan', date: '2024-09-02', description: 'Fahami ancaman siber dan cara melindunginya.', imageId: 'program-2' },
-    { id: '3', name: 'Sesi Rangkaian Kerjaya Teknologi', date: '2024-09-20', description: 'Berhubung dengan syarikat teknologi terkemuka.', imageId: 'program-3' },
+    { id: '1', name: 'Bengkel Pembangunan Web Lanjutan', date: '2024-10-15', description: 'Kuasai teknik terkini dalam pembangunan web dengan pakar industri.', imageId: 'program-1' },
+    { id: '2', name: 'Seminar Keselamatan Siber Kebangsaan', date: '2024-11-02', description: 'Fahami ancaman siber dan cara melindunginya.', imageId: 'program-2' },
+    { id: '3', name: 'Sesi Rangkaian Kerjaya Teknologi', date: '2024-12-20', description: 'Berhubung dengan syarikat teknologi terkemuka.', imageId: 'program-3' },
+  ];
+
+  export const myPrograms = [
+    { id: '4', name: 'Kursus Asas Photoshop', date: '2024-05-20', description: 'Belajar asas reka bentuk grafik menggunakan Adobe Photoshop.', imageId: 'program-1' }
   ];
   
   export const participationHistory = [
