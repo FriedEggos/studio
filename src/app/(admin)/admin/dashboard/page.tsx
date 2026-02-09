@@ -1,3 +1,6 @@
+
+'use client';
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,11 +18,41 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpRight, CheckCircle, Clock, Users, List, Eye } from "lucide-react";
+import { ArrowUpRight, CheckCircle, Clock, Users, List, Eye, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
-import { pendingVerifications, allProgramsAdmin } from "@/lib/data";
+import { pendingVerifications, allProgramsAdmin as initialAllProgramsAdmin } from "@/lib/data";
+import { useState } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+type ProgramStatus = "Upcoming" | "Ongoing" | "Completed";
+
+type Program = {
+    id: string;
+    name: string;
+    participants: number;
+    status: ProgramStatus;
+};
+
 
 export default function AdminDashboard() {
+  const [allProgramsAdmin, setAllProgramsAdmin] = useState<Program[]>(
+    initialAllProgramsAdmin.map(p => ({...p, status: p.status as ProgramStatus}))
+  );
+
+  const handleStatusChange = (programId: string, newStatus: ProgramStatus) => {
+      setAllProgramsAdmin(currentPrograms => 
+          currentPrograms.map(p => 
+              p.id === programId ? { ...p, status: newStatus } : p
+          )
+      );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -144,14 +177,32 @@ export default function AdminDashboard() {
                       {program.participants} participants
                     </p>
                   </div>
-                  <div className="ml-auto font-medium">
+                  <div className="ml-auto font-medium flex items-center gap-2">
                     <Badge
                       variant={
-                        program.status === "Completed" ? "default" : "outline"
+                        program.status === "Completed"
+                          ? "default"
+                          : program.status === "Ongoing"
+                          ? "secondary"
+                          : "outline"
                       }
                     >
                       {program.status}
                     </Badge>
+                     <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Change Status</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => handleStatusChange(program.id, 'Upcoming')}>Upcoming</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusChange(program.id, 'Ongoing')}>Ongoing</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusChange(program.id, 'Completed')}>Completed</DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               ))}
