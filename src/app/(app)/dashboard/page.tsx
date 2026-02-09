@@ -119,7 +119,7 @@ export default function StudentDashboard() {
         return { text: 'Ongoing', variant: 'default' };
     }
     if (isFuture(date)) {
-        return { text: 'Coming Soon', variant: 'secondary' };
+        return { text: 'Upcoming', variant: 'secondary' };
     }
     if (isPast(date)) {
         return { text: 'Completed', variant: 'outline' };
@@ -363,5 +363,7 @@ export default function StudentDashboard() {
     </>
   );
 }
+
+    
 
     
