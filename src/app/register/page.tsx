@@ -26,9 +26,9 @@ export default function RegisterPage() {
   const { toast } = useToast();
   const auth = useAuth();
   const firestore = useFirestore();
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("yassin bin kisman");
+  const [email, setEmail] = useState("muhammadyassin@gmail.com");
+  const [password, setPassword] = useState("yassin123");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
