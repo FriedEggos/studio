@@ -19,6 +19,16 @@ import {
   DialogFooter,
   DialogDescription
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ArrowRight, Calendar, X, Camera, RefreshCw, Upload, Loader2 } from "lucide-react";
 import { programs as staticPrograms, myPrograms as staticMyPrograms } from "@/lib/data";
@@ -27,9 +37,9 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { isFuture, isPast, parseISO, isWithinInterval, format } from 'date-fns';
-import { useUser, useFirestore, useStorage } from "@/firebase";
+import { useUser, useFirestore, useStorage, useCollection, useMemoFirebase } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 
@@ -54,6 +64,7 @@ export default function StudentDashboard() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -62,6 +73,21 @@ export default function StudentDashboard() {
   const firestore = useFirestore();
   const storage = useStorage();
   const { toast } = useToast();
+
+  const participationsQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(collection(firestore, `users/${user.uid}/participations`));
+  }, [user, firestore]);
+
+  const { data: participations } = useCollection(participationsQuery);
+
+  const [submittedProgramIds, setSubmittedProgramIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (participations) {
+      setSubmittedProgramIds(new Set(participations.map(p => p.programId)));
+    }
+  }, [participations]);
   
   useEffect(() => {
     if (!isEvidenceModalOpen) return;
@@ -121,6 +147,21 @@ export default function StudentDashboard() {
 
     handleCloseProgramModal();
   };
+
+  const handleLeaveProgram = () => {
+    if (!selectedProgram) return;
+
+    setPrograms(prev => [...prev, selectedProgram]);
+    setMyPrograms(prev => prev.filter(p => p.id !== selectedProgram.id));
+    
+    toast({
+        title: "Program Left",
+        description: `You have left "${selectedProgram.name}".`,
+    });
+
+    handleCloseProgramModal();
+    setIsLeaveConfirmOpen(false);
+};
   
   const handleOpenImageModal = () => {
     if (selectedProgram) {
@@ -229,8 +270,8 @@ export default function StudentDashboard() {
   };
   
   const selectedProgramStatus = selectedProgram ? getProgramStatus(selectedProgram.startDate, selectedProgram.endDate) : null;
-
-  const ongoingMyPrograms = myPrograms.filter(program => getProgramStatus(program.startDate, program.endDate).text === 'Ongoing');
+  const hasSubmittedEvidence = selectedProgram ? submittedProgramIds.has(selectedProgram.id) : false;
+  const ongoingMyPrograms = myPrograms.filter(program => getProgramStatus(program.startDate, program.endDate).text !== 'Completed');
 
   return (
     <>
@@ -397,7 +438,7 @@ export default function StudentDashboard() {
                  </div>
             </div>
           </div>
-          <DialogFooter className="sm:justify-center">
+          <DialogFooter className="flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2 sm:justify-center">
             {selectedProgramContext === 'upcoming' && (
               <Button 
                 size="lg"
@@ -408,14 +449,29 @@ export default function StudentDashboard() {
               </Button>
             )}
             {selectedProgramContext === 'my-program' && (
-              <Button 
-                size="lg"
-                disabled={selectedProgramStatus?.text !== 'Ongoing'}
-                onClick={handleOpenEvidenceModal}
-              >
-                <Camera className="mr-2 h-5 w-5" />
-                Submit Evidence
-              </Button>
+              <>
+                <Button 
+                  size="lg"
+                  disabled={selectedProgramStatus?.text !== 'Ongoing' || hasSubmittedEvidence}
+                  onClick={handleOpenEvidenceModal}
+                >
+                  <Camera className="mr-2 h-5 w-5" />
+                  Submit Evidence
+                </Button>
+                {!hasSubmittedEvidence ? (
+                   <Button
+                      variant="destructive"
+                      size="lg"
+                      onClick={() => setIsLeaveConfirmOpen(true)}
+                    >
+                      Leave Program
+                    </Button>
+                ) : (
+                  <p className="text-xs text-muted-foreground text-center pt-2">
+                    You cannot leave a program after submitting evidence.
+                  </p>
+                )}
+              </>
             )}
           </DialogFooter>
            <DialogClose onClick={handleCloseProgramModal} className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
@@ -511,6 +567,20 @@ export default function StudentDashboard() {
             </DialogFooter>
         </DialogContent>
       </Dialog>
+      <AlertDialog open={isLeaveConfirmOpen} onOpenChange={setIsLeaveConfirmOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will remove &quot;{selectedProgram?.name}&quot; from your programs. You can rejoin it later from the upcoming programs list.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleLeaveProgram}>Continue</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }
