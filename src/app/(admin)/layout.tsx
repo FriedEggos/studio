@@ -12,9 +12,9 @@ import { UserNav } from "@/components/user-nav";
 
 
 const navLinks = [
-  { href: "/admin/dashboard", label: "Papan Pemuka", icon: Home },
-  { href: "/admin/programs/create", label: "Cipta Program", icon: PlusCircle },
-  { href: "/admin/analytics", label: "Analitik", icon: BarChart },
+  { href: "/admin/dashboard", label: "Dashboard", icon: Home },
+  { href: "/admin/programs/create", label: "Create Program", icon: PlusCircle },
+  { href: "/admin/analytics", label: "Analytics", icon: BarChart },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

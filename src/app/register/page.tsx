@@ -30,7 +30,7 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState("yassin bin kisman");
   const [email, setEmail] = useState("muhammadyassin@gmail.com");
   const [password, setPassword] = useState("yassin123");
-  const [course, setCourse] = useState("Diploma Teknologi Digital");
+  const [course, setCourse] = useState("Diploma in Digital Technology");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -38,7 +38,7 @@ export default function RegisterPage() {
     if (!fullName || !email || !password || !course) {
       toast({
         variant: "destructive",
-        title: "Sila isi semua medan",
+        title: "Please fill all fields",
       });
       return;
     }
@@ -62,8 +62,8 @@ export default function RegisterPage() {
         setDocumentNonBlocking(userDocRef, userData, { merge: true });
 
         toast({
-          title: "Pendaftaran Berjaya",
-          description: "Sila log masuk untuk meneruskan.",
+          title: "Registration Successful",
+          description: "Please log in to continue.",
         });
         router.push("/login");
       }
@@ -71,7 +71,7 @@ export default function RegisterPage() {
         console.error("Email sign-up error", error);
         toast({
             variant: "destructive",
-            title: "Pendaftaran Gagal",
+            title: "Registration Failed",
             description: error.message,
         });
     } finally {
@@ -86,35 +86,35 @@ export default function RegisterPage() {
           <div className="flex justify-center mb-4">
             <Logo />
           </div>
-          <CardTitle className="text-2xl font-headline">Daftar Akaun</CardTitle>
+          <CardTitle className="text-2xl font-headline">Create Account</CardTitle>
           <CardDescription>
-            Isi borang di bawah untuk mendaftar sebagai pengguna baru.
+            Fill the form below to register as a new user.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleRegister} className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="full-name">Nama Penuh</Label>
+              <Label htmlFor="full-name">Full Name</Label>
               <Input
                 id="full-name"
-                placeholder="Cth: John Doe"
+                placeholder="e.g., John Doe"
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
               />
             </div>
              <div className="grid gap-2">
-              <Label htmlFor="course">Kursus</Label>
+              <Label htmlFor="course">Course</Label>
               <Input
                 id="course"
-                placeholder="Cth: Diploma Teknologi Digital"
+                placeholder="e.g., Diploma in Digital Technology"
                 required
                 value={course}
                 onChange={(e) => setCourse(e.target.value)}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="email">E-mel</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -125,7 +125,7 @@ export default function RegisterPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="password">Kata Laluan</Label>
+              <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
@@ -135,13 +135,13 @@ export default function RegisterPage() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Mendaftar..." : "Daftar"}
+              {isLoading ? "Registering..." : "Register"}
             </Button>
           </form>
           <div className="mt-4 text-center text-sm">
-            Sudah mempunyai akaun?{" "}
+            Already have an account?{" "}
             <Link href="/login" className="underline">
-              Log Masuk
+              Log In
             </Link>
           </div>
         </CardContent>

@@ -27,7 +27,7 @@ export default function Home() {
       return (
         <Button asChild>
           <Link href="/dashboard">
-            Papan Pemuka <ArrowRight className="ml-2 h-4 w-4" />
+            Dashboard <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>
       );
@@ -36,11 +36,11 @@ export default function Home() {
     return (
       <>
         <Button variant="ghost" asChild>
-          <Link href="/login">Log Masuk</Link>
+          <Link href="/login">Log In</Link>
         </Button>
         <Button asChild>
           <Link href="/register">
-            Daftar <ArrowRight className="ml-2 h-4 w-4" />
+            Sign Up <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>
       </>
@@ -61,15 +61,15 @@ export default function Home() {
             <div className="grid max-w-[1300px] mx-auto gap-4 px-4 sm:px-6 md:px-10 md:grid-cols-2 md:gap-16">
               <div className="flex flex-col justify-center space-y-4">
                 <h1 className="lg:leading-tighter text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl xl:text-6xl/none font-headline">
-                  Selamat Datang ke JTMK+
+                  Welcome to JTMK+
                 </h1>
                 <p className="max-w-[700px] text-muted-foreground md:text-xl">
-                  Sistem Penyertaan Program & Pensijilan Digital Berasaskan QR.
-                  Daftar, sertai, dan jejak pencapaian anda dengan mudah.
+                  A QR-Based Program Participation & Digital Certification System.
+                  Register, participate, and track your achievements easily.
                 </p>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
                   <Button size="lg" asChild>
-                    <Link href={user ? "/dashboard" : "/login"}>Mula Sekarang</Link>
+                    <Link href={user ? "/dashboard" : "/login"}>Get Started</Link>
                   </Button>
                 </div>
               </div>
@@ -93,39 +93,38 @@ export default function Home() {
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="space-y-2">
                 <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl font-headline">
-                  Ciri-ciri Utama
+                  Key Features
                 </h2>
                 <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                  Direka untuk memudahkan pengurusan program dan penyertaan
-                  pelajar di JTMK.
+                  Designed to simplify program management and student participation
+                  at JTMK.
                 </p>
               </div>
             </div>
             <div className="mx-auto grid items-start gap-8 sm:max-w-4xl sm:grid-cols-2 md:gap-12 lg:max-w-5xl lg:grid-cols-3">
               <div className="grid gap-1 p-4 rounded-lg border bg-card shadow-sm hover:shadow-md transition-shadow">
                 <h3 className="text-lg font-bold font-headline">
-                  Pendaftaran QR
+                  QR Registration
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Daftar masuk program dengan pantas menggunakan imbasan kod QR.
+                  Check-in to programs quickly using a QR code scan.
                 </p>
               </div>
               <div className="grid gap-1 p-4 rounded-lg border bg-card shadow-sm hover:shadow-md transition-shadow">
                 <h3 className="text-lg font-bold font-headline">
-                  Bukti Aktiviti
+                  Activity Proof
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Muat naik bukti penyertaan anda dan dapatkan pengesahan dari
-                  pentadbir.
+                  Upload your proof of participation and get it verified by an admin.
                 </p>
               </div>
               <div className="grid gap-1 p-4 rounded-lg border bg-card shadow-sm hover:shadow-md transition-shadow">
                 <h3 className="text-lg font-bold font-headline">
-                  Sijil & Lencana Digital
+                  Digital Certificates & Badges
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Kumpul lencana dan jana e-sijil secara automatik selepas
-                  penyertaan disahkan.
+                  Collect badges and generate e-certificates automatically after
+                  participation is confirmed.
                 </p>
               </div>
             </div>

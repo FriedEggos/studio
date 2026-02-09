@@ -1,29 +1,29 @@
 export const programs = [
-    { id: '1', name: 'Bengkel Pembangunan Web Lanjutan', date: '2024-10-15', description: 'Kuasai teknik terkini dalam pembangunan web dengan pakar industri.', imageId: 'program-1' },
-    { id: '2', name: 'Seminar Keselamatan Siber Kebangsaan', date: '2024-11-02', description: 'Fahami ancaman siber dan cara melindunginya.', imageId: 'program-2' },
-    { id: '3', name: 'Sesi Rangkaian Kerjaya Teknologi', date: '2024-12-20', description: 'Berhubung dengan syarikat teknologi terkemuka.', imageId: 'program-3' },
+    { id: '1', name: 'Advanced Web Development Workshop', date: '2024-10-15', description: 'Master the latest web development techniques with industry experts.', imageId: 'program-1' },
+    { id: '2', name: 'National Cybersecurity Seminar', date: '2024-11-02', description: 'Understand cyber threats and how to protect against them.', imageId: 'program-2' },
+    { id: '3', name: 'Tech Career Networking Session', date: '2024-12-20', description: 'Connect with leading technology companies.', imageId: 'program-3' },
   ];
 
   export const myPrograms = [
-    { id: '4', name: 'Kursus Asas Photoshop', date: '2024-05-20', description: 'Belajar asas reka bentuk grafik menggunakan Adobe Photoshop.', imageId: 'program-1' }
+    { id: '4', name: 'Basic Photoshop Course', date: '2024-05-20', description: 'Learn the basics of graphic design using Adobe Photoshop.', imageId: 'program-1' }
   ];
   
   export const participationHistory = [
-    { programName: 'Kursus Asas Photoshop', date: '2024-05-20', status: 'Disahkan', certificateUrl: '#' },
-    { programName: 'Pertandingan Inovasi Digital', date: '2024-04-11', status: 'Disahkan', certificateUrl: '#' },
-    { programName: 'Ceramah Kerjaya IT', date: '2024-03-18', status: 'Menunggu Pengesahan', certificateUrl: null },
+    { programName: 'Basic Photoshop Course', date: '2024-05-20', status: 'Approved', certificateUrl: '#' },
+    { programName: 'Digital Innovation Competition', date: '2024-04-11', status: 'Approved', certificateUrl: '#' },
+    { programName: 'IT Career Talk', date: '2024-03-18', status: 'Pending Verification', certificateUrl: null },
   ];
   
   export const pendingVerifications = [
-      { id: 'v1', studentName: 'Ahmad bin Ali', programName: 'Bengkel Pembangunan Web Lanjutan', submissionDate: '2024-08-16' },
-      { id: 'v2', studentName: 'Siti Nurhaliza', programName: 'Seminar Keselamatan Siber Kebangsaan', submissionDate: '2024-09-03' },
-      { id: 'v3', studentName: 'John Doe', programName: 'Bengkel Pembangunan Web Lanjutan', submissionDate: '2024-08-17' },
+      { id: 'v1', studentName: 'Ahmad bin Ali', programName: 'Advanced Web Development Workshop', submissionDate: '2024-08-16' },
+      { id: 'v2', studentName: 'Siti Nurhaliza', programName: 'National Cybersecurity Seminar', submissionDate: '2024-09-03' },
+      { id: 'v3', studentName: 'John Doe', programName: 'Advanced Web Development Workshop', submissionDate: '2024-08-17' },
   ]
   
   export const allProgramsAdmin = [
-      { id: 'p1', name: 'Bengkel Pembangunan Web Lanjutan', participants: 45, status: 'Selesai' },
-      { id: 'p2', name: 'Seminar Keselamatan Siber Kebangsaan', participants: 120, status: 'Akan Datang' },
-      { id: 'p3', name: 'Sesi Rangkaian Kerjaya Teknologi', participants: 78, status: 'Akan Datang' },
-      { id: 'p4', name: 'Kursus Asas Photoshop', participants: 30, status: 'Selesai' },
+      { id: 'p1', name: 'Advanced Web Development Workshop', participants: 45, status: 'Completed' },
+      { id: 'p2', name: 'National Cybersecurity Seminar', participants: 120, status: 'Upcoming' },
+      { id: 'p3', name: 'Tech Career Networking Session', participants: 78, status: 'Upcoming' },
+      { id: 'p4', name: 'Basic Photoshop Course', participants: 30, status: 'Completed' },
   ]
   

@@ -56,7 +56,7 @@ export default function ProfilePage() {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
-          Profil Saya
+          My Profile
         </h1>
         <Card>
           <CardHeader className="items-center text-center">
@@ -76,7 +76,7 @@ export default function ProfilePage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
-        Profil Saya
+        My Profile
       </h1>
       <Card>
         <CardHeader className="items-center text-center">
@@ -84,36 +84,36 @@ export default function ProfilePage() {
             <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`} />
             <AvatarFallback>{userProfile?.fullName?.[0].toUpperCase() || user.email?.[0].toUpperCase()}</AvatarFallback>
           </Avatar>
-          <CardTitle className="font-headline">{userProfile?.fullName || "Pelajar JTMK"}</CardTitle>
+          <CardTitle className="font-headline">{userProfile?.fullName || "JTMK Student"}</CardTitle>
           <CardDescription>{userProfile?.email}</CardDescription>
           <CardDescription className="text-xs">{userProfile?.course}</CardDescription>
         </CardHeader>
         <CardContent>
           <Button className="w-full" asChild>
-            <Link href="/profile/edit">Kemaskini Profil</Link>
+            <Link href="/profile/edit">Edit Profile</Link>
           </Button>
         </CardContent>
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle className="font-headline">Sejarah Penyertaan</CardTitle>
+          <CardTitle className="font-headline">Participation History</CardTitle>
           <CardDescription>
-            Rekod program dan aktiviti yang telah anda sertai.
+            Record of programs and activities you have participated in.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ID Program</TableHead>
-                <TableHead>Tarikh</TableHead>
+                <TableHead>Program ID</TableHead>
+                <TableHead>Date</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">E-Sijil</TableHead>
+                <TableHead className="text-right">E-Certificate</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoadingHistory ? (
-                <TableRow><TableCell colSpan={4} className="text-center">Memuatkan sejarah...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={4} className="text-center">Loading history...</TableCell></TableRow>
               ) : participationHistory && participationHistory.length > 0 ? (
                 participationHistory.map((item, index) => (
                   <TableRow key={index}>
@@ -140,7 +140,7 @@ export default function ProfilePage() {
                         <Button variant="outline" size="sm" asChild>
                           <a href={"#"} download>
                             <Download className="mr-2 h-4 w-4" />
-                            Muat Turun
+                            Download
                           </a>
                         </Button>
                       ) : (
@@ -150,7 +150,7 @@ export default function ProfilePage() {
                   </TableRow>
                 ))
               ) : (
-                <TableRow><TableCell colSpan={4} className="text-center">Tiada sejarah penyertaan.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={4} className="text-center">No participation history.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

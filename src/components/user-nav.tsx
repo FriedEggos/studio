@@ -34,13 +34,13 @@ export function UserNav({ isAdmin = false }: { isAdmin?: boolean }) {
     if (!user) {
         return (
             <Button asChild>
-                <Link href="/login">Log Masuk</Link>
+                <Link href="/login">Log In</Link>
             </Button>
         )
     }
 
     const profileLink = isAdmin ? "/admin/dashboard" : "/profile";
-    const displayName = isAdmin ? "Pentadbir JTMK" : "Pelajar JTMK";
+    const displayName = isAdmin ? "JTMK Administrator" : "JTMK Student";
     const fallback = user.email?.[0].toUpperCase() ?? (isAdmin ? 'A' : 'S');
 
     return (
@@ -69,13 +69,13 @@ export function UserNav({ isAdmin = false }: { isAdmin?: boolean }) {
                 <DropdownMenuItem asChild>
                     <Link href={profileLink} className="flex items-center w-full cursor-pointer">
                         <User className="mr-2 h-4 w-4" />
-                        <span>Profil</span>
+                        <span>Profile</span>
                     </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
                     <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log Keluar</span>
+                    <span>Log Out</span>
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>

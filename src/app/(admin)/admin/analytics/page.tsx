@@ -5,16 +5,16 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
-        Analitik Program
+        Program Analytics
       </h1>
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-headline">
             <BarChart className="h-6 w-6" />
-            Papan Pemuka Looker Studio
+            Looker Studio Dashboard
           </CardTitle>
           <CardDescription>
-            Papan pemuka analitik masa nyata dari Looker Studio akan dipaparkan di sini.
+            The real-time analytics dashboard from Looker Studio will be displayed here.
           </CardDescription>
         </CardHeader>
         <CardContent>

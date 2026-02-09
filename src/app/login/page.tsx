@@ -37,15 +37,15 @@ export default function LoginPage() {
         if (userDoc.exists()) {
           const userData = userDoc.data();
           const role = userData.role;
-          toast({ title: "Log Masuk Berjaya", description: "Selamat datang kembali!" });
+          toast({ title: "Login Successful", description: "Welcome back!" });
           router.push(role === 'admin' ? '/admin/dashboard' : '/dashboard');
         } else {
-          toast({ variant: "destructive", title: "Profil tidak ditemui", description: "Sila daftar semula." });
+          toast({ variant: "destructive", title: "Profile not found", description: "Please register again." });
           router.push('/register');
         }
       }).catch(error => {
           console.error("Error fetching user role:", error);
-          toast({ variant: "destructive", title: "Ralat", description: "Gagal mendapatkan peranan pengguna." });
+          toast({ variant: "destructive", title: "Error", description: "Failed to get user role." });
           setIsSubmitting(false);
       })
     }
@@ -54,7 +54,7 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!email || !password) {
-      toast({ variant: "destructive", title: "Sila isi semua medan" });
+      toast({ variant: "destructive", title: "Please fill all fields" });
       return;
     }
     setIsSubmitting(true);
@@ -62,7 +62,7 @@ export default function LoginPage() {
       await signInWithEmailAndPassword(auth, email, password);
       // The useEffect will handle redirection
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Log Masuk Gagal", description: "E-mel atau kata laluan tidak sah." });
+      toast({ variant: "destructive", title: "Login Failed", description: "Invalid email or password." });
       setIsSubmitting(false);
     }
   };
@@ -72,8 +72,8 @@ export default function LoginPage() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center">
-          <p className="text-lg font-semibold">Sila tunggu...</p>
-          <p className="text-muted-foreground">Mengesahkan butiran anda.</p>
+          <p className="text-lg font-semibold">Please wait...</p>
+          <p className="text-muted-foreground">Verifying your details.</p>
         </div>
       </div>
     );
@@ -84,8 +84,8 @@ export default function LoginPage() {
       return (
          <div className="flex items-center justify-center min-h-screen bg-background">
             <div className="text-center">
-              <p className="text-lg font-semibold">Mengarahkan...</p>
-              <p className="text-muted-foreground">Anda telah log masuk.</p>
+              <p className="text-lg font-semibold">Redirecting...</p>
+              <p className="text-muted-foreground">You are already logged in.</p>
             </div>
         </div>
       )
@@ -98,37 +98,37 @@ export default function LoginPage() {
           <div className="flex justify-center mb-4">
             <Logo />
           </div>
-          <CardTitle className="text-2xl font-headline">Log Masuk</CardTitle>
+          <CardTitle className="text-2xl font-headline">Login</CardTitle>
           <CardDescription>
-            Masukkan e-mel dan kata laluan anda untuk mengakses akaun.
+            Enter your email and password to access your account.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="email">E-mel</Label>
+              <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" placeholder="m@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div className="grid gap-2">
               <div className="flex items-center">
-                <Label htmlFor="password">Kata Laluan</Label>
+                <Label htmlFor="password">Password</Label>
                 <Link
                   href="#"
                   className="ml-auto inline-block text-sm underline"
                 >
-                  Lupa kata laluan?
+                  Forgot password?
                 </Link>
               </div>
               <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
             <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Sila tunggu..." : "Log Masuk"}
+              {isSubmitting ? "Please wait..." : "Login"}
             </Button>
           </form>
           <div className="mt-4 text-center text-sm">
-            Tiada akaun?{" "}
+            No account?{" "}
             <Link href="/register" className="underline">
-              Daftar
+              Sign up
             </Link>
           </div>
         </CardContent>

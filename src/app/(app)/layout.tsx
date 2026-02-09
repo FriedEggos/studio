@@ -11,8 +11,8 @@ import { Logo } from "@/components/logo";
 import { UserNav } from "@/components/user-nav";
 
 const navLinks = [
-  { href: "/dashboard", label: "Papan Pemuka", icon: Home },
-  { href: "/profile", label: "Profil Saya", icon: User },
+  { href: "/dashboard", label: "Dashboard", icon: Home },
+  { href: "/profile", label: "My Profile", icon: User },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

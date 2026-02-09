@@ -23,48 +23,48 @@ export default function CreateProgramPage() {
       <div className="grid auto-rows-max items-start gap-4 md:gap-8 md:col-span-2">
         <Card>
           <CardHeader>
-            <CardTitle className="font-headline">Butiran Program</CardTitle>
+            <CardTitle className="font-headline">Program Details</CardTitle>
             <CardDescription>
-              Isikan maklumat di bawah untuk program atau aktiviti baharu.
+              Fill in the information below for a new program or activity.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid gap-6">
               <div className="grid gap-3">
-                <Label htmlFor="name">Nama Program</Label>
+                <Label htmlFor="name">Program Name</Label>
                 <Input
                   id="name"
                   type="text"
                   className="w-full"
-                  placeholder="Cth: Bengkel Reka Bentuk UI/UX"
+                  placeholder="e.g., UI/UX Design Workshop"
                 />
               </div>
               <div className="grid gap-3">
-                <Label htmlFor="description">Penerangan</Label>
+                <Label htmlFor="description">Description</Label>
                 <Textarea
                   id="description"
-                  placeholder="Terangkan secara ringkas mengenai program ini."
+                  placeholder="Briefly describe this program."
                   className="min-h-32"
                 />
               </div>
               <div className="grid gap-3">
-                <Label htmlFor="date">Tarikh Program</Label>
+                <Label htmlFor="date">Program Date</Label>
                 <Input id="date" type="date" className="w-full" />
               </div>
             </div>
           </CardContent>
         </Card>
         <div className="flex items-center justify-end gap-2">
-          <Button variant="outline">Batal</Button>
-          <Button>Simpan & Jana QR</Button>
+          <Button variant="outline">Cancel</Button>
+          <Button>Save & Generate QR</Button>
         </div>
       </div>
       <div className="grid auto-rows-max items-start gap-4 md:gap-8">
         <Card>
           <CardHeader>
-            <CardTitle className="font-headline">Kod QR Program</CardTitle>
+            <CardTitle className="font-headline">Program QR Code</CardTitle>
             <CardDescription>
-              Kod QR ini akan dijana secara automatik selepas program disimpan.
+              This QR code will be generated automatically after the program is saved.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center justify-center gap-4">
@@ -80,7 +80,7 @@ export default function CreateProgramPage() {
             )}
             <Button variant="outline" className="w-full">
               <Download className="mr-2 h-4 w-4" />
-              Muat Turun QR
+              Download QR
             </Button>
           </CardContent>
         </Card>

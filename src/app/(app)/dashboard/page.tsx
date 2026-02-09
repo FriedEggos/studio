@@ -133,17 +133,17 @@ export default function StudentDashboard() {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
-              Papan Pemuka Pelajar
+              Student Dashboard
             </h1>
             <p className="text-muted-foreground">
-              Semak program akan datang dan sejarah penyertaan anda.
+              Check upcoming programs and your participation history.
             </p>
           </div>
         </div>
 
         <section>
           <h2 className="text-xl font-semibold tracking-tight font-headline mb-4">
-            Program Akan Datang
+            Upcoming Programs
           </h2>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {programs.map((program) => {
@@ -187,7 +187,7 @@ export default function StudentDashboard() {
                       className="w-full"
                       onClick={() => handleOpenProgramModal(program)}
                     >
-                      Lihat Maklumat Lanjut{" "}
+                      View Details{" "}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </CardFooter>
@@ -199,7 +199,7 @@ export default function StudentDashboard() {
 
         <section>
           <h2 className="text-xl font-semibold tracking-tight font-headline mb-4">
-            Program Saya
+            My Programs
           </h2>
            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {myPrograms.map((program) => {
@@ -243,7 +243,7 @@ export default function StudentDashboard() {
                       className="w-full"
                       onClick={() => handleOpenProgramModal(program)}
                     >
-                      Lihat Maklumat Lanjut{" "}
+                      View Details{" "}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </CardFooter>
@@ -291,7 +291,7 @@ export default function StudentDashboard() {
                 onClick={handleOpenQrCodeModal}
               >
                 <QrCode className="mr-2 h-5 w-5" />
-                Sahkan Kehadiran
+                Confirm Attendance
               </Button>
           </DialogFooter>
            <DialogClose onClick={handleCloseProgramModal} className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
@@ -322,9 +322,9 @@ export default function StudentDashboard() {
       <Dialog open={isQrCodeModalOpen} onOpenChange={(isOpen) => !isOpen && handleCloseQrCodeModal()}>
         <DialogContent className="sm:max-w-md">
             <DialogHeader>
-                <DialogTitle className="text-center font-headline">Kod QR Kehadiran</DialogTitle>
+                <DialogTitle className="text-center font-headline">Attendance QR Code</DialogTitle>
                 <DialogDescription className="text-center">
-                    Tunjukkan kod ini kepada penganjur untuk mengesahkan kehadiran anda.
+                    Show this code to the organizer to confirm your attendance.
                 </DialogDescription>
             </DialogHeader>
             <div className="p-4 rounded-lg border bg-muted flex items-center justify-center">
@@ -341,11 +341,11 @@ export default function StudentDashboard() {
             </div>
             <DialogFooter className="sm:grid sm:grid-cols-2 gap-2">
                 <Button variant="outline" onClick={handleCloseQrCodeModal} className="w-full mt-2 sm:mt-0">
-                    Tutup
+                    Close
                 </Button>
                 <Button onClick={handleDownloadQrCode} className="w-full">
                     <Download className="mr-2 h-4 w-4" />
-                    Muat Turun
+                    Download
                 </Button>
             </DialogFooter>
         </DialogContent>
