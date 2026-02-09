@@ -16,15 +16,19 @@ import {
   DialogHeader,
   DialogTitle,
   DialogClose,
-  DialogFooter
+  DialogFooter,
+  DialogDescription
 } from "@/components/ui/dialog";
-import { QrCode, ArrowRight, Calendar, X } from "lucide-react";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { QrCode, ArrowRight, Calendar, X, Camera } from "lucide-react";
 import { programs as staticPrograms, myPrograms as staticMyPrograms } from "@/lib/data";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { isFuture, isPast, isToday, parseISO } from 'date-fns';
+import { useToast } from "@/hooks/use-toast";
+
 
 interface Program {
     id: string;
@@ -37,6 +41,10 @@ interface Program {
 export default function StudentDashboard() {
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const { toast } = useToast();
   
   const [programs, setPrograms] = useState<Program[]>(staticPrograms);
   const [myPrograms, setMyPrograms] = useState<Program[]>(staticMyPrograms);
@@ -59,11 +67,27 @@ export default function StudentDashboard() {
     setIsImageModalOpen(false);
   };
 
+  const handleOpenQrScanner = () => {
+    handleCloseProgramModal(); // Close the details modal first
+    setIsQrScannerOpen(true);
+  };
+
+  const handleCloseQrScanner = () => {
+    setIsQrScannerOpen(false);
+    setHasCameraPermission(null);
+    // Stop video stream
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+    }
+  };
+
+
   const selectedImage = PlaceHolderImages.find(
     (img) => img.id === selectedProgram?.imageId
   );
   
-  const isEventUpcoming = selectedProgram ? new Date(selectedProgram.date) > new Date() : false;
+  const isEventUpcoming = selectedProgram ? isFuture(parseISO(selectedProgram.date)) : false;
 
   const getProgramStatus = (dateString: string): { text: string; variant: "default" | "outline" | "secondary" } => {
     const date = parseISO(dateString);
@@ -77,7 +101,33 @@ export default function StudentDashboard() {
         return { text: 'Completed', variant: 'outline' };
     }
     return { text: 'Unknown', variant: 'outline' };
-};
+  };
+
+  useEffect(() => {
+    if (isQrScannerOpen) {
+      const getCameraPermission = async () => {
+        setHasCameraPermission(null);
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          setHasCameraPermission(true);
+
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        } catch (error) {
+          console.error('Error accessing camera:', error);
+          setHasCameraPermission(false);
+          toast({
+            variant: 'destructive',
+            title: 'Camera Access Denied',
+            description: 'Please enable camera permissions in your browser settings to use this app.',
+          });
+        }
+      };
+
+      getCameraPermission();
+    }
+  }, [isQrScannerOpen, toast]);
 
 
   return (
@@ -241,6 +291,7 @@ export default function StudentDashboard() {
              <Button 
                 size="lg"
                 disabled={isEventUpcoming}
+                onClick={handleOpenQrScanner}
               >
                 <QrCode className="mr-2 h-5 w-5" />
                 IMBAS QR PROGRAM
@@ -268,6 +319,40 @@ export default function StudentDashboard() {
               <X className="h-5 w-5" />
               <span className="sr-only">Close</span>
             </DialogClose>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isQrScannerOpen} onOpenChange={(isOpen) => !isOpen && handleCloseQrScanner()}>
+        <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle className="text-center font-headline">Imbas Kod QR Program</DialogTitle>
+                <DialogDescription className="text-center">
+                    Halakan kamera pada kod QR yang disediakan oleh penganjur.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="p-4 rounded-lg border bg-muted relative aspect-square flex items-center justify-center">
+                <video ref={videoRef} className="w-full aspect-video rounded-md" autoPlay muted />
+                {hasCameraPermission === false && (
+                    <Alert variant="destructive" className="absolute bottom-4 left-4 right-4">
+                      <Camera className="h-4 w-4" />
+                      <AlertTitle>Camera Access Required</AlertTitle>
+                      <AlertDescription>
+                        Please allow camera access to scan QR codes.
+                      </AlertDescription>
+                    </Alert>
+                )}
+                 {hasCameraPermission === null && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80">
+                        <Camera className="h-12 w-12 text-muted-foreground mb-2" />
+                        <p className="text-muted-foreground">Requesting camera access...</p>
+                    </div>
+                )}
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={handleCloseQrScanner} className="w-full">
+                    Batal
+                </Button>
+            </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
