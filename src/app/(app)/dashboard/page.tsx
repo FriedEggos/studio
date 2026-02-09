@@ -78,6 +78,11 @@ export default function StudentDashboard() {
       } catch (error) {
         console.error('Error accessing camera:', error);
         setHasCameraPermission(false);
+        toast({
+          variant: 'destructive',
+          title: 'Camera Access Denied',
+          description: 'Please enable camera permissions in your browser settings to use this feature.',
+        });
       }
     };
 
@@ -90,7 +95,7 @@ export default function StudentDashboard() {
             stream.getTracks().forEach(track => track.stop());
         }
     }
-  }, [isEvidenceModalOpen]);
+  }, [isEvidenceModalOpen, toast]);
 
   const handleOpenProgramModal = (program: Program) => {
     setSelectedProgram(program);
@@ -426,27 +431,36 @@ export default function StudentDashboard() {
                 </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-                <div className="w-full aspect-video bg-muted rounded-md flex items-center justify-center overflow-hidden border-2 border-dashed">
-                    {capturedImage ? (
-                        <Image src={capturedImage} alt="Captured proof" width={640} height={360} className="object-cover" />
-                    ) : hasCameraPermission === false ? (
-                       <Alert variant="destructive" className="m-4">
+              <div className="w-full aspect-video bg-muted rounded-md flex items-center justify-center overflow-hidden border-2 border-dashed relative">
+                {/* The video element is always in the DOM but its visibility is controlled */}
+                <video ref={videoRef} className={`w-full h-full object-cover ${capturedImage || hasCameraPermission !== true ? 'hidden' : ''}`} autoPlay muted playsInline />
+
+                {capturedImage && (
+                    <Image src={capturedImage} alt="Captured proof" width={640} height={360} className="object-cover absolute inset-0 w-full h-full" />
+                )}
+
+                {hasCameraPermission === false && !capturedImage && (
+                    <div className="absolute inset-0 flex items-center justify-center p-4 bg-background">
+                        <Alert variant="destructive">
                             <AlertTitle>Camera Access Denied</AlertTitle>
                             <AlertDescription>
                                 Please enable camera permissions in your browser settings to continue.
                             </AlertDescription>
                         </Alert>
-                    ) : hasCameraPermission === true ? (
-                        <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
-                    ) : (
-                        <div className="text-center text-muted-foreground p-4">
+                    </div>
+                )}
+
+                {hasCameraPermission === null && !capturedImage && (
+                    <div className="absolute inset-0 flex items-center justify-center text-center text-muted-foreground p-4 bg-background">
+                        <div>
                             <Camera className="h-10 w-10 mx-auto" />
                             <p className="mt-2 font-medium">Requesting camera access...</p>
                             <p className="text-sm">Please allow permission to use your camera.</p>
                         </div>
-                    )}
-                </div>
-                <canvas ref={canvasRef} className="hidden"></canvas>
+                    </div>
+                )}
+              </div>
+              <canvas ref={canvasRef} className="hidden"></canvas>
             </div>
             <DialogFooter className="grid grid-cols-2 gap-2">
                 {capturedImage ? (
@@ -476,3 +490,6 @@ export default function StudentDashboard() {
     </>
   );
 }
+
+
+    
