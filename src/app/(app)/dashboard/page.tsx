@@ -19,7 +19,7 @@ import {
   DialogFooter,
   DialogDescription
 } from "@/components/ui/dialog";
-import { QrCode, ArrowRight, Calendar, X } from "lucide-react";
+import { QrCode, ArrowRight, Calendar, X, Download } from "lucide-react";
 import { programs as staticPrograms, myPrograms as staticMyPrograms } from "@/lib/data";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { useState } from "react";
@@ -69,6 +69,37 @@ export default function StudentDashboard() {
 
   const handleCloseQrCodeModal = () => {
     setIsQrCodeModalOpen(false);
+  };
+
+  const handleDownloadQrCode = async () => {
+    if (!qrImage) {
+        alert("QR code image not found.");
+        return;
+    };
+
+    try {
+      // Fetch the image
+      const response = await fetch(qrImage.imageUrl);
+      if (!response.ok) throw new Error('Network response was not ok');
+      const blob = await response.blob();
+
+      // Create a link and trigger the download
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `${selectedProgram?.name?.replace(/ /g, '_') || 'jtmk-plus'}-qrcode.png`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Clean up
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading QR code:', error);
+      // Fallback for CORS issues or other errors: open image in new tab
+      window.open(qrImage.imageUrl, '_blank');
+    }
   };
 
 
@@ -308,9 +339,13 @@ export default function StudentDashboard() {
                 />
               )}
             </div>
-            <DialogFooter>
-                <Button variant="outline" onClick={handleCloseQrCodeModal} className="w-full">
+            <DialogFooter className="sm:grid sm:grid-cols-2 gap-2">
+                <Button variant="outline" onClick={handleCloseQrCodeModal} className="w-full mt-2 sm:mt-0">
                     Tutup
+                </Button>
+                <Button onClick={handleDownloadQrCode} className="w-full">
+                    <Download className="mr-2 h-4 w-4" />
+                    Muat Turun
                 </Button>
             </DialogFooter>
         </DialogContent>
