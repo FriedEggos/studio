@@ -39,7 +39,7 @@ export function UserNav({ isAdmin = false }: { isAdmin?: boolean }) {
         )
     }
 
-    const profileLink = isAdmin ? "/admin/dashboard" : "/profile";
+    const profileLink = isAdmin ? "/admin/profile" : "/profile";
     const displayName = isAdmin ? "JTMK Administrator" : "JTMK Student";
     const fallback = user.email?.[0].toUpperCase() ?? (isAdmin ? 'A' : 'S');
 

@@ -4,6 +4,7 @@ import {
   Menu,
   PlusCircle,
   BarChart,
+  User,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ const navLinks = [
   { href: "/admin/dashboard", label: "Dashboard", icon: Home },
   { href: "/admin/programs/create", label: "Create Program", icon: PlusCircle },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart },
+  { href: "/admin/profile", label: "My Profile", icon: User },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
