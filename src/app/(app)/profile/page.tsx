@@ -20,7 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge as UiBadge } from "@/components/ui/badge";
-import { Download } from "lucide-react";
+import { Download, Camera } from "lucide-react";
 import { useUser, useCollection, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { collection, query, doc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -80,10 +80,15 @@ export default function ProfilePage() {
       </h1>
       <Card>
         <CardHeader className="items-center text-center">
-          <Avatar className="w-24 h-24 mb-4">
-            <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`} />
-            <AvatarFallback>{userProfile?.fullName?.[0].toUpperCase() || user.email?.[0].toUpperCase()}</AvatarFallback>
-          </Avatar>
+          <Link href="/profile/edit" className="relative group">
+            <Avatar className="w-24 h-24 mb-4">
+              <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`} />
+              <AvatarFallback>{userProfile?.fullName?.[0].toUpperCase() || user.email?.[0].toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div className="absolute inset-0 mb-4 bg-black/40 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+              <Camera className="h-8 w-8 text-white" />
+            </div>
+          </Link>
           <CardTitle className="font-headline">{userProfile?.fullName || "JTMK Student"}</CardTitle>
           <CardDescription>{userProfile?.email}</CardDescription>
           <CardDescription className="text-xs">{userProfile?.course}</CardDescription>

@@ -18,9 +18,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { useUser, useFirestore, useDoc, updateDocumentNonBlocking, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useDoc, updateDocumentNonBlocking, useMemoFirebase, useAuth, useStorage } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { updateProfile } from 'firebase/auth';
+import { Camera } from 'lucide-react';
 
 const profileFormSchema = z.object({
   fullName: z.string().min(1, 'Full name is required.'),
@@ -35,7 +39,12 @@ export default function EditProfilePage() {
   const { toast } = useToast();
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
+  const auth = useAuth();
+  const storage = useStorage();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.photoURL || null);
 
   const userDocRef = useMemoFirebase(() => {
     if (!user || !firestore) return null;
@@ -68,32 +77,63 @@ export default function EditProfilePage() {
         email: userProfile.email || '',
         course: userProfile.course || '',
       });
+      if (!avatarPreview) {
+        setAvatarPreview(user?.photoURL || null);
+      }
     }
-  }, [isUserLoading, user, userProfile, reset, router]);
+  }, [isUserLoading, user, userProfile, reset, router, avatarPreview]);
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file));
+    }
+  };
 
   const onSubmit = async (data: ProfileFormValues) => {
-    if (!userDocRef) return;
+    if (!userDocRef || !user || !auth.currentUser) return;
     setIsSubmitting(true);
     
-    // Note: Updating email in Firebase Auth is a protected operation and not included here.
-    // This only updates the Firestore document.
-    const updatedData = {
+    try {
+      let newPhotoURL = user.photoURL;
+
+      if (avatarFile) {
+        const storageRef = ref(storage, `profile-pictures/${user.uid}`);
+        await uploadBytes(storageRef, avatarFile);
+        newPhotoURL = await getDownloadURL(storageRef);
+      }
+
+      if (newPhotoURL && newPhotoURL !== user.photoURL) {
+        await updateProfile(auth.currentUser, { photoURL: newPhotoURL });
+      }
+      
+      const updatedData = {
         fullName: data.fullName,
         email: data.email,
         course: data.course,
-    };
+      };
 
-    updateDocumentNonBlocking(userDocRef, updatedData);
-    
-    toast({
-      title: 'Profile Updated',
-      description: 'Your information has been successfully saved.',
-    });
-    setIsSubmitting(false);
-    router.push('/profile');
+      updateDocumentNonBlocking(userDocRef, updatedData);
+      
+      toast({
+        title: 'Profile Updated',
+        description: 'Your information has been successfully saved.',
+      });
+      router.push('/profile');
+    } catch (error: any) {
+      console.error("Error updating profile:", error);
+      toast({
+        variant: "destructive",
+        title: "Profile Update Failed",
+        description: "An error occurred while updating your profile.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  if (isUserLoading || isProfileLoading || !userProfile) {
+  if (isUserLoading || isProfileLoading || !userProfile || !user) {
     return (
         <div className="space-y-6">
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
@@ -141,6 +181,25 @@ export default function EditProfilePage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-6">
+            <div className="grid gap-3 items-center justify-center text-center">
+              <Label htmlFor="avatar-upload">Profile Picture</Label>
+              <div className="relative group w-28 h-28 mx-auto">
+                <Avatar className="w-28 h-28">
+                  <AvatarImage src={avatarPreview || `https://picsum.photos/seed/${user.uid}/200/200`} alt="Profile Picture" />
+                  <AvatarFallback>{userProfile?.fullName?.[0].toUpperCase() || user.email?.[0].toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <label htmlFor="avatar-upload" className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                  <Camera className="h-8 w-8 text-white" />
+                </label>
+                <Input 
+                  id="avatar-upload" 
+                  type="file" 
+                  accept="image/png, image/jpeg, image/gif"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer sr-only"
+                  onChange={handleFileChange}
+                />
+              </div>
+            </div>
             <div className="grid gap-3">
               <Label htmlFor="userId">Student ID (Matric No.)</Label>
               <Input id="userId" type="text" value={userProfile.id} disabled />
