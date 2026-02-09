@@ -19,13 +19,18 @@ import {
   DialogFooter,
   DialogDescription
 } from "@/components/ui/dialog";
-import { QrCode, ArrowRight, Calendar, X, Download } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ArrowRight, Calendar, X, Camera, RefreshCw, Upload, Loader2 } from "lucide-react";
 import { programs as staticPrograms, myPrograms as staticMyPrograms } from "@/lib/data";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { isFuture, isPast, parseISO, isWithinInterval, format } from 'date-fns';
+import { useUser, useFirestore, useStorage } from "@/firebase";
+import { useToast } from "@/hooks/use-toast";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 
 interface Program {
@@ -40,10 +45,52 @@ interface Program {
 export default function StudentDashboard() {
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
-  const [isQrCodeModalOpen, setIsQrCodeModalOpen] = useState(false);
+  const [isEvidenceModalOpen, setIsEvidenceModalOpen] = useState(false);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const storage = useStorage();
+  const { toast } = useToast();
   
   const [programs, setPrograms] = useState<Program[]>(staticPrograms);
   const [myPrograms, setMyPrograms] = useState<Program[]>(staticMyPrograms);
+
+  useEffect(() => {
+    if (!isEvidenceModalOpen) return;
+
+    setCapturedImage(null);
+    setHasCameraPermission(null);
+
+    const getCameraPermission = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({video: true});
+        setHasCameraPermission(true);
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        setHasCameraPermission(false);
+      }
+    };
+
+    getCameraPermission();
+    
+    return () => {
+        // Stop camera stream when component unmounts or modal closes
+        if (videoRef.current && videoRef.current.srcObject) {
+            const stream = videoRef.current.srcObject as MediaStream;
+            stream.getTracks().forEach(track => track.stop());
+        }
+    }
+  }, [isEvidenceModalOpen]);
 
   const handleOpenProgramModal = (program: Program) => {
     setSelectedProgram(program);
@@ -52,7 +99,7 @@ export default function StudentDashboard() {
   const handleCloseProgramModal = () => {
     setSelectedProgram(null);
   };
-
+  
   const handleOpenImageModal = () => {
     if (selectedProgram) {
       setIsImageModalOpen(true);
@@ -63,53 +110,84 @@ export default function StudentDashboard() {
     setIsImageModalOpen(false);
   };
 
-  const handleOpenQrCodeModal = () => {
-    handleCloseProgramModal(); // Close the details modal first
-    setIsQrCodeModalOpen(true);
-  };
-
-  const handleCloseQrCodeModal = () => {
-    setIsQrCodeModalOpen(false);
-  };
-
-  const handleDownloadQrCode = async () => {
-    if (!qrImage) {
-        alert("QR code image not found.");
-        return;
-    };
-
-    try {
-      // Fetch the image
-      const response = await fetch(qrImage.imageUrl);
-      if (!response.ok) throw new Error('Network response was not ok');
-      const blob = await response.blob();
-
-      // Create a link and trigger the download
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = `${selectedProgram?.name?.replace(/ /g, '_') || 'jtmk-plus'}-qrcode.png`;
-      document.body.appendChild(a);
-      a.click();
-      
-      // Clean up
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error('Error downloading QR code:', error);
-      // Fallback for CORS issues or other errors: open image in new tab
-      window.open(qrImage.imageUrl, '_blank');
+  const handleOpenEvidenceModal = () => {
+    if (selectedProgram) {
+        handleCloseProgramModal(); // Close the details modal first
+        setIsEvidenceModalOpen(true);
     }
   };
 
+  const handleCloseEvidenceModal = () => {
+      setIsEvidenceModalOpen(false);
+      setCapturedImage(null); // Reset captured image
+  };
+
+  const handleCapture = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      if (context) {
+        context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+        const dataUrl = canvas.toDataURL('image/jpeg');
+        setCapturedImage(dataUrl);
+      }
+    }
+  };
+
+  const handleRetake = () => {
+      setCapturedImage(null);
+  };
+  
+  const handleSubmitEvidence = async () => {
+    if (!capturedImage || !user || !firestore || !storage || !selectedProgram) return;
+
+    setIsSubmitting(true);
+
+    try {
+        // 1. Convert data URL to blob
+        const blob = await (await fetch(capturedImage)).blob();
+
+        // 2. Create a storage reference and upload
+        const storageRef = ref(storage, `evidence/${user.uid}/${selectedProgram.id}/${Date.now()}.jpg`);
+        const uploadResult = await uploadBytes(storageRef, blob);
+        const downloadURL = await getDownloadURL(uploadResult.ref);
+
+        // 3. Create participation document in Firestore
+        const participationsColRef = collection(firestore, `users/${user.uid}/participations`);
+        await addDoc(participationsColRef, {
+            userId: user.uid,
+            programId: selectedProgram.id,
+            programName: selectedProgram.name, // Denormalized for easier display
+            participationDate: serverTimestamp(),
+            activityEvidenceUrl: downloadURL,
+            verificationStatus: 'pending',
+            badgeIssued: false,
+            certificateIssued: false,
+        });
+
+        toast({
+            title: "Evidence Submitted",
+            description: "Your participation proof has been sent for verification.",
+        });
+        handleCloseEvidenceModal();
+
+    } catch (error) {
+        console.error("Error submitting evidence:", error);
+        toast({
+            variant: "destructive",
+            title: "Submission Failed",
+            description: "An error occurred while submitting your evidence. Please try again.",
+        });
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
 
   const selectedImage = PlaceHolderImages.find(
     (img) => img.id === selectedProgram?.imageId
-  );
-
-  const qrImage = PlaceHolderImages.find(
-    (img) => img.id === "qr-code-placeholder"
   );
   
   const getProgramStatus = (startDateString: string, endDateString: string): { text: string; variant: "default" | "outline" | "secondary" } => {
@@ -304,10 +382,10 @@ export default function StudentDashboard() {
              <Button 
                 size="lg"
                 disabled={selectedProgramStatus?.text !== 'Ongoing'}
-                onClick={handleOpenQrCodeModal}
+                onClick={handleOpenEvidenceModal}
               >
-                <QrCode className="mr-2 h-5 w-5" />
-                Confirm Attendance
+                <Camera className="mr-2 h-5 w-5" />
+                Upload Evidence
               </Button>
           </DialogFooter>
            <DialogClose onClick={handleCloseProgramModal} className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
@@ -339,34 +417,59 @@ export default function StudentDashboard() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isQrCodeModalOpen} onOpenChange={(isOpen) => !isOpen && handleCloseQrCodeModal()}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={isEvidenceModalOpen} onOpenChange={(isOpen) => !isOpen && handleCloseEvidenceModal()}>
+        <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-                <DialogTitle className="text-center font-headline">Attendance QR Code</DialogTitle>
-                <DialogDescription className="text-center">
-                    Show this code to the organizer to confirm your attendance.
+                <DialogTitle className="font-headline">Upload Activity Evidence</DialogTitle>
+                <DialogDescription>
+                    Take a photo as proof of your participation for &quot;{selectedProgram?.name}&quot;.
                 </DialogDescription>
             </DialogHeader>
-            <div className="p-4 rounded-lg border bg-muted flex items-center justify-center">
-              {qrImage && (
-                <Image
-                  src={qrImage.imageUrl}
-                  alt={qrImage.description}
-                  width={300}
-                  height={300}
-                  data-ai-hint={qrImage.imageHint}
-                  className="aspect-square w-full max-w-xs rounded-lg object-cover"
-                />
-              )}
+            <div className="space-y-4">
+                <div className="w-full aspect-video bg-muted rounded-md flex items-center justify-center overflow-hidden border-2 border-dashed">
+                    {capturedImage ? (
+                        <Image src={capturedImage} alt="Captured proof" width={640} height={360} className="object-cover" />
+                    ) : hasCameraPermission === false ? (
+                       <Alert variant="destructive" className="m-4">
+                            <AlertTitle>Camera Access Denied</AlertTitle>
+                            <AlertDescription>
+                                Please enable camera permissions in your browser settings to continue.
+                            </AlertDescription>
+                        </Alert>
+                    ) : hasCameraPermission === true ? (
+                        <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
+                    ) : (
+                        <div className="text-center text-muted-foreground p-4">
+                            <Camera className="h-10 w-10 mx-auto" />
+                            <p className="mt-2 font-medium">Requesting camera access...</p>
+                            <p className="text-sm">Please allow permission to use your camera.</p>
+                        </div>
+                    )}
+                </div>
+                <canvas ref={canvasRef} className="hidden"></canvas>
             </div>
-            <DialogFooter className="sm:grid sm:grid-cols-2 gap-2">
-                <Button variant="outline" onClick={handleCloseQrCodeModal} className="w-full mt-2 sm:mt-0">
-                    Close
-                </Button>
-                <Button onClick={handleDownloadQrCode} className="w-full">
-                    <Download className="mr-2 h-4 w-4" />
-                    Download
-                </Button>
+            <DialogFooter className="grid grid-cols-2 gap-2">
+                {capturedImage ? (
+                    <>
+                        <Button variant="outline" onClick={handleRetake} disabled={isSubmitting}>
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Retake
+                        </Button>
+                        <Button onClick={handleSubmitEvidence} disabled={isSubmitting}>
+                            {isSubmitting ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <Upload className="mr-2 h-4 w-4" />
+                            )}
+                            {isSubmitting ? 'Submitting...' : 'Submit'}
+                        </Button>
+                    </>
+                ) : (
+                    <Button onClick={handleCapture} disabled={!hasCameraPermission} className="col-span-2">
+                        <Camera className="mr-2 h-4 w-4" />
+                        Take Photo
+                    </Button>
+                )}
             </DialogFooter>
         </DialogContent>
       </Dialog>

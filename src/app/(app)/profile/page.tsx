@@ -26,6 +26,8 @@ import { collection, query, doc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { format } from 'date-fns';
+
 
 export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
@@ -110,7 +112,7 @@ export default function ProfilePage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Program ID</TableHead>
+                <TableHead>Program</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">E-Certificate</TableHead>
@@ -123,17 +125,17 @@ export default function ProfilePage() {
                 participationHistory.map((item, index) => (
                   <TableRow key={index}>
                     <TableCell className="font-medium">
-                      {item.programId}
+                      {item.programName || item.programId}
                     </TableCell>
-                    <TableCell>{new Date(item.participationDate).toLocaleDateString()}</TableCell>
+                    <TableCell>{item.participationDate ? format(item.participationDate.toDate(), 'd MMM yyyy') : 'N/A'}</TableCell>
                     <TableCell>
                       <UiBadge
                         variant={
-                          item.verificationStatus === "approved" ? "default" : "secondary"
+                          item.verificationStatus === "approved" ? "default" : item.verificationStatus === 'rejected' ? 'destructive' : "secondary"
                         }
                         className={
                           item.verificationStatus === "approved"
-                            ? "bg-green-600 text-white"
+                            ? "bg-green-600 hover:bg-green-700 text-white"
                             : ""
                         }
                       >
