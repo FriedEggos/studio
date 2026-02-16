@@ -67,8 +67,7 @@ type PendingVerification = {
     userId: string;
     studentName: string;
     programName: string;
-    submissionDate: string;
-    imageUrl: string;
+    activityEvidenceUrl: string;
 };
 
 
@@ -328,9 +327,9 @@ export default function AdminDashboard() {
             </DialogDescription>
           </DialogHeader>
           <div className="my-4 aspect-video relative">
-            {reviewItem?.imageUrl && (
+            {reviewItem?.activityEvidenceUrl && (
               <Image
-                src={reviewItem.imageUrl}
+                src={reviewItem.activityEvidenceUrl}
                 alt={`Evidence for ${reviewItem.programName}`}
                 fill
                 className="rounded-md object-contain"
