@@ -130,7 +130,7 @@ service cloud.firestore {
      * @principle Enables a critical admin feature (listing all pending verifications) securely.
      */
      match /{path=**}/participations/{participationId} {
-       allow read: if isAdmin();
+       allow read: if isSignedIn();
      }
   }
 }
