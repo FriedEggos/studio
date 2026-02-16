@@ -31,12 +31,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ArrowRight, Calendar, X, Camera, RefreshCw, Upload, Loader2 } from "lucide-react";
-import { programs as staticPrograms, myPrograms as staticMyPrograms } from "@/lib/data";
+import { programs as allPrograms } from "@/lib/data";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { isFuture, isPast, parseISO, isWithinInterval, format } from 'date-fns';
+import { isFuture, isPast, parseISO, format } from 'date-fns';
 import { useUser, useFirestore, useStorage, useCollection, useMemoFirebase } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { collection, addDoc, serverTimestamp, query } from "firebase/firestore";
@@ -53,11 +53,8 @@ interface Program {
 }
 
 export default function StudentDashboard() {
-  const [programs, setPrograms] = useState<Program[]>(staticPrograms);
-  const [myPrograms, setMyPrograms] = useState<Program[]>(staticMyPrograms);
-  
+  const [myProgramIds, setMyProgramIds] = useState<Set<string>>(new Set());
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
-  const [selectedProgramContext, setSelectedProgramContext] = useState<'upcoming' | 'my-program' | null>(null);
   
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isEvidenceModalOpen, setIsEvidenceModalOpen] = useState(false);
@@ -124,25 +121,39 @@ export default function StudentDashboard() {
     }
   }, [isEvidenceModalOpen, toast]);
 
-  const handleOpenProgramModal = (program: Program, context: 'upcoming' | 'my-program') => {
+  const getProgramStatus = (startDateString: string, endDateString: string): { text: 'Upcoming' | 'Ongoing' | 'Completed'; variant: 'secondary' | 'default' | 'outline' } => {
+    const start = parseISO(startDateString);
+    const end = parseISO(endDateString);
+    // Set end date to the end of the day to make it inclusive
+    end.setHours(23, 59, 59, 999);
+
+    const now = new Date();
+
+    if (isPast(end)) {
+        return { text: 'Completed', variant: 'outline' };
+    }
+    if (isFuture(start)) {
+        return { text: 'Upcoming', variant: 'secondary' };
+    }
+    return { text: 'Ongoing', variant: 'default' };
+  };
+
+  const handleOpenProgramModal = (program: Program) => {
     setSelectedProgram(program);
-    setSelectedProgramContext(context);
   };
 
   const handleCloseProgramModal = () => {
     setSelectedProgram(null);
-    setSelectedProgramContext(null);
   };
 
   const handleJoinProgram = () => {
     if (!selectedProgram) return;
 
-    setMyPrograms(prev => [...prev, selectedProgram]);
-    setPrograms(prev => prev.filter(p => p.id !== selectedProgram.id));
+    setMyProgramIds(prev => new Set(prev).add(selectedProgram.id));
     
     toast({
-      title: "Program Joined",
-      description: `You have successfully joined "${selectedProgram.name}".`,
+      title: "Program Joined!",
+      description: `You have joined "${selectedProgram.name}". It is now in 'My Programs'.`,
     });
 
     handleCloseProgramModal();
@@ -151,8 +162,11 @@ export default function StudentDashboard() {
   const handleLeaveProgram = () => {
     if (!selectedProgram) return;
 
-    setPrograms(prev => [...prev, selectedProgram]);
-    setMyPrograms(prev => prev.filter(p => p.id !== selectedProgram.id));
+    setMyProgramIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(selectedProgram.id);
+        return newSet;
+    });
     
     toast({
         title: "Program Left",
@@ -161,7 +175,7 @@ export default function StudentDashboard() {
 
     handleCloseProgramModal();
     setIsLeaveConfirmOpen(false);
-};
+  };
   
   const handleOpenImageModal = () => {
     if (selectedProgram) {
@@ -250,28 +264,18 @@ export default function StudentDashboard() {
     (img) => img.id === selectedProgram?.imageId
   );
   
-  const getProgramStatus = (startDateString: string, endDateString: string): { text: string; variant: "default" | "outline" | "secondary" } => {
-    const start = parseISO(startDateString);
-    const end = parseISO(endDateString);
-    const today = new Date();
-    
-    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-    if (isWithinInterval(startOfToday, { start, end })) {
-        return { text: 'Ongoing', variant: 'default' };
-    }
-    if (isFuture(start)) {
-        return { text: 'Upcoming', variant: 'secondary' };
-    }
-    if (isPast(end)) {
-        return { text: 'Completed', variant: 'outline' };
-    }
-    return { text: 'Upcoming', variant: 'secondary' };
-  };
-  
   const selectedProgramStatus = selectedProgram ? getProgramStatus(selectedProgram.startDate, selectedProgram.endDate) : null;
+  const isProgramJoined = selectedProgram ? myProgramIds.has(selectedProgram.id) : false;
   const hasSubmittedEvidence = selectedProgram ? submittedProgramIds.has(selectedProgram.id) : false;
-  const ongoingMyPrograms = myPrograms.filter(program => getProgramStatus(program.startDate, program.endDate).text !== 'Completed');
+
+  const availablePrograms = allPrograms.filter(program => 
+    !myProgramIds.has(program.id) && getProgramStatus(program.startDate, program.endDate).text !== 'Completed'
+  );
+
+  const myActivePrograms = allPrograms.filter(program => 
+    myProgramIds.has(program.id) && getProgramStatus(program.startDate, program.endDate).text !== 'Completed'
+  );
+
 
   return (
     <>
@@ -282,17 +286,17 @@ export default function StudentDashboard() {
               Student Dashboard
             </h1>
             <p className="text-muted-foreground">
-              Check upcoming programs and your participation history.
+              Check available programs and your participation history.
             </p>
           </div>
         </div>
 
         <section>
           <h2 className="text-xl font-semibold tracking-tight font-headline mb-4">
-            Upcoming Programs
+            Available Programs
           </h2>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {programs.map((program) => {
+            {availablePrograms.map((program) => {
               const image = PlaceHolderImages.find(
                 (img) => img.id === program.imageId
               );
@@ -331,7 +335,7 @@ export default function StudentDashboard() {
                     <Button
                       variant="outline"
                       className="w-full"
-                      onClick={() => handleOpenProgramModal(program, 'upcoming')}
+                      onClick={() => handleOpenProgramModal(program)}
                     >
                       View Details{" "}
                       <ArrowRight className="ml-2 h-4 w-4" />
@@ -347,9 +351,9 @@ export default function StudentDashboard() {
           <h2 className="text-xl font-semibold tracking-tight font-headline mb-4">
             My Programs
           </h2>
-            {ongoingMyPrograms.length > 0 ? (
+            {myActivePrograms.length > 0 ? (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {ongoingMyPrograms.map((program) => {
+                {myActivePrograms.map((program) => {
                   const image = PlaceHolderImages.find(
                     (img) => img.id === program.imageId
                   );
@@ -388,7 +392,7 @@ export default function StudentDashboard() {
                         <Button
                           variant="outline"
                           className="w-full"
-                          onClick={() => handleOpenProgramModal(program, 'my-program')}
+                          onClick={() => handleOpenProgramModal(program)}
                         >
                           View Details{" "}
                           <ArrowRight className="ml-2 h-4 w-4" />
@@ -401,7 +405,7 @@ export default function StudentDashboard() {
             ) : (
                 <Card>
                     <CardContent className="pt-6">
-                        <p className="text-muted-foreground">You have no ongoing programs at the moment. Join a program from the list above!</p>
+                        <p className="text-muted-foreground">You have not joined any programs yet. Join one from the list above!</p>
                     </CardContent>
                 </Card>
             )}
@@ -439,16 +443,7 @@ export default function StudentDashboard() {
             </div>
           </div>
           <DialogFooter className="flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2 sm:justify-center">
-            {selectedProgramContext === 'upcoming' && (
-              <Button 
-                size="lg"
-                disabled={selectedProgramStatus?.text === 'Completed'}
-                onClick={handleJoinProgram}
-              >
-                Join Program
-              </Button>
-            )}
-            {selectedProgramContext === 'my-program' && (
+            {isProgramJoined ? (
               <>
                 <Button 
                   size="lg"
@@ -472,6 +467,14 @@ export default function StudentDashboard() {
                   </p>
                 )}
               </>
+            ) : (
+              <Button 
+                size="lg"
+                disabled={selectedProgramStatus?.text === 'Completed'}
+                onClick={handleJoinProgram}
+              >
+                Join Program
+              </Button>
             )}
           </DialogFooter>
            <DialogClose onClick={handleCloseProgramModal} className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
@@ -572,7 +575,7 @@ export default function StudentDashboard() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This will remove &quot;{selectedProgram?.name}&quot; from your programs. You can rejoin it later from the upcoming programs list.
+                    This will remove &quot;{selectedProgram?.name}&quot; from your programs. You can rejoin it later from the available programs list.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -584,3 +587,5 @@ export default function StudentDashboard() {
     </>
   );
 }
+
+    
