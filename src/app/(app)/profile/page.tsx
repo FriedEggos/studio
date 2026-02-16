@@ -159,10 +159,11 @@ export default function ProfilePage() {
       await uploadBytes(newStorageRef, newBlob);
       const newDownloadURL = await getDownloadURL(newStorageRef);
       
-      // 2. Update Firestore document
+      // 2. Update Firestore document, also resetting status to 'pending'
       const participationDocRef = doc(firestore, `users/${user.uid}/participations/${selectedParticipation.id}`);
       await updateDoc(participationDocRef, {
-        activityEvidenceUrl: newDownloadURL
+        activityEvidenceUrl: newDownloadURL,
+        verificationStatus: 'pending' 
       });
       
       // 3. Delete old image from storage
@@ -295,7 +296,7 @@ export default function ProfilePage() {
                               <Eye className="mr-2 h-4 w-4" />
                               View Evidence
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleOpenEditModal(item)} disabled={item.verificationStatus !== 'pending'}>
+                            <DropdownMenuItem onClick={() => handleOpenEditModal(item)} disabled={item.verificationStatus === 'approved'}>
                               <Edit className="mr-2 h-4 w-4" />
                               Edit Evidence
                             </DropdownMenuItem>
@@ -343,7 +344,7 @@ export default function ProfilePage() {
             <DialogHeader>
                 <DialogTitle className="font-headline">Update Activity Evidence</DialogTitle>
                 <DialogDescription>
-                    Take a new photo as proof for &quot;{selectedParticipation?.programName}&quot;.
+                    Take a new photo as proof for &quot;{selectedParticipation?.programName}&quot;. This will replace the old one.
                 </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">

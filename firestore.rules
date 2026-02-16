@@ -57,6 +57,15 @@ service cloud.firestore {
       return isOwner(userId) && resource != null;
     }
 
+    /**
+     * Checks if the signed-in user has an 'admin' role in their user document.
+     * Uses a `get()` call, which is billed as one read operation per rule evaluation.
+     */
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+
     // Collection Rules
     // ================
 
@@ -70,7 +79,7 @@ service cloud.firestore {
      * @principle Restricts access to a user's own data tree and prevents user enumeration.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
+      allow get: if isOwner(userId) || isAdmin(); // Admins can read user profiles
       allow list: if false;
       allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if isExistingOwner(userId) 
@@ -81,16 +90,17 @@ service cloud.firestore {
       /**
        * @description Manages a user's participation records. Only the user who owns
        *   the parent profile can read or write their own participation entries.
+       *   Admins are also allowed to update records for verification purposes.
        * @path /users/{userId}/participations/{participationId}
        * @allow (list) User 'abc' listing documents from /users/abc/participations.
        * @deny (get) User 'xyz' trying to read a document from /users/abc/participations.
-       * @principle Enforces strict ownership for user-specific subcollections.
+       * @principle Enforces strict ownership for user-specific subcollections, with admin override for updates.
        */
       match /participations/{participationId} {
-        allow get: if isOwner(userId);
+        allow get: if isOwner(userId) || isAdmin();
         allow list: if isOwner(userId);
         allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+        allow update: if (isExistingOwner(userId) && request.resource.data.userId == resource.data.userId) || isAdmin();
         allow delete: if isExistingOwner(userId);
       }
     }
@@ -106,9 +116,20 @@ service cloud.firestore {
     match /programs/{programId} {
       allow get: if true;
       allow list: if true;
-      allow create: if isSignedIn() && request.resource.data.adminId == request.auth.uid;
+      allow create: if isAdmin() && request.resource.data.adminId == request.auth.uid;
       allow update: if resource != null && isOwner(resource.data.adminId);
       allow delete: if resource != null && isOwner(resource.data.adminId);
     }
+
+    /**
+     * @description Collection group rule to allow admins to query all 'participations'
+     *   across all users, specifically for verifying pending submissions.
+     * @path /{path=**}/participations/{participationId}
+     * @allow (read) An admin performing a collection group query on the 'participations' collection.
+     * @principle Enables a critical admin feature (listing all pending verifications) securely.
+     */
+     match /{path=**}/participations/{participationId} {
+       allow read: if isAdmin();
+     }
   }
 }

@@ -96,6 +96,10 @@
           "type": "string",
           "description": "Reference to User. (Relationship: User 1:N Participation)"
         },
+        "studentName": {
+          "type": "string",
+          "description": "Denormalized name of the student for easy display."
+        },
         "programId": {
           "type": "string",
           "description": "Reference to Program. (Relationship: Program 1:N Participation)"
@@ -129,6 +133,7 @@
       "required": [
         "id",
         "userId",
+        "studentName",
         "programId",
         "programName",
         "participationDate",

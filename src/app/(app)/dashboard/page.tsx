@@ -37,9 +37,9 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { isFuture, isPast, parseISO, format } from 'date-fns';
-import { useUser, useFirestore, useStorage, useCollection, useMemoFirebase } from "@/firebase";
+import { useUser, useFirestore, useStorage, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { collection, addDoc, serverTimestamp, query } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, doc, setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 
@@ -70,6 +70,12 @@ export default function StudentDashboard() {
   const firestore = useFirestore();
   const storage = useStorage();
   const { toast } = useToast();
+
+  const userDocRef = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [user, firestore]);
+  const { data: userProfile } = useDoc(userDocRef);
 
   const participationsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
@@ -219,7 +225,7 @@ export default function StudentDashboard() {
   };
   
   const handleSubmitEvidence = async () => {
-    if (!capturedImage || !user || !firestore || !storage || !selectedProgram) return;
+    if (!capturedImage || !user || !firestore || !storage || !selectedProgram || !userProfile) return;
 
     setIsSubmitting(true);
 
@@ -231,8 +237,12 @@ export default function StudentDashboard() {
         const downloadURL = await getDownloadURL(uploadResult.ref);
 
         const participationsColRef = collection(firestore, `users/${user.uid}/participations`);
-        await addDoc(participationsColRef, {
+        const newParticipationRef = doc(participationsColRef); // Create a reference with a new ID
+
+        const participationData = {
+            id: newParticipationRef.id,
             userId: user.uid,
+            studentName: userProfile.fullName,
             programId: selectedProgram.id,
             programName: selectedProgram.name,
             participationDate: serverTimestamp(),
@@ -240,8 +250,11 @@ export default function StudentDashboard() {
             verificationStatus: 'pending',
             badgeIssued: false,
             certificateIssued: false,
-        });
+        };
 
+        // Set the data in the user's subcollection
+        await setDoc(newParticipationRef, participationData);
+        
         toast({
             title: "Evidence Submitted",
             description: "Your participation proof has been sent for verification.",

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Button } from "@/components/ui/button";
@@ -18,9 +17,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpRight, CheckCircle, Clock, Users, List, Eye, MoreHorizontal, Check, XIcon } from "lucide-react";
+import { CheckCircle, Clock, Users, List, Eye, MoreHorizontal, Check, XIcon } from "lucide-react";
 import Link from "next/link";
-import { pendingVerifications as initialPendingVerifications, allProgramsAdmin as initialAllProgramsAdmin } from "@/lib/data";
+import { allProgramsAdmin as initialAllProgramsAdmin } from "@/lib/data";
 import { useState } from "react";
 import {
   DropdownMenu,
@@ -49,6 +48,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { collectionGroup, query, where, doc, updateDoc } from "firebase/firestore";
+import { Skeleton } from "@/components/ui/skeleton";
 
 
 type ProgramStatus = "Upcoming" | "Ongoing" | "Completed";
@@ -62,6 +64,7 @@ type Program = {
 
 type PendingVerification = {
     id: string;
+    userId: string;
     studentName: string;
     programName: string;
     submissionDate: string;
@@ -74,7 +77,14 @@ export default function AdminDashboard() {
     initialAllProgramsAdmin.map(p => ({...p, status: p.status as ProgramStatus}))
   );
 
-  const [pending, setPending] = useState<PendingVerification[]>(initialPendingVerifications);
+  const firestore = useFirestore();
+  const pendingQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collectionGroup(firestore, 'participations'), where('verificationStatus', '==', 'pending'));
+  }, [firestore]);
+  
+  const { data: pending, isLoading: isLoadingPending } = useCollection<PendingVerification>(pendingQuery);
+  
   const [reviewItem, setReviewItem] = useState<PendingVerification | null>(null);
   const [confirmationState, setConfirmationState] = useState<{
     isOpen: boolean;
@@ -104,18 +114,30 @@ export default function AdminDashboard() {
     setConfirmationState({ isOpen: true, action });
   };
 
-  const handleConfirmAction = () => {
-    if (!reviewItem || !confirmationState.action) return;
+  const handleConfirmAction = async () => {
+    if (!reviewItem || !confirmationState.action || !firestore) return;
 
-    // In a real app, you'd update your database here.
-    // For now, we filter the item out of the local state.
-    setPending(current => current.filter(p => p.id !== reviewItem.id));
-    
-    toast({
+    const newStatus = confirmationState.action === 'approve' ? 'approved' : 'rejected';
+    const participationDocRef = doc(firestore, `users/${reviewItem.userId}/participations/${reviewItem.id}`);
+
+    try {
+      await updateDoc(participationDocRef, {
+        verificationStatus: newStatus,
+      });
+
+      toast({
         title: `Submission ${confirmationState.action === 'approve' ? 'Approved' : 'Rejected'}`,
         description: `The evidence from ${reviewItem.studentName} for "${reviewItem.programName}" has been processed.`,
-    });
-
+      });
+    } catch (error) {
+      console.error("Error updating verification status:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: 'An error occurred while processing the submission.',
+      });
+    }
+    
     handleCloseModals();
   };
 
@@ -164,7 +186,11 @@ export default function AdminDashboard() {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{pending.length}</div>
+              {isLoadingPending ? (
+                 <Skeleton className="h-8 w-12" />
+              ) : (
+                <div className="text-2xl font-bold">{pending?.length ?? 0}</div>
+              )}
               <p className="text-xs text-muted-foreground">
                 Needs immediate review
               </p>
@@ -200,27 +226,41 @@ export default function AdminDashboard() {
                   <TableRow>
                     <TableHead>Student</TableHead>
                     <TableHead>Program</TableHead>
-                    <TableHead>Submission Date</TableHead>
                     <TableHead>
                       <span className="sr-only">Actions</span>
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pending.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">
-                        {item.studentName}
-                      </TableCell>
-                      <TableCell>{item.programName}</TableCell>
-                      <TableCell>{item.submissionDate}</TableCell>
-                      <TableCell>
-                        <Button variant="outline" size="sm" onClick={() => handleOpenReviewModal(item)}>
-                          <Eye className="mr-2 h-4 w-4" /> Review
-                        </Button>
+                  {isLoadingPending ? (
+                     [...Array(3)].map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                        <TableCell><Skeleton className="h-8 w-24" /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : pending && pending.length > 0 ? (
+                    pending.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">
+                          {item.studentName}
+                        </TableCell>
+                        <TableCell>{item.programName}</TableCell>
+                        <TableCell>
+                          <Button variant="outline" size="sm" onClick={() => handleOpenReviewModal(item)}>
+                            <Eye className="mr-2 h-4 w-4" /> Review
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={3} className="h-24 text-center">
+                        No pending verifications.
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -284,7 +324,7 @@ export default function AdminDashboard() {
           <DialogHeader>
             <DialogTitle className="font-headline">{reviewItem?.programName}</DialogTitle>
             <DialogDescription>
-              Submitted by: {reviewItem?.studentName} on {reviewItem?.submissionDate}
+              Submitted by: {reviewItem?.studentName}
             </DialogDescription>
           </DialogHeader>
           <div className="my-4 aspect-video relative">
