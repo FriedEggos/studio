@@ -59,12 +59,11 @@ service cloud.firestore {
 
     /**
      * Checks if the signed-in user has an 'admin' role in their user document.
-     * Uses a `get()` call, which is billed as one read operation per rule evaluation.
+     * This performs a single document read.
      */
     function isAdmin() {
-      return isSignedIn() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return isSignedIn() && userDoc != null && userDoc.data.role == 'admin';
     }
 
 
