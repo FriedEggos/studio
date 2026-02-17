@@ -58,13 +58,14 @@ service cloud.firestore {
     }
 
     /**
-     * Checks if the signed-in user has an 'admin' role in their user document.
-     * This performs a single document read.
+     * Checks if the signed-in user has an 'admin' role.
+     * WORKAROUND: This function hardcodes admin UIDs to avoid a cross-document read (`get`)
+     * within the collection group query rule, which was causing permission errors.
+     * A more robust, long-term solution is to use Firebase Auth custom claims.
      */
     function isAdmin() {
-      return isSignedIn() &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return request.auth.uid == 'tuApY2FpLRbiBZmtyvlfSoguoRw2' // Admin: ahammedrasiah@gmail.com
+          || request.auth.uid == 'JeOERchfBbPLcW8e2q66NOHYBLI3'; // Admin: syazmiza0304@gmail.com
     }
 
 
