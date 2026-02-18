@@ -74,17 +74,19 @@ service cloud.firestore {
 
     /**
      * @description Manages user profile documents. A user can create their own
-     *   profile and fully control it afterward. Access by any other user is denied.
+     *   profile and fully control it afterward. Access by any other user is denied,
+     *   except for admins.
      * @path /users/{userId}
-     * @allow (create) An authenticated user creating their own document at /users/abc
-     *   where their UID is 'abc'.
+     * @allow (get) User 'abc' trying to read their own document at /users/abc.
+     * @allow (get) An admin reading any user document.
      * @deny (get) User 'xyz' trying to read the document at /users/abc.
-     * @principle Restricts access to a user's own data tree and prevents user enumeration.
+     * @principle Restricts access to a user's own data tree, with admin oversight.
      */
     match /users/{userId} {
-      // A user can get their own profile. Admins cannot get other user profiles with this rule alone.
-      allow get: if isOwner(userId);
-      allow list: if false; // Explicitly deny listing all users for privacy.
+      // A user can get their own profile. Admins can get any user profile.
+      allow get: if isOwner(userId) || isAdmin();
+      // Admins can list all users for management purposes.
+      allow list: if isAdmin();
       allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if isExistingOwner(userId) 
                     && request.resource.data.id == resource.data.id

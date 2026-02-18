@@ -45,6 +45,8 @@ const profileFormSchema = z.object({
   fullName: z.string().min(1, 'Full name is required.'),
   email: z.string().email('Invalid email format.'),
   course: z.string().optional(),
+  matricId: z.string().optional(),
+  phoneNumber: z.string().optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -83,6 +85,8 @@ export default function EditProfilePage() {
       fullName: '',
       email: '',
       course: '',
+      matricId: '',
+      phoneNumber: '',
     }
   });
 
@@ -95,6 +99,8 @@ export default function EditProfilePage() {
         fullName: userProfile.fullName || '',
         email: userProfile.email || '',
         course: userProfile.course || '',
+        matricId: userProfile.matricId || '',
+        phoneNumber: userProfile.phoneNumber || '',
       });
       if (!avatarPreview) {
         setAvatarPreview(user?.photoURL || null);
@@ -131,6 +137,8 @@ export default function EditProfilePage() {
         fullName: data.fullName,
         email: data.email,
         course: data.course,
+        matricId: data.matricId,
+        phoneNumber: data.phoneNumber,
       };
 
       updateDocumentNonBlocking(userDocRef, updatedData);
@@ -220,10 +228,21 @@ export default function EditProfilePage() {
                   />
                 </div>
               </div>
-              <div className="grid gap-3">
-                <Label htmlFor="userId">Student ID (Matric No.)</Label>
-                <Input id="userId" type="text" value={userProfile.id} disabled />
-              </div>
+              
+              <FormField
+                control={form.control}
+                name="matricId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Student ID (Matric No.)</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="e.g. 2021XXXXXX" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <div className="grid gap-3">
                 <Label htmlFor="role">Role</Label>
                 <Input id="role" type="text" value={userProfile.role} disabled />
@@ -251,6 +270,20 @@ export default function EditProfilePage() {
                     <FormLabel>Email</FormLabel>
                     <FormControl>
                       <Input type="email" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="phoneNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone Number</FormLabel>
+                    <FormControl>
+                      <Input type="tel" {...field} placeholder="e.g. 012-3456789" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

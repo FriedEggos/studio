@@ -9,7 +9,7 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the user entity."
+          "description": "Unique identifier for the user entity, matches Firebase Auth UID."
         },
         "email": {
           "type": "string",
@@ -27,6 +27,14 @@
         "course": {
           "type": "string",
           "description": "The course the student is enrolled in."
+        },
+        "matricId": {
+          "type": "string",
+          "description": "The student's matriculation ID number."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "The user's phone number."
         }
       },
       "required": [

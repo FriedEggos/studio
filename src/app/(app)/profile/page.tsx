@@ -233,9 +233,22 @@ export default function ProfilePage() {
             </Link>
             <CardTitle className="font-headline">{userProfile?.fullName || "JTMK Student"}</CardTitle>
             <CardDescription>{userProfile?.email}</CardDescription>
-            <CardDescription className="text-xs">{userProfile?.course}</CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="grid grid-cols-1 gap-4 my-4 text-sm border-t pt-4">
+              <div className="flex justify-between items-center">
+                  <span className="font-semibold text-muted-foreground">Matric ID</span>
+                  <span>{userProfile?.matricId || 'Not set'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                  <span className="font-semibold text-muted-foreground">Phone Number</span>
+                  <span>{userProfile?.phoneNumber || 'Not set'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                  <span className="font-semibold text-muted-foreground">Department</span>
+                  <span>{userProfile?.course || 'Not set'}</span>
+              </div>
+            </div>
             <Button className="w-full" asChild>
               <Link href="/profile/edit">Edit Profile</Link>
             </Button>
