@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Button } from "@/components/ui/button";
@@ -18,17 +17,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Clock, Users, List, Eye, MoreHorizontal, Check, XIcon } from "lucide-react";
+import { CheckCircle, Clock, Users, List, Eye, Check, XIcon } from "lucide-react";
 import Link from "next/link";
-import { allProgramsAdmin as initialAllProgramsAdmin } from "@/lib/data";
-import { useState } from "react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -50,17 +41,19 @@ import {
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collectionGroup, query, where, doc, updateDoc } from "firebase/firestore";
+import { collection, collectionGroup, query, where, doc, updateDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
+import { isFuture, isPast, parseISO } from 'date-fns';
 
-
-type ProgramStatus = "Upcoming" | "Ongoing" | "Completed";
-
+// This Program type should match the Firestore document
 type Program = {
     id: string;
     name: string;
-    participants: number;
-    status: ProgramStatus;
+    description: string;
+    startDate: string;
+    endDate: string;
+    adminId: string;
+    imageUrl?: string;
 };
 
 type PendingVerification = {
@@ -73,32 +66,60 @@ type PendingVerification = {
 
 
 export default function AdminDashboard() {
-  const [allProgramsAdmin, setAllProgramsAdmin] = useState<Program[]>(
-    initialAllProgramsAdmin.map(p => ({...p, status: p.status as ProgramStatus}))
-  );
-
   const firestore = useFirestore();
+  const { toast } = useToast();
+
+  // Data fetching
   const pendingQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collectionGroup(firestore, 'activity_evidence'), where('status', '==', 'pending'));
   }, [firestore]);
-  
   const { data: pending, isLoading: isLoadingPending } = useCollection<PendingVerification>(pendingQuery);
-  
+
+  const programsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'programs');
+  }, [firestore]);
+  const { data: programs, isLoading: isLoadingPrograms } = useCollection<Program>(programsQuery);
+
+  const attendanceQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collectionGroup(firestore, 'attendance');
+  }, [firestore]);
+  const { data: attendance, isLoading: isLoadingAttendance } = useCollection(attendanceQuery);
+
+  const certificatesQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collectionGroup(firestore, 'certificates');
+  }, [firestore]);
+  const { data: certificates, isLoading: isLoadingCertificates } = useCollection(certificatesQuery);
+
+  // Modal and confirmation state
   const [reviewItem, setReviewItem] = useState<PendingVerification | null>(null);
   const [confirmationState, setConfirmationState] = useState<{
     isOpen: boolean;
     action: 'approve' | 'reject' | null;
   }>({ isOpen: false, action: null });
   
-  const { toast } = useToast();
+  const getProgramStatus = (startDateString: string, endDateString: string): { text: 'Upcoming' | 'Ongoing' | 'Completed'; variant: "secondary" | "default" | "outline" } => {
+    try {
+        const start = parseISO(startDateString);
+        const end = parseISO(endDateString);
+        end.setHours(23, 59, 59, 999);
 
-  const handleStatusChange = (programId: string, newStatus: ProgramStatus) => {
-      setAllProgramsAdmin(currentPrograms => 
-          currentPrograms.map(p => 
-              p.id === programId ? { ...p, status: newStatus } : p
-          )
-      );
+        const now = new Date();
+
+        if (isPast(end)) {
+            return { text: 'Completed', variant: 'outline' };
+        }
+        if (isFuture(start)) {
+            return { text: 'Upcoming', variant: 'secondary' };
+        }
+        return { text: 'Ongoing', variant: 'default' };
+    } catch(e) {
+        console.error("Invalid date format for program", e);
+        return { text: 'Upcoming', variant: 'secondary'}; // default status
+    }
   };
   
   const handleOpenReviewModal = (item: PendingVerification) => {
@@ -141,6 +162,23 @@ export default function AdminDashboard() {
     handleCloseModals();
   };
 
+  const StatCard = ({ title, icon: Icon, value, isLoading, description }: { title: string, icon: React.ElementType, value: number, isLoading: boolean, description: string }) => (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-8 w-16" />
+        ) : (
+          <div className="text-2xl font-bold">{value}</div>
+        )}
+        <p className="text-xs text-muted-foreground">{description}</p>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <>
       <div className="space-y-6">
@@ -154,62 +192,34 @@ export default function AdminDashboard() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Programs</CardTitle>
-              <List className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">12</div>
-              <p className="text-xs text-muted-foreground">+2 since last month</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Participants
-              </CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">+2,350</div>
-              <p className="text-xs text-muted-foreground">
-                +180.1% since last month
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Pending Verifications
-              </CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {isLoadingPending ? (
-                 <Skeleton className="h-8 w-12" />
-              ) : (
-                <div className="text-2xl font-bold">{pending?.length ?? 0}</div>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Needs immediate review
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Certificates Generated
-              </CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">+573</div>
-              <p className="text-xs text-muted-foreground">
-                +201 since last week
-              </p>
-            </CardContent>
-          </Card>
+          <StatCard
+            title="Total Programs"
+            icon={List}
+            value={programs?.length ?? 0}
+            isLoading={isLoadingPrograms}
+            description="Total active and past programs."
+          />
+           <StatCard
+            title="Total Attendances"
+            icon={Users}
+            value={attendance?.length ?? 0}
+            isLoading={isLoadingAttendance}
+            description="Total QR scans across all programs."
+          />
+          <StatCard
+            title="Pending Verifications"
+            icon={Clock}
+            value={pending?.length ?? 0}
+            isLoading={isLoadingPending}
+            description="Needs immediate review."
+          />
+          <StatCard
+            title="Certificates Generated"
+            icon={CheckCircle}
+            value={certificates?.length ?? 0}
+            isLoading={isLoadingCertificates}
+            description="Total certificates issued."
+          />
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
@@ -274,45 +284,40 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {allProgramsAdmin.map((program) => (
-                  <div key={program.id} className="flex items-center">
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {program.name}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {program.participants} participants
-                      </p>
+                {isLoadingPrograms ? (
+                  [...Array(3)].map((_, i) => (
+                    <div key={i} className="flex items-center">
+                      <div className="space-y-1">
+                         <Skeleton className="h-5 w-40" />
+                      </div>
+                      <div className="ml-auto font-medium flex items-center gap-2">
+                        <Skeleton className="h-5 w-20" />
+                      </div>
                     </div>
-                    <div className="ml-auto font-medium flex items-center gap-2">
-                      <Badge
-                        variant={
-                          program.status === "Completed"
-                            ? "default"
-                            : program.status === "Ongoing"
-                            ? "secondary"
-                            : "outline"
-                        }
-                      >
-                        {program.status}
-                      </Badge>
-                      <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                  <span className="sr-only">Open menu</span>
-                                  <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Change Status</DropdownMenuLabel>
-                              <DropdownMenuItem onClick={() => handleStatusChange(program.id, 'Upcoming')}>Upcoming</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleStatusChange(program.id, 'Ongoing')}>Ongoing</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleStatusChange(program.id, 'Completed')}>Completed</DropdownMenuItem>
-                          </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                ) : programs && programs.length > 0 ? (
+                  programs.map((program) => {
+                    const status = getProgramStatus(program.startDate, program.endDate);
+                    return (
+                      <div key={program.id} className="flex items-center">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium leading-none">
+                            {program.name}
+                          </p>
+                        </div>
+                        <div className="ml-auto font-medium flex items-center gap-2">
+                          <Badge variant={status.variant}>
+                            {status.text}
+                          </Badge>
+                        </div>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center h-24 flex items-center justify-center">
+                    No programs created yet.
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
