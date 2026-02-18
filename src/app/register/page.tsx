@@ -19,8 +19,24 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth, useFirestore, setDocumentNonBlocking } from "@/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc } from "firebase/firestore";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const adminEmails = ["ahammedrasiah@gmail.com", "syazmiza0304@gmail.com"];
+
+const courses = [
+  "Jabatan Kejuruteraan Awam",
+  "Jabatan Kejuruteraan Mekanikal",
+  "Jabatan Kejuruteraan Petrokimia",
+  "Jabatan Kejuruteraan Elektrik",
+  "Jabatan Teknologi Maklumat & Komunikasi",
+  "Jabatan Perdagangan",
+];
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -30,7 +46,7 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState("yassin bin kisman");
   const [email, setEmail] = useState("muhammadyassin@gmail.com");
   const [password, setPassword] = useState("yassin123");
-  const [course, setCourse] = useState("Diploma in Digital Technology");
+  const [course, setCourse] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -113,13 +129,16 @@ export default function RegisterPage() {
             </div>
              <div className="grid gap-2">
               <Label htmlFor="course">Course</Label>
-              <Input
-                id="course"
-                placeholder="e.g., Diploma in Digital Technology"
-                required
-                value={course}
-                onChange={(e) => setCourse(e.target.value)}
-              />
+              <Select onValueChange={setCourse} value={course} required>
+                <SelectTrigger id="course">
+                  <SelectValue placeholder="Select your department" />
+                </SelectTrigger>
+                <SelectContent>
+                  {courses.map(courseName => (
+                    <SelectItem key={courseName} value={courseName}>{courseName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
