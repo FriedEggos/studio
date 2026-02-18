@@ -1,3 +1,4 @@
+
 'use client';
 
 import Image from "next/image";
@@ -38,7 +39,7 @@ import { Badge } from "@/components/ui/badge";
 import { isFuture, isPast, parseISO, format } from 'date-fns';
 import { useUser, useFirestore, useStorage, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { collection, addDoc, serverTimestamp, query, doc, setDoc } from "firebase/firestore";
+import { collection, serverTimestamp, query, doc, setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 
@@ -76,20 +77,20 @@ export default function StudentDashboard() {
   }, [user, firestore]);
   const { data: userProfile } = useDoc(userDocRef);
 
-  const participationsQuery = useMemoFirebase(() => {
+  const evidenceQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
-    return query(collection(firestore, `users/${user.uid}/participations`));
+    return query(collection(firestore, `users/${user.uid}/activity_evidence`));
   }, [user, firestore]);
 
-  const { data: participations } = useCollection(participationsQuery);
+  const { data: activityEvidences } = useCollection(evidenceQuery);
 
   const [submittedProgramIds, setSubmittedProgramIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (participations) {
-      setSubmittedProgramIds(new Set(participations.map(p => p.programId)));
+    if (activityEvidences) {
+      setSubmittedProgramIds(new Set(activityEvidences.map(p => p.program_id)));
     }
-  }, [participations]);
+  }, [activityEvidences]);
   
   useEffect(() => {
     if (!isEvidenceModalOpen) return;
@@ -235,24 +236,21 @@ export default function StudentDashboard() {
         const uploadResult = await uploadBytes(storageRef, blob);
         const downloadURL = await getDownloadURL(uploadResult.ref);
 
-        const participationsColRef = collection(firestore, `users/${user.uid}/participations`);
-        const newParticipationRef = doc(participationsColRef); // Create a reference with a new ID
+        const evidenceColRef = collection(firestore, `users/${user.uid}/activity_evidence`);
+        const newEvidenceRef = doc(evidenceColRef);
 
-        const participationData = {
-            id: newParticipationRef.id,
-            userId: user.uid,
+        const evidenceData = {
+            id: newEvidenceRef.id,
+            user_id: user.uid,
             studentName: userProfile.fullName,
-            programId: selectedProgram.id,
-            programName: selectedProgram.name,
-            participationDate: serverTimestamp(),
-            activityEvidenceUrl: downloadURL,
-            verificationStatus: 'pending',
-            badgeIssued: false,
-            certificateIssued: false,
+            program_id: selectedProgram.id,
+            programname: selectedProgram.name,
+            submissionDate: serverTimestamp(),
+            image_url: downloadURL,
+            status: 'pending',
         };
 
-        // Set the data in the user's subcollection
-        await setDoc(newParticipationRef, participationData);
+        await setDoc(newEvidenceRef, evidenceData);
         
         toast({
             title: "Evidence Submitted",

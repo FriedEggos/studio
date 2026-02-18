@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from "@/components/ui/button";
@@ -64,10 +65,10 @@ type Program = {
 
 type PendingVerification = {
     id: string;
-    userId: string;
+    user_id: string;
     studentName: string;
-    programName: string;
-    activityEvidenceUrl: string;
+    programname: string;
+    image_url: string;
 };
 
 
@@ -79,7 +80,7 @@ export default function AdminDashboard() {
   const firestore = useFirestore();
   const pendingQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collectionGroup(firestore, 'participations'), where('verificationStatus', '==', 'pending'));
+    return query(collectionGroup(firestore, 'activity_evidence'), where('status', '==', 'pending'));
   }, [firestore]);
   
   const { data: pending, isLoading: isLoadingPending } = useCollection<PendingVerification>(pendingQuery);
@@ -117,16 +118,16 @@ export default function AdminDashboard() {
     if (!reviewItem || !confirmationState.action || !firestore) return;
 
     const newStatus = confirmationState.action === 'approve' ? 'approved' : 'rejected';
-    const participationDocRef = doc(firestore, `users/${reviewItem.userId}/participations/${reviewItem.id}`);
+    const evidenceDocRef = doc(firestore, `users/${reviewItem.user_id}/activity_evidence/${reviewItem.id}`);
 
     try {
-      await updateDoc(participationDocRef, {
-        verificationStatus: newStatus,
+      await updateDoc(evidenceDocRef, {
+        status: newStatus,
       });
 
       toast({
         title: `Submission ${confirmationState.action === 'approve' ? 'Approved' : 'Rejected'}`,
-        description: `The evidence from ${reviewItem.studentName} for "${reviewItem.programName}" has been processed.`,
+        description: `The evidence from ${reviewItem.studentName} for "${reviewItem.programname}" has been processed.`,
       });
     } catch (error) {
       console.error("Error updating verification status:", error);
@@ -245,7 +246,7 @@ export default function AdminDashboard() {
                         <TableCell className="font-medium">
                           {item.studentName}
                         </TableCell>
-                        <TableCell>{item.programName}</TableCell>
+                        <TableCell>{item.programname}</TableCell>
                         <TableCell>
                           <Button variant="outline" size="sm" onClick={() => handleOpenReviewModal(item)}>
                             <Eye className="mr-2 h-4 w-4" /> Review
@@ -321,16 +322,16 @@ export default function AdminDashboard() {
       <Dialog open={!!reviewItem} onOpenChange={(isOpen) => !isOpen && handleCloseModals()}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle className="font-headline">{reviewItem?.programName}</DialogTitle>
+            <DialogTitle className="font-headline">{reviewItem?.programname}</DialogTitle>
             <DialogDescription>
               Submitted by: {reviewItem?.studentName}
             </DialogDescription>
           </DialogHeader>
           <div className="my-4 aspect-video relative">
-            {reviewItem?.activityEvidenceUrl && (
+            {reviewItem?.image_url && (
               <Image
-                src={reviewItem.activityEvidenceUrl}
-                alt={`Evidence for ${reviewItem.programName}`}
+                src={reviewItem.image_url}
+                alt={`Evidence for ${reviewItem.programname}`}
                 fill
                 className="rounded-md object-contain"
               />

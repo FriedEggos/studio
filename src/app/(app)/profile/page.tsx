@@ -59,7 +59,7 @@ export default function ProfilePage() {
   // Modal State
   const [isViewEvidenceModalOpen, setIsViewEvidenceModalOpen] = useState(false);
   const [isEditEvidenceModalOpen, setIsEditEvidenceModalOpen] = useState(false);
-  const [selectedParticipation, setSelectedParticipation] = useState<any | null>(null);
+  const [selectedEvidence, setSelectedEvidence] = useState<any | null>(null);
 
   // Camera and Submission State
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -75,12 +75,12 @@ export default function ProfilePage() {
   
   const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
 
-  const participationsQuery = useMemoFirebase(() => {
+  const evidenceQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
-    return query(collection(firestore, `users/${user.uid}/participations`));
+    return query(collection(firestore, `users/${user.uid}/activity_evidence`));
   }, [user, firestore]);
 
-  const { data: participationHistory, isLoading: isLoadingHistory } = useCollection(participationsQuery);
+  const { data: activityEvidenceHistory, isLoading: isLoadingHistory } = useCollection(evidenceQuery);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -118,13 +118,13 @@ export default function ProfilePage() {
     }
   }, [isEditEvidenceModalOpen]);
 
-  const handleOpenViewModal = (participation: any) => {
-    setSelectedParticipation(participation);
+  const handleOpenViewModal = (evidence: any) => {
+    setSelectedEvidence(evidence);
     setIsViewEvidenceModalOpen(true);
   };
 
-  const handleOpenEditModal = (participation: any) => {
-    setSelectedParticipation(participation);
+  const handleOpenEditModal = (evidence: any) => {
+    setSelectedEvidence(evidence);
     setIsEditEvidenceModalOpen(true);
   };
 
@@ -148,28 +148,28 @@ export default function ProfilePage() {
   };
 
   const handleUpdateEvidence = async () => {
-    if (!capturedImage || !user || !firestore || !storage || !selectedParticipation) return;
+    if (!capturedImage || !user || !firestore || !storage || !selectedEvidence) return;
     
     setIsSubmitting(true);
     
     try {
       // 1. Upload new image
       const newBlob = await (await fetch(capturedImage)).blob();
-      const newStorageRef = ref(storage, `evidence/${user.uid}/${selectedParticipation.programId}/${Date.now()}.jpg`);
+      const newStorageRef = ref(storage, `evidence/${user.uid}/${selectedEvidence.program_id}/${Date.now()}.jpg`);
       await uploadBytes(newStorageRef, newBlob);
       const newDownloadURL = await getDownloadURL(newStorageRef);
       
       // 2. Update Firestore document, also resetting status to 'pending'
-      const participationDocRef = doc(firestore, `users/${user.uid}/participations/${selectedParticipation.id}`);
-      await updateDoc(participationDocRef, {
-        activityEvidenceUrl: newDownloadURL,
-        verificationStatus: 'pending' 
+      const evidenceDocRef = doc(firestore, `users/${user.uid}/activity_evidence/${selectedEvidence.id}`);
+      await updateDoc(evidenceDocRef, {
+        image_url: newDownloadURL,
+        status: 'pending' 
       });
       
       // 3. Delete old image from storage
-      if (selectedParticipation.activityEvidenceUrl) {
+      if (selectedEvidence.image_url) {
         try {
-          const oldImageRef = ref(storage, selectedParticipation.activityEvidenceUrl);
+          const oldImageRef = ref(storage, selectedEvidence.image_url);
           await deleteObject(oldImageRef);
         } catch (deleteError: any) {
           // Log error if old image deletion fails, but don't block the user.
@@ -274,25 +274,25 @@ export default function ProfilePage() {
               <TableBody>
                 {isLoadingHistory ? (
                   <TableRow><TableCell colSpan={4} className="text-center">Loading history...</TableCell></TableRow>
-                ) : participationHistory && participationHistory.length > 0 ? (
-                  participationHistory.map((item, index) => (
+                ) : activityEvidenceHistory && activityEvidenceHistory.length > 0 ? (
+                  activityEvidenceHistory.map((item, index) => (
                     <TableRow key={index}>
                       <TableCell className="font-medium">
-                        {item.programName || item.programId}
+                        {item.programname || item.program_id}
                       </TableCell>
-                      <TableCell>{item.participationDate ? format(item.participationDate.toDate(), 'd MMM yyyy') : 'N/A'}</TableCell>
+                      <TableCell>{item.submissionDate ? format(item.submissionDate.toDate(), 'd MMM yyyy') : 'N/A'}</TableCell>
                       <TableCell>
                         <UiBadge
                           variant={
-                            item.verificationStatus === "approved" ? "default" : item.verificationStatus === 'rejected' ? 'destructive' : "secondary"
+                            item.status === "approved" ? "default" : item.status === 'rejected' ? 'destructive' : "secondary"
                           }
                           className={
-                            item.verificationStatus === "approved"
+                            item.status === "approved"
                               ? "bg-green-600 hover:bg-green-700 text-white"
                               : ""
                           }
                         >
-                          {item.verificationStatus}
+                          {item.status}
                         </UiBadge>
                       </TableCell>
                       <TableCell className="text-right">
@@ -305,11 +305,11 @@ export default function ProfilePage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => handleOpenViewModal(item)} disabled={!item.activityEvidenceUrl}>
+                            <DropdownMenuItem onClick={() => handleOpenViewModal(item)} disabled={!item.image_url}>
                               <Eye className="mr-2 h-4 w-4" />
                               View Evidence
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleOpenEditModal(item)} disabled={item.verificationStatus === 'approved'}>
+                            <DropdownMenuItem onClick={() => handleOpenEditModal(item)} disabled={item.status === 'approved'}>
                               <Edit className="mr-2 h-4 w-4" />
                               Edit Evidence
                             </DropdownMenuItem>
@@ -338,11 +338,11 @@ export default function ProfilePage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Submitted Evidence</DialogTitle>
-            <DialogDescription>Program: {selectedParticipation?.programName}</DialogDescription>
+            <DialogDescription>Program: {selectedEvidence?.programname}</DialogDescription>
           </DialogHeader>
           <div className="mt-4 rounded-lg overflow-hidden">
             <Image
-              src={selectedParticipation?.activityEvidenceUrl || ''}
+              src={selectedEvidence?.image_url || ''}
               alt="Submitted evidence"
               width={800}
               height={600}
@@ -357,7 +357,7 @@ export default function ProfilePage() {
             <DialogHeader>
                 <DialogTitle className="font-headline">Update Activity Evidence</DialogTitle>
                 <DialogDescription>
-                    Take a new photo as proof for &quot;{selectedParticipation?.programName}&quot;. This will replace the old one.
+                    Take a new photo as proof for &quot;{selectedEvidence?.programname}&quot;. This will replace the old one.
                 </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -418,5 +418,3 @@ export default function ProfilePage() {
     </>
   );
 }
-
-    

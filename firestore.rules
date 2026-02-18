@@ -10,22 +10,10 @@
  *
  * Data Structure:
  * - /users/{userId}: Contains private user profiles.
- * - /users/{userId}/participations/{participationId}: A subcollection containing
- *   participation records, strictly owned by the parent user.
- * - /programs/{programId}: A top-level collection for program information, which
- *   is publicly readable.
- *
- * Key Security Decisions:
- * - User Isolation: A user can only access their own data within their `/users/{userId}`
- *   data tree. They cannot read, write, or even see the existence of other users' data.
- * - No User Listing: To protect user privacy, listing the top-level `/users`
- *   collection is explicitly disallowed.
- * - Public Programs, Private Writes: The `/programs` collection is publicly readable
- *   by anyone, allowing users to browse available programs. However, write operations
- *   (create, update, delete) are restricted to the admin who created the program,
- *   enforced by an `adminId` field on each program document.
- * - Default Secure: Any path not explicitly matched is denied access. All write
- *   operations require authentication and specific authorization.
+ * - /users/{userId}/activity_evidence/{evidenceId}: User-submitted proof of participation.
+ * - /users/{userId}/certificates/{certificateId}: Certificates issued to a user.
+ * - /users/{userId}/attendance/{attendanceId}: QR-code scan attendance records.
+ * - /programs/{programId}: Publicly readable program information.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -77,10 +65,6 @@ service cloud.firestore {
      *   profile and fully control it afterward. Access by any other user is denied,
      *   except for admins.
      * @path /users/{userId}
-     * @allow (get) User 'abc' trying to read their own document at /users/abc.
-     * @allow (get) An admin reading any user document.
-     * @deny (get) User 'xyz' trying to read the document at /users/abc.
-     * @principle Restricts access to a user's own data tree, with admin oversight.
      */
     match /users/{userId} {
       // A user can get their own profile. Admins can get any user profile.
@@ -94,22 +78,35 @@ service cloud.firestore {
       allow delete: if isExistingOwner(userId);
 
       /**
-       * @description Manages a user's participation records. Only the user who owns
-       *   the parent profile can read or write their own participation entries.
-       *   Admins are also allowed to update records for verification purposes.
-       * @path /users/{userId}/participations/{participationId}
-       * @allow (list) User 'abc' listing documents from /users/abc/participations.
-       * @deny (get) User 'xyz' trying to read a document from /users/abc/participations.
-       * @principle Enforces strict ownership for user-specific subcollections, with admin override for updates.
+       * @description Manages a user's submitted activity evidence. Only the user who
+       *   owns the parent profile can manage their own submissions. Admins can update
+       *   records for verification.
        */
-      match /participations/{participationId} {
-        // isOwner allows users to get their own, isAdmin allows admins to get any for review
+      match /activity_evidence/{evidenceId} {
         allow get: if isOwner(userId) || isAdmin();
         allow list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        // An owner can update their own (e.g. resubmit evidence), an admin can update any (e.g. change status)
-        allow update: if (isExistingOwner(userId) && request.resource.data.userId == resource.data.userId) || isAdmin();
+        allow create: if isOwner(userId) && request.resource.data.user_id == userId;
+        allow update: if (isExistingOwner(userId) && request.resource.data.user_id == resource.data.user_id) || isAdmin();
         allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description Manages certificates issued to a user. Only admins can create,
+       *   update, or delete certificates. Users can only view their own.
+       */
+      match /certificates/{certificateId} {
+        allow get, list: if isOwner(userId) || isAdmin();
+        allow write: if isAdmin(); // Create, Update, Delete
+      }
+
+      /**
+       * @description Manages attendance records from QR scans. Users can create
+       *   their own attendance records. Only admins can modify or delete them.
+       */
+      match /attendance/{attendanceId} {
+        allow get, list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && request.resource.data.user_id == userId;
+        allow update, delete: if isAdmin();
       }
     }
 
@@ -117,9 +114,6 @@ service cloud.firestore {
      * @description Manages program documents. Programs are public and can be read by anyone.
      *   However, only the authenticated admin who created the program can modify or delete it.
      * @path /programs/{programId}
-     * @allow (get) Any user, authenticated or not, reading a program document.
-     * @deny (update) An admin trying to update a program document created by another admin.
-     * @principle Implements a "Public Read, Owner-Only Write" pattern using a denormalized 'adminId' field.
      */
     match /programs/{programId} {
       allow get: if true;
@@ -130,13 +124,10 @@ service cloud.firestore {
     }
 
     /**
-     * @description Collection group rule to allow admins to query all 'participations'
-     *   across all users, specifically for verifying pending submissions.
-     * @path /{path=**}/participations/{participationId}
-     * @allow (read) An admin performing a collection group query on the 'participations' collection.
-     * @principle Enables a critical admin feature (listing all pending verifications) securely.
+     * @description Collection group rule to allow admins to query all 'activity_evidence'
+     *   across all users for verification.
      */
-     match /{path=**}/participations/{participationId} {
+     match /{path=**}/activity_evidence/{evidenceId} {
        allow read: if isAdmin();
      }
   }

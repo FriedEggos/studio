@@ -90,65 +90,122 @@
         "adminId"
       ]
     },
-    "Participation": {
+    "ActivityEvidence": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Participation",
+      "title": "ActivityEvidence",
       "type": "object",
-      "description": "Represents a user's participation in a program.",
+      "description": "Represents the evidence of activity submitted by a user for a program.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the participation entity."
+          "description": "Unique identifier for the evidence record."
         },
-        "userId": {
+        "user_id": {
           "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Participation)"
+          "description": "Reference to the User who submitted the evidence."
         },
         "studentName": {
           "type": "string",
           "description": "Denormalized name of the student for easy display."
         },
-        "programId": {
+        "program_id": {
           "type": "string",
-          "description": "Reference to Program. (Relationship: Program 1:N Participation)"
+          "description": "Reference to the Program."
         },
-        "programName": {
+        "programname": {
           "type": "string",
-          "description": "Denormalized name of the program for easy display."
+          "description": "The name of the program."
         },
-        "participationDate": {
+        "submissionDate": {
           "type": "string",
-          "description": "Date and time of participation.",
+          "description": "Date and time of evidence submission.",
           "format": "date-time"
         },
-        "activityEvidenceUrl": {
+        "image_url": {
           "type": "string",
           "description": "URL of the uploaded activity evidence (image)."
         },
-        "verificationStatus": {
+        "status": {
           "type": "string",
-          "description": "Status of the activity evidence verification (e.g., pending, approved, rejected)."
-        },
-        "badgeIssued": {
-          "type": "boolean",
-          "description": "Indicates whether a badge has been issued for this participation."
-        },
-        "certificateIssued": {
-          "type": "boolean",
-          "description": "Indicates whether a certificate has been issued for this participation."
+          "description": "Status of the evidence verification.",
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ]
         }
       },
       "required": [
         "id",
-        "userId",
+        "user_id",
         "studentName",
-        "programId",
-        "programName",
-        "participationDate",
-        "activityEvidenceUrl",
-        "verificationStatus",
-        "badgeIssued",
-        "certificateIssued"
+        "program_id",
+        "programname",
+        "submissionDate",
+        "image_url",
+        "status"
+      ]
+    },
+    "Certificate": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Certificate",
+      "type": "object",
+      "description": "Represents a digital certificate issued to a user for a program.",
+      "properties": {
+        "cert_id": {
+          "type": "string",
+          "description": "Unique identifier for the certificate."
+        },
+        "user_id": {
+          "type": "string",
+          "description": "Reference to the User who received the certificate."
+        },
+        "programname": {
+          "type": "string",
+          "description": "The name of the program for which the certificate was issued."
+        },
+        "issuedate": {
+          "type": "string",
+          "description": "The date the certificate was issued.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "cert_id",
+        "user_id",
+        "programname",
+        "issuedate"
+      ]
+    },
+    "Attendance": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Attendance",
+      "type": "object",
+      "description": "Represents a user's attendance record for a program, captured via QR scan.",
+      "properties": {
+        "attendance_id": {
+          "type": "string",
+          "description": "Unique identifier for the attendance record."
+        },
+        "user_id": {
+          "type": "string",
+          "description": "Reference to the User."
+        },
+        "program_id": {
+          "type": "string",
+          "description": "Reference to the Program."
+        },
+        "scan_time": {
+          "type": "string",
+          "description": "The timestamp when the user scanned the QR code.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "attendance_id",
+        "user_id",
+        "program_id",
+        "scan_time"
       ]
     }
   },
@@ -166,13 +223,7 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Stores user profiles.  Path-based ownership ensures only the user can access their data.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user."
-            }
-          ]
+          "description": "Stores user profiles. Path-based ownership ensures only the user can access their data."
         }
       },
       {
@@ -182,36 +233,40 @@
           "schema": {
             "$ref": "#/backend/entities/Program"
           },
-          "description": "Stores program details. Includes 'adminId' for authorization, ensuring only the admin who created the program can modify it.",
-          "params": [
-            {
-              "name": "programId",
-              "description": "The unique identifier of the program."
-            }
-          ]
+          "description": "Stores program details. Includes 'adminId' for authorization, ensuring only the admin who created the program can modify it."
         }
       },
       {
-        "path": "/users/{userId}/participations/{participationId}",
+        "path": "/users/{userId}/activity_evidence/{evidenceId}",
         "definition": {
-          "entityName": "Participation",
+          "entityName": "ActivityEvidence",
           "schema": {
-            "$ref": "#/backend/entities/Participation"
+            "$ref": "#/backend/entities/ActivityEvidence"
           },
-          "description": "Stores participation records for each user. Includes denormalized 'userId' and 'programId' for authorization independence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user."
-            },
-            {
-              "name": "participationId",
-              "description": "The unique identifier of the participation record."
-            }
-          ]
+          "description": "Stores evidence of activity submitted by users for program participation."
+        }
+      },
+      {
+        "path": "/users/{userId}/certificates/{certificateId}",
+        "definition": {
+          "entityName": "Certificate",
+          "schema": {
+            "$ref": "#/backend/entities/Certificate"
+          },
+          "description": "Stores certificates issued to users."
+        }
+      },
+      {
+        "path": "/users/{userId}/attendance/{attendanceId}",
+        "definition": {
+          "entityName": "Attendance",
+          "schema": {
+            "$ref": "#/backend/entities/Attendance"
+          },
+          "description": "Stores attendance records for users."
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to support the JTMK+ application's requirements for program participation, activity evidence verification, and digital certification. The structure prioritizes authorization independence by denormalizing necessary data to avoid `get()` calls in security rules. Segregation is used to maintain a homogeneous security posture within collections.\n\nAuthorization Independence:\n*   Programs: Each program document will store the `adminId`, to define who can edit it and to make the security rules independent of other collections.\n*   Participations: The participations subcollection will store the `userId` and `programId` of each participation to define who can see it and to make the security rules independent of other collections.\n\nQAPs (Rules are not Filters):\n*   The structure is designed to support secure list operations. The use of path-based ownership (`/users/{userId}/participations/{participationId}`) ensures that users can only list their own participation records.\n\nAccess Modeling:\n*   Private User Data: User profiles are stored under `/users/{userId}`, ensuring that only the user can access their data.\n*   User-Owned Data: Programs and participations are modeled using hierarchical paths (`/programs/{programId}` and `/users/{userId}/participations/{participationId}`) to simplify ownership-based security rules."
+    "reasoning": "The Firestore structure is designed based on user requirements to separate concerns for activity evidence, certificates, and attendance, while maintaining user-owned data patterns. Collections are nested under users to simplify security rules. Denormalized fields like `studentName` and `programname` are used to avoid extra reads in security rules and on the client."
   }
 }
