@@ -58,14 +58,14 @@ service cloud.firestore {
     }
 
     /**
-     * Checks if the signed-in user has an 'admin' role.
-     * WORKAROUND: This function hardcodes admin UIDs to avoid a cross-document read (`get`)
-     * within the collection group query rule, which was causing permission errors.
-     * A more robust, long-term solution is to use Firebase Auth custom claims.
+     * Checks if the signed-in user has an 'admin' role by reading their profile.
+     * This is safe because the rule to read a user's own profile ('get /users/{userId}')
+     * does not recursively call this function.
      */
     function isAdmin() {
-      return request.auth.uid == 'tuApY2FpLRbiBZmtyvlfSoguoRw2' // Admin: ahammedrasiah@gmail.com
-          || request.auth.uid == 'JeOERchfBbPLcW8e2q66NOHYBLI3'; // Admin: syazmiza0304@gmail.com
+      return isSignedIn() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
 
@@ -82,12 +82,13 @@ service cloud.firestore {
      * @principle Restricts access to a user's own data tree and prevents user enumeration.
      */
     match /users/{userId} {
+      // A user can get their own profile. Admins cannot get other user profiles with this rule alone.
       allow get: if isOwner(userId);
-      allow list: if false;
+      allow list: if false; // Explicitly deny listing all users for privacy.
       allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if isExistingOwner(userId) 
                     && request.resource.data.id == resource.data.id
-                    && request.resource.data.role == resource.data.role;
+                    && request.resource.data.role == resource.data.role; // Prevent role escalation
       allow delete: if isExistingOwner(userId);
 
       /**
@@ -100,9 +101,11 @@ service cloud.firestore {
        * @principle Enforces strict ownership for user-specific subcollections, with admin override for updates.
        */
       match /participations/{participationId} {
+        // isOwner allows users to get their own, isAdmin allows admins to get any for review
         allow get: if isOwner(userId) || isAdmin();
         allow list: if isOwner(userId);
         allow create: if isOwner(userId) && request.resource.data.userId == userId;
+        // An owner can update their own (e.g. resubmit evidence), an admin can update any (e.g. change status)
         allow update: if (isExistingOwner(userId) && request.resource.data.userId == resource.data.userId) || isAdmin();
         allow delete: if isExistingOwner(userId);
       }
