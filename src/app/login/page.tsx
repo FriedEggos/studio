@@ -87,8 +87,8 @@ export default function LoginPage() {
       return (
          <div className="flex items-center justify-center min-h-screen bg-background">
             <div className="text-center">
-              <p className="text-lg font-semibold">Redirecting...</p>
-              <p className="text-muted-foreground">You are already logged in.</p>
+              <p className="text-lg font-semibold">Welcome back!</p>
+              <p className="text-muted-foreground">Redirecting you to your dashboard...</p>
             </div>
         </div>
       )
