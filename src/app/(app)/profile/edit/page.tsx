@@ -25,6 +25,20 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { updateProfile } from 'firebase/auth';
 import { Camera } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/ui/form"
 
 const profileFormSchema = z.object({
   fullName: z.string().min(1, 'Full name is required.'),
@@ -33,6 +47,15 @@ const profileFormSchema = z.object({
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
+
+const courses = [
+  "Jabatan Kejuruteraan Awam",
+  "Jabatan Kejuruteraan Mekanikal",
+  "Jabatan Kejuruteraan Petrokimia",
+  "Jabatan Kejuruteraan Elektrik",
+  "Jabatan Teknologi Maklumat & Komunikasi",
+  "Jabatan Perdagangan",
+];
 
 export default function EditProfilePage() {
   const router = useRouter();
@@ -57,6 +80,7 @@ export default function EditProfilePage() {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors },
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -218,11 +242,28 @@ export default function EditProfilePage() {
               <Input id="email" type="email" {...register('email')} />
               {errors.email && <p className="text-sm text-destructive mt-1">{errors.email.message}</p>}
             </div>
-            <div className="grid gap-3">
-              <Label htmlFor="course">Course</Label>
-              <Input id="course" type="text" placeholder="e.g., Diploma in Digital Technology" {...register('course')} />
-               {errors.course && <p className="text-sm text-destructive mt-1">{errors.course.message}</p>}
-            </div>
+            <FormField
+              control={control}
+              name="course"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Course</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || ''}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select your department" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {courses.map(course => (
+                        <SelectItem key={course} value={course}>{course}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </CardContent>
         </Card>
         <div className="flex items-center justify-end gap-2 mt-6">
