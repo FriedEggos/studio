@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from "next/image";
@@ -20,16 +21,6 @@ export default function Home() {
           <Skeleton className="h-10 w-24" />
           <Skeleton className="h-10 w-24" />
         </div>
-      );
-    }
-
-    if (user) {
-      return (
-        <Button asChild>
-          <Link href="/dashboard">
-            Dashboard <ArrowRight className="ml-2 h-4 w-4" />
-          </Link>
-        </Button>
       );
     }
 

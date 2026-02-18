@@ -68,12 +68,20 @@ export default function RegisterPage() {
         router.push("/login");
       }
     } catch (error: any) {
-        console.error("Email sign-up error", error);
-        toast({
+        if (error.code === 'auth/email-already-in-use') {
+          toast({
             variant: "destructive",
             title: "Registration Failed",
-            description: error.message,
-        });
+            description: "This email address has already been used. Please use a different email.",
+          });
+        } else {
+          console.error("Email sign-up error", error);
+          toast({
+              variant: "destructive",
+              title: "Registration Failed",
+              description: error.message,
+          });
+        }
     } finally {
       setIsLoading(false);
     }
