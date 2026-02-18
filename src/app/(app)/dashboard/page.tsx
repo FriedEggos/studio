@@ -1,4 +1,3 @@
-
 'use client';
 
 import Image from "next/image";
@@ -281,147 +280,137 @@ export default function StudentDashboard() {
   const isProgramJoined = selectedProgram ? myProgramIds.has(selectedProgram.id) : false;
   const hasSubmittedEvidence = selectedProgram ? submittedProgramIds.has(selectedProgram.id) : false;
 
-  const availablePrograms = allPrograms.filter(program => 
-    !myProgramIds.has(program.id) && getProgramStatus(program.startDate, program.endDate).text !== 'Completed'
-  );
-
-  const myActivePrograms = allPrograms.filter(program => 
+  // Re-organize program lists
+  const myPrograms = allPrograms.filter(program => 
     myProgramIds.has(program.id) && getProgramStatus(program.startDate, program.endDate).text !== 'Completed'
   );
+
+  const upcomingPrograms = allPrograms.filter(p => 
+    !myProgramIds.has(p.id) && getProgramStatus(p.startDate, p.endDate).text === 'Upcoming'
+  );
+
+  const ongoingPrograms = allPrograms.filter(p =>
+    !myProgramIds.has(p.id) && getProgramStatus(p.startDate, p.endDate).text === 'Ongoing'
+  );
+
+
+  const ProgramCard = ({ program }: { program: Program }) => {
+    const image = PlaceHolderImages.find((img) => img.id === program.imageId);
+    const status = getProgramStatus(program.startDate, program.endDate);
+    return (
+      <Card
+        key={program.id}
+        className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col"
+      >
+        {image && (
+          <Image
+            src={image.imageUrl}
+            alt={image.description}
+            width={600}
+            height={400}
+            data-ai-hint={image.imageHint}
+            className="w-full h-40 object-cover"
+          />
+        )}
+        <CardHeader>
+          <CardTitle className="font-headline text-lg">
+            {program.name}
+          </CardTitle>
+          <CardDescription className="flex items-center gap-2 pt-1">
+            <Calendar className="h-4 w-4" />
+            <span>{format(parseISO(program.startDate), 'd MMM yyyy')} - {format(parseISO(program.endDate), 'd MMM yyyy')}</span>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex-grow">
+          <p className="text-sm text-muted-foreground line-clamp-2">
+            {program.description}
+          </p>
+        </CardContent>
+        <CardFooter className="flex-col items-start gap-3 pt-4">
+           <Badge variant={status.variant}>{status.text}</Badge>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => handleOpenProgramModal(program)}
+          >
+            View Details{" "}
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  };
 
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-8">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
               Student Dashboard
             </h1>
             <p className="text-muted-foreground">
-              Check available programs and your participation history.
+              Join programs, submit evidence, and track your participation.
             </p>
           </div>
         </div>
-
-        <section>
-          <h2 className="text-xl font-semibold tracking-tight font-headline mb-4">
-            Available Programs
-          </h2>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {availablePrograms.map((program) => {
-              const image = PlaceHolderImages.find(
-                (img) => img.id === program.imageId
-              );
-              const status = getProgramStatus(program.startDate, program.endDate);
-              return (
-                <Card
-                  key={program.id}
-                  className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col"
-                >
-                  {image && (
-                    <Image
-                      src={image.imageUrl}
-                      alt={image.description}
-                      width={600}
-                      height={400}
-                      data-ai-hint={image.imageHint}
-                      className="w-full h-40 object-cover"
-                    />
-                  )}
-                  <CardHeader>
-                    <CardTitle className="font-headline text-lg">
-                      {program.name}
-                    </CardTitle>
-                    <CardDescription className="flex items-center gap-2 pt-1">
-                      <Calendar className="h-4 w-4" />
-                      <span>{format(parseISO(program.startDate), 'd MMM yyyy')} - {format(parseISO(program.endDate), 'd MMM yyyy')}</span>
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex-grow">
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {program.description}
-                    </p>
-                  </CardContent>
-                  <CardFooter className="flex-col items-start gap-3 pt-4">
-                     <Badge variant={status.variant}>{status.text}</Badge>
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => handleOpenProgramModal(program)}
-                    >
-                      View Details{" "}
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </CardFooter>
-                </Card>
-              );
-            })}
-          </div>
-        </section>
-
+        
         <section>
           <h2 className="text-xl font-semibold tracking-tight font-headline mb-4">
             My Programs
           </h2>
-            {myActivePrograms.length > 0 ? (
+            {myPrograms.length > 0 ? (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {myActivePrograms.map((program) => {
-                  const image = PlaceHolderImages.find(
-                    (img) => img.id === program.imageId
-                  );
-                  const status = getProgramStatus(program.startDate, program.endDate);
-                  return (
-                    <Card
-                      key={program.id}
-                      className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col"
-                    >
-                      {image && (
-                        <Image
-                          src={image.imageUrl}
-                          alt={image.description}
-                          width={600}
-                          height={400}
-                          data-ai-hint={image.imageHint}
-                          className="w-full h-40 object-cover"
-                        />
-                      )}
-                      <CardHeader>
-                        <CardTitle className="font-headline text-lg">
-                          {program.name}
-                        </CardTitle>
-                        <CardDescription className="flex items-center gap-2 pt-1">
-                          <Calendar className="h-4 w-4" />
-                          <span>{format(parseISO(program.startDate), 'd MMM yyyy')} - {format(parseISO(program.endDate), 'd MMM yyyy')}</span>
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="flex-grow">
-                        <p className="text-sm text-muted-foreground line-clamp-2">
-                          {program.description}
-                        </p>
-                      </CardContent>
-                      <CardFooter className="flex-col items-start gap-3 pt-4">
-                         <Badge variant={status.variant}>{status.text}</Badge>
-                        <Button
-                          variant="outline"
-                          className="w-full"
-                          onClick={() => handleOpenProgramModal(program)}
-                        >
-                          View Details{" "}
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  );
-                })}
+                {myPrograms.map((program) => (
+                  <ProgramCard key={program.id} program={program} />
+                ))}
               </div>
             ) : (
                 <Card>
                     <CardContent className="pt-6">
-                        <p className="text-muted-foreground">You have not joined any programs yet. Join one from the list above!</p>
+                        <p className="text-muted-foreground">You have not joined any programs yet. Join an ongoing or upcoming program below!</p>
                     </CardContent>
                 </Card>
             )}
+        </section>
+
+        <section>
+          <h2 className="text-xl font-semibold tracking-tight font-headline mb-4">
+            Upcoming Programs
+          </h2>
+          {upcomingPrograms.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {upcomingPrograms.map((program) => (
+                <ProgramCard key={program.id} program={program} />
+              ))}
+            </div>
+          ) : (
+             <Card>
+                <CardContent className="pt-6">
+                    <p className="text-muted-foreground">There are no upcoming programs at the moment. Check back later!</p>
+                </CardContent>
+            </Card>
+          )}
+        </section>
+
+        <section>
+          <h2 className="text-xl font-semibold tracking-tight font-headline mb-4">
+            Ongoing Programs
+          </h2>
+          {ongoingPrograms.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {ongoingPrograms.map((program) => (
+                  <ProgramCard key={program.id} program={program} />
+                ))}
+            </div>
+          ) : (
+            <Card>
+                <CardContent className="pt-6">
+                    <p className="text-muted-foreground">There are no ongoing programs available to join right now.</p>
+                </CardContent>
+            </Card>
+          )}
         </section>
       </div>
 
@@ -464,7 +453,7 @@ export default function StudentDashboard() {
                   onClick={handleOpenEvidenceModal}
                 >
                   <Camera className="mr-2 h-5 w-5" />
-                  Submit Evidence
+                  {hasSubmittedEvidence ? "Evidence Submitted" : "Submit Evidence"}
                 </Button>
                 {!hasSubmittedEvidence ? (
                    <Button
@@ -588,7 +577,7 @@ export default function StudentDashboard() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This will remove &quot;{selectedProgram?.name}&quot; from your programs. You can rejoin it later from the available programs list.
+                    This will remove &quot;{selectedProgram?.name}&quot; from your programs. You can rejoin it later.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -600,5 +589,3 @@ export default function StudentDashboard() {
     </>
   );
 }
-
-    
