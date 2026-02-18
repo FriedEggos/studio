@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
+  Form,
   FormField,
   FormItem,
   FormLabel,
@@ -76,13 +77,7 @@ export default function EditProfilePage() {
 
   const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    control,
-    formState: { errors },
-  } = useForm<ProfileFormValues>({
+  const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
       fullName: '',
@@ -96,7 +91,7 @@ export default function EditProfilePage() {
       router.push('/login');
     }
     if (userProfile) {
-      reset({
+      form.reset({
         fullName: userProfile.fullName || '',
         email: userProfile.email || '',
         course: userProfile.course || '',
@@ -105,7 +100,7 @@ export default function EditProfilePage() {
         setAvatarPreview(user?.photoURL || null);
       }
     }
-  }, [isUserLoading, user, userProfile, reset, router, avatarPreview]);
+  }, [isUserLoading, user, userProfile, form, router, avatarPreview]);
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -196,85 +191,106 @@ export default function EditProfilePage() {
       <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
         Edit Profile
       </h1>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Personal Details</CardTitle>
-            <CardDescription>
-              Update your personal information here. Click save when done.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-6">
-            <div className="grid gap-3 items-center justify-center text-center">
-              <Label htmlFor="avatar-upload">Profile Picture</Label>
-              <div className="relative group w-28 h-28 mx-auto">
-                <Avatar className="w-28 h-28">
-                  <AvatarImage src={avatarPreview || `https://picsum.photos/seed/${user.uid}/200/200`} alt="Profile Picture" />
-                  <AvatarFallback>{userProfile?.fullName?.[0].toUpperCase() || user.email?.[0].toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <label htmlFor="avatar-upload" className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                  <Camera className="h-8 w-8 text-white" />
-                </label>
-                <Input 
-                  id="avatar-upload" 
-                  type="file" 
-                  accept="image/png, image/jpeg, image/gif"
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer sr-only"
-                  onChange={handleFileChange}
-                />
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Personal Details</CardTitle>
+              <CardDescription>
+                Update your personal information here. Click save when done.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-6">
+              <div className="grid gap-3 items-center justify-center text-center">
+                <Label htmlFor="avatar-upload">Profile Picture</Label>
+                <div className="relative group w-28 h-28 mx-auto">
+                  <Avatar className="w-28 h-28">
+                    <AvatarImage src={avatarPreview || `https://picsum.photos/seed/${user.uid}/200/200`} alt="Profile Picture" />
+                    <AvatarFallback>{userProfile?.fullName?.[0].toUpperCase() || user.email?.[0].toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <label htmlFor="avatar-upload" className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                    <Camera className="h-8 w-8 text-white" />
+                  </label>
+                  <Input 
+                    id="avatar-upload" 
+                    type="file" 
+                    accept="image/png, image/jpeg, image/gif"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer sr-only"
+                    onChange={handleFileChange}
+                  />
+                </div>
               </div>
-            </div>
-            <div className="grid gap-3">
-              <Label htmlFor="userId">Student ID (Matric No.)</Label>
-              <Input id="userId" type="text" value={userProfile.id} disabled />
-            </div>
-            <div className="grid gap-3">
-              <Label htmlFor="role">Role</Label>
-              <Input id="role" type="text" value={userProfile.role} disabled />
-            </div>
-            <div className="grid gap-3">
-              <Label htmlFor="fullName">Full Name</Label>
-              <Input id="fullName" type="text" {...register('fullName')} />
-              {errors.fullName && <p className="text-sm text-destructive mt-1">{errors.fullName.message}</p>}
-            </div>
-            <div className="grid gap-3">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" {...register('email')} />
-              {errors.email && <p className="text-sm text-destructive mt-1">{errors.email.message}</p>}
-            </div>
-            <FormField
-              control={control}
-              name="course"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Course</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || ''}>
+              <div className="grid gap-3">
+                <Label htmlFor="userId">Student ID (Matric No.)</Label>
+                <Input id="userId" type="text" value={userProfile.id} disabled />
+              </div>
+              <div className="grid gap-3">
+                <Label htmlFor="role">Role</Label>
+                <Input id="role" type="text" value={userProfile.role} disabled />
+              </div>
+              
+              <FormField
+                control={form.control}
+                name="fullName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select your department" />
-                      </SelectTrigger>
+                      <Input {...field} />
                     </FormControl>
-                    <SelectContent>
-                      {courses.map(course => (
-                        <SelectItem key={course} value={course}>{course}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
-        <div className="flex items-center justify-end gap-2 mt-6">
-          <Button variant="outline" type="button" onClick={() => router.push('/profile')}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </div>
-      </form>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="course"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Course</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select your department" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {courses.map(course => (
+                          <SelectItem key={course} value={course}>{course}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="outline" type="button" onClick={() => router.push('/profile')}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
+        </form>
+      </Form>
     </div>
   );
 }
