@@ -18,7 +18,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useUser, useFirestore, useStorage, useDoc, useMemoFirebase } from "@/firebase";
+import { useUser, useFirestore, useStorage } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
@@ -43,12 +43,6 @@ export default function CreateProgramPage() {
   const firestore = useFirestore();
   const storage = useStorage();
 
-  const userDocRef = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return doc(firestore, 'users', user.uid);
-  }, [user, firestore]);
-  const { data: userProfile } = useDoc(userDocRef);
-
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -71,7 +65,7 @@ export default function CreateProgramPage() {
   };
 
   const onSubmit = async (data: ProgramFormValues) => {
-    if (!user || !firestore || !storage || !userProfile) {
+    if (!user || !firestore || !storage) {
         toast({ variant: 'destructive', title: 'Error', description: 'User data not loaded. Please try again.' });
         return;
     }
@@ -90,41 +84,13 @@ export default function CreateProgramPage() {
             imageUrl = await getDownloadURL(imageRef);
         }
 
-        // Step 2: Send program and user info to our API proxy for Google Apps Script
-        const scriptPayload = {
-            userName: userProfile.fullName,
-            userId: user.uid,
-            programId: programId,
-            programName: data.name,
-            briefDescription: data.briefDescription,
-            startDate: data.startDate,
-            endDate: data.endDate,
-        };
-
-        const sheetResponse = await fetch('/api/add-program-to-sheet', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(scriptPayload)
-        });
-
-        if (!sheetResponse.ok) {
-            const errorData = await sheetResponse.json().catch(() => ({error: 'Failed to save to Google Sheet and could not parse error response.'}));
-            throw new Error(errorData.error || 'Failed to save program to Google Sheet.');
-        }
-        
-        const sheetResult = await sheetResponse.json();
-        if (sheetResult.result === 'error' || sheetResult.status === 'error' || sheetResult.success === false) {
-            throw new Error(sheetResult.error || sheetResult.message || 'The Google Sheet integration reported an error.');
-        }
-
-
-        // Step 3: Generate QR code from programId and upload it
+        // Step 2: Generate QR code from programId and upload it
         const qrCodeDataUrl = await QRCode.toDataURL(programId, { width: 300 });
         const qrCodeRef = ref(storage, `qrcodes/${programId}.png`);
         await uploadString(qrCodeRef, qrCodeDataUrl, 'data_url');
         const qrCodeUrl = await getDownloadURL(qrCodeRef);
 
-        // Step 4: Save all data to Firestore
+        // Step 3: Save all data to Firestore
         const programData = {
             id: programId,
             name: data.name,
@@ -138,12 +104,12 @@ export default function CreateProgramPage() {
         };
         await setDoc(newProgramRef, programData);
         
-        // Step 5: Update UI
+        // Step 4: Update UI
         setQrImageUrl(qrCodeUrl); 
         
         toast({
             title: 'Program Created Successfully!',
-            description: 'Data saved and QR code generated. You can now download the QR code.',
+            description: 'Data saved to Firestore and QR code generated. You can now download the QR code.',
         });
 
     } catch (error) {

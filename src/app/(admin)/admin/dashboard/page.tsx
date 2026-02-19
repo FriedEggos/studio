@@ -45,11 +45,10 @@ import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, collectionGroup, query, where, doc, updateDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isFuture, isPast, parseISO } from 'date-fns';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-type SheetProgram = {
-    programId: string;
-    programName: string;
+type Program = {
+    id: string;
+    name: string;
     startDate: string;
     endDate: string;
 };
@@ -67,63 +66,11 @@ export default function AdminDashboard() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const [sheetPrograms, setSheetPrograms] = useState<SheetProgram[]>([]);
-  const [isLoadingSheetPrograms, setIsLoadingSheetPrograms] = useState(true);
-  const [sheetError, setSheetError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchSheetData = async () => {
-      setIsLoadingSheetPrograms(true);
-      setSheetError(null);
-      try {
-        const response = await fetch("/api/programs-from-sheet");
-        if (!response.ok) {
-           let errorDetails = `HTTP error! status: ${response.status}`;
-           try {
-             const errorJson = await response.json();
-             if (errorJson.error) {
-               errorDetails = errorJson.error;
-             }
-           } catch (e) {
-             // Ignore if response body is not json
-           }
-           throw new Error(errorDetails);
-        }
-        const result = await response.json();
-        
-        let programsData: SheetProgram[] = [];
-        if (Array.isArray(result)) {
-          // Case 1: The response is the array itself.
-          programsData = result;
-        } else if (typeof result === 'object' && result !== null) {
-          // Case 2: The response is an object. Find the first property that is an array.
-          const arrayProperty = Object.values(result).find(value => Array.isArray(value));
-          if (arrayProperty && Array.isArray(arrayProperty)) {
-            programsData = arrayProperty;
-          }
-        }
-
-        setSheetPrograms(programsData);
-
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        setSheetError(errorMessage);
-        // We only show a toast for unexpected errors. The "Access Forbidden" error is a
-        // user configuration issue that is clearly displayed in the UI.
-        if (!errorMessage.includes("Access Forbidden")) {
-            toast({
-              variant: 'destructive',
-              title: 'Failed to load programs from Sheet',
-              description: errorMessage,
-            });
-        }
-      } finally {
-        setIsLoadingSheetPrograms(false);
-      }
-    };
-
-    fetchSheetData();
-  }, [toast]);
+  const programsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'programs');
+  }, [firestore]);
+  const { data: programs, isLoading: isLoadingPrograms } = useCollection<Program>(programsQuery);
 
   // Data fetching from firestore for other stats
   const pendingQuery = useMemoFirebase(() => {
@@ -245,9 +192,9 @@ export default function AdminDashboard() {
           <StatCard
             title="Total Programs"
             icon={List}
-            value={sheetPrograms?.length ?? 0}
-            isLoading={isLoadingSheetPrograms}
-            description="Total programs from Google Sheet."
+            value={programs?.length ?? 0}
+            isLoading={isLoadingPrograms}
+            description="Total programs in Firestore."
           />
            <StatCard
             title="Total Attendances"
@@ -329,12 +276,12 @@ export default function AdminDashboard() {
             <CardHeader>
               <CardTitle className="font-headline">Program List</CardTitle>
               <CardDescription>
-                Summary of all programs from the linked Google Sheet.
+                Summary of all programs from the database.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {isLoadingSheetPrograms ? (
+                {isLoadingPrograms ? (
                   [...Array(3)].map((_, i) => (
                     <div key={i} className="flex items-center">
                       <div className="space-y-1">
@@ -345,25 +292,14 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   ))
-                ) : sheetError ? (
-                  <Alert variant="destructive">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>Could Not Connect to Google Sheet</AlertTitle>
-                    <AlertDescription>
-                      {sheetError}
-                      <p className="text-xs mt-2">
-                        Please ensure your Google Apps Script is deployed correctly and allows public access ('Anyone').
-                      </p>
-                    </AlertDescription>
-                  </Alert>
-                ) : sheetPrograms && sheetPrograms.length > 0 ? (
-                  sheetPrograms.map((program) => {
+                ) : programs && programs.length > 0 ? (
+                  programs.map((program) => {
                     const status = getProgramStatus(program.startDate, program.endDate);
                     return (
-                      <div key={program.programId} className="flex items-center">
+                      <div key={program.id} className="flex items-center">
                         <div className="space-y-1">
                           <p className="text-sm font-medium leading-none">
-                            {program.programName}
+                            {program.name}
                           </p>
                         </div>
                         <div className="ml-auto font-medium flex items-center gap-2">
@@ -376,7 +312,7 @@ export default function AdminDashboard() {
                   })
                 ) : (
                   <p className="text-sm text-muted-foreground text-center h-24 flex items-center justify-center">
-                    No programs found in the Google Sheet.
+                    No programs found in the database.
                   </p>
                 )}
               </div>
