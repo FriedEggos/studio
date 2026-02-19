@@ -21,7 +21,7 @@ import * as z from "zod";
 import { useUser, useFirestore, useStorage } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { collection, doc, setDoc, updateDoc } from "firebase/firestore";
+import { collection, doc, setDoc } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -89,7 +89,15 @@ export default function CreateProgramPage() {
     const programId = newProgramRef.id;
 
     try {
-        // Step 1 (Fast Save): Save lightweight data first
+        // Step 1: Upload Poster Image (if it exists)
+        let imageUrl = "";
+        if (data.image) {
+            const imageRef = ref(storage, `programs/${programId}/poster.jpg`);
+            await uploadBytes(imageRef, data.image);
+            imageUrl = await getDownloadURL(imageRef);
+        }
+
+        // Step 2: Prepare Program Data
         const programData = {
             id: programId,
             name: data.name,
@@ -101,32 +109,19 @@ export default function CreateProgramPage() {
             organizerUnit: data.organizerUnit,
             status: data.status,
             adminId: user.uid,
-            imageUrl: "", // Initially empty
+            imageUrl: imageUrl,
             createdAt: new Date().toISOString(),
         };
 
+        // Step 3: Save Program Data to Firestore
         await setDoc(newProgramRef, programData);
 
         toast({
-            title: 'Program Saved!',
-            description: 'Your program has been created. Uploading image in background...',
+            title: 'Program Created Successfully!',
+            description: 'The new program has been saved to Firestore.',
         });
 
-        // Step 2 (Async Image Upload): Upload image in the background without awaiting
-        if (data.image) {
-            const imageRef = ref(storage, `programs/${programId}/poster.jpg`);
-            uploadBytes(imageRef, data.image).then(async () => {
-                const downloadURL = await getDownloadURL(imageRef);
-                await updateDoc(newProgramRef, { imageUrl: downloadURL });
-                toast({ title: 'Image successfully uploaded!'})
-            }).catch(error => {
-                console.error("Image upload failed:", error);
-                toast({ variant: 'destructive', title: 'Image upload failed', description: 'Your program was saved, but the image upload failed. You can add it by editing the program.'})
-            });
-        }
-        
-        // Redirect immediately after fast save
-        router.push(`/admin/programs/${programId}/edit`);
+        router.push(`/admin/dashboard`);
 
     } catch (error: any) {
         console.error("Error creating program: ", error);
@@ -143,7 +138,8 @@ export default function CreateProgramPage() {
             title: 'Failed to Create Program',
             description: description,
         });
-        setIsSubmitting(false); // Only set to false on error, as we redirect on success
+    } finally {
+        setIsSubmitting(false);
     }
   };
 
@@ -396,3 +392,5 @@ export default function CreateProgramPage() {
     </Form>
   );
 }
+
+    
