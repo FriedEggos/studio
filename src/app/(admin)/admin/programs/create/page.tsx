@@ -1,7 +1,6 @@
 
 'use client';
 
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,23 +11,21 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, Loader2, Calendar as CalendarIcon } from "lucide-react";
+import { Loader2, Calendar as CalendarIcon } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useUser, useFirestore, useStorage } from "@/firebase";
+import { useUser, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { collection, doc, setDoc } from "firebase/firestore";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { compressAndResizeImage } from "@/lib/image-utils";
 
 
 const programFormSchema = z.object({
@@ -40,7 +37,6 @@ const programFormSchema = z.object({
   status: z.enum(["draft", "active", "closed"]),
   startDate: z.date({ required_error: "A start date is required." }),
   endDate: z.date({ required_error: "An end date is required." }),
-  image: z.instanceof(File).optional().refine(file => !file || file.size <= 5000000, `Max image size is 5MB.`),
 }).refine(data => data.endDate >= data.startDate, {
     message: "End date must be on or after the start date.",
     path: ['endDate'],
@@ -53,9 +49,7 @@ export default function CreateProgramPage() {
   const { toast } = useToast();
   const { user } = useUser();
   const firestore = useFirestore();
-  const storage = useStorage();
 
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const form = useForm<ProgramFormValues>({
@@ -69,27 +63,9 @@ export default function CreateProgramPage() {
         status: "draft",
     }
   });
-  
-  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const originalFile = e.target.files[0];
-      try {
-        const compressedFile = await compressAndResizeImage(originalFile);
-        form.setValue('image', compressedFile, { shouldValidate: true });
-        setImagePreview(URL.createObjectURL(compressedFile));
-      } catch (error) {
-        toast({
-          variant: 'destructive',
-          title: 'Image Processing Failed',
-          description: 'Could not process the selected image.',
-        });
-        console.error("Image processing error", error);
-      }
-    }
-  };
 
   const onSubmit = async (data: ProgramFormValues) => {
-    if (!user || !firestore || !storage) {
+    if (!user || !firestore) {
         toast({ variant: 'destructive', title: 'Error', description: 'User not authenticated or services unavailable.' });
         return;
     }
@@ -99,13 +75,6 @@ export default function CreateProgramPage() {
     const programId = newProgramRef.id;
 
     try {
-        let imageUrl = "";
-        if (data.image) {
-            const imageRef = ref(storage, `programs/${programId}/poster.jpg`);
-            await uploadBytes(imageRef, data.image);
-            imageUrl = await getDownloadURL(imageRef);
-        }
-
         const programData = {
             id: programId,
             name: data.name,
@@ -117,7 +86,7 @@ export default function CreateProgramPage() {
             organizerUnit: data.organizerUnit,
             status: data.status,
             adminId: user.uid,
-            imageUrl: imageUrl,
+            imageUrl: "",
             createdAt: new Date().toISOString(),
         };
 
@@ -134,9 +103,7 @@ export default function CreateProgramPage() {
         console.error("Error creating program: ", error);
         
         let description = 'An unexpected error occurred. Please try again.';
-        if (error.code === 'storage/unauthorized') {
-            description = 'Image upload failed. You may not have permission. Please check your Firebase Storage security rules.';
-        } else if (error.code === 'permission-denied') {
+        if (error.code === 'permission-denied') {
             description = 'You do not have permission to create programs. Please check your Firestore security rules.';
         } else if (error instanceof Error) {
             description = error.message;
@@ -154,8 +121,7 @@ export default function CreateProgramPage() {
 
   return (
     <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="grid flex-1 items-start gap-4 md:gap-8 md:grid-cols-3">
-        <div className="grid auto-rows-max items-start gap-4 md:gap-8 md:col-span-2">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-3xl mx-auto">
             <Card>
             <CardHeader>
                 <CardTitle className="font-headline">Program Details</CardTitle>
@@ -345,58 +311,6 @@ export default function CreateProgramPage() {
                 {isSubmitting ? 'Saving...' : 'Save Program'}
             </Button>
             </div>
-        </div>
-        <div className="grid auto-rows-max items-start gap-4 md:gap-8">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="font-headline">Program Image</CardTitle>
-                    <CardDescription>
-                        Upload a poster or image for your program. (Max 5MB)
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid gap-4">
-                        <div className="aspect-video w-full rounded-md border-2 border-dashed border-muted-foreground/40 flex items-center justify-center overflow-hidden">
-                            {imagePreview ? (
-                            <Image
-                                src={imagePreview}
-                                alt="Program image preview"
-                                width={300}
-                                height={168}
-                                className="object-cover w-full h-full"
-                            />
-                            ) : (
-                            <div className="text-center p-4">
-                                <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
-                                <p className="text-sm text-muted-foreground mt-2">Image Preview</p>
-                            </div>
-                            )}
-                        </div>
-                        <div>
-                           <FormField
-                                control={form.control}
-                                name="image"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel htmlFor="program-image-upload" className="sr-only">Upload Program Image</FormLabel>
-                                        <FormControl>
-                                            <Input 
-                                                id="program-image-upload" 
-                                                type="file" 
-                                                accept="image/*" 
-                                                onChange={handleImageChange}
-                                                className="w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-                                            />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
         </form>
     </Form>
   );
