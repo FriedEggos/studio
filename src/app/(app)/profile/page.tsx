@@ -48,6 +48,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { compressAndResizeDataUrl } from '@/lib/image-utils';
 
 export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
@@ -153,10 +154,10 @@ export default function ProfilePage() {
     setIsSubmitting(true);
     
     try {
-      // 1. Upload new image
-      const newBlob = await (await fetch(capturedImage)).blob();
+      // 1. Compress and upload new image
+      const compressedFile = await compressAndResizeDataUrl(capturedImage, `evidence-${user.uid}-${selectedEvidence.program_id}.jpg`);
       const newStorageRef = ref(storage, `evidence/${user.uid}/${selectedEvidence.program_id}/${Date.now()}.jpg`);
-      await uploadBytes(newStorageRef, newBlob);
+      await uploadBytes(newStorageRef, compressedFile);
       const newDownloadURL = await getDownloadURL(newStorageRef);
       
       // 2. Update Firestore document, also resetting status to 'pending'

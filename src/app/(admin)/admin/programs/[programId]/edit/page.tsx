@@ -30,6 +30,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
+import { compressAndResizeImage } from "@/lib/image-utils";
 
 
 const programFormSchema = z.object({
@@ -106,11 +107,21 @@ export default function EditProgramPage({ params }: { params: { programId: strin
     }
   }, [program, form]);
   
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      form.setValue('image', file, { shouldValidate: true });
-      setImagePreview(URL.createObjectURL(file));
+      const originalFile = e.target.files[0];
+      try {
+        const compressedFile = await compressAndResizeImage(originalFile);
+        form.setValue('image', compressedFile, { shouldValidate: true });
+        setImagePreview(URL.createObjectURL(compressedFile));
+      } catch (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Image Processing Failed',
+          description: 'Could not process the selected image.',
+        });
+        console.error("Image processing error", error);
+      }
     }
   };
 

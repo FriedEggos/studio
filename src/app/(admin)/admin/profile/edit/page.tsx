@@ -24,6 +24,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { updateProfile } from 'firebase/auth';
 import { Camera } from 'lucide-react';
+import { compressAndResizeImage } from '@/lib/image-utils';
 
 const profileFormSchema = z.object({
   fullName: z.string().min(1, 'Full name is required.'),
@@ -79,11 +80,21 @@ export default function AdminEditProfilePage() {
     }
   }, [isUserLoading, user, userProfile, reset, router, avatarPreview]);
   
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setAvatarFile(file);
-      setAvatarPreview(URL.createObjectURL(file));
+      const originalFile = e.target.files[0];
+      try {
+        const compressedFile = await compressAndResizeImage(originalFile);
+        setAvatarFile(compressedFile);
+        setAvatarPreview(URL.createObjectURL(compressedFile));
+      } catch (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Image Processing Failed',
+          description: 'Could not process the selected image.',
+        });
+        console.error("Image processing error", error);
+      }
     }
   };
 

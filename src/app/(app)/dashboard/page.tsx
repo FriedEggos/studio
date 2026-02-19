@@ -40,6 +40,7 @@ import { useToast } from "@/hooks/use-toast";
 import { collection, serverTimestamp, query, doc, setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Skeleton } from "@/components/ui/skeleton";
+import { compressAndResizeDataUrl } from "@/lib/image-utils";
 
 
 interface Program {
@@ -257,10 +258,10 @@ export default function StudentDashboard() {
     setIsSubmitting(true);
 
     try {
-        const blob = await (await fetch(capturedImage)).blob();
+        const compressedFile = await compressAndResizeDataUrl(capturedImage, `evidence-${user.uid}-${selectedProgram.id}.jpg`);
 
         const storageRef = ref(storage, `evidence/${user.uid}/${selectedProgram.id}/${Date.now()}.jpg`);
-        const uploadResult = await uploadBytes(storageRef, blob);
+        const uploadResult = await uploadBytes(storageRef, compressedFile);
         const downloadURL = await getDownloadURL(uploadResult.ref);
 
         const evidenceColRef = collection(firestore, `users/${user.uid}/activity_evidence`);
