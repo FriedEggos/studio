@@ -11,7 +11,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Upload, Loader2, Calendar as CalendarIcon } from "lucide-react";
 import { useState } from "react";
@@ -89,7 +88,6 @@ export default function CreateProgramPage() {
     const programId = newProgramRef.id;
 
     try {
-        // Step 1: Upload Poster Image (if it exists)
         let imageUrl = "";
         if (data.image) {
             const imageRef = ref(storage, `programs/${programId}/poster.jpg`);
@@ -97,7 +95,6 @@ export default function CreateProgramPage() {
             imageUrl = await getDownloadURL(imageRef);
         }
 
-        // Step 2: Prepare Program Data
         const programData = {
             id: programId,
             name: data.name,
@@ -113,15 +110,14 @@ export default function CreateProgramPage() {
             createdAt: new Date().toISOString(),
         };
 
-        // Step 3: Save Program Data to Firestore
         await setDoc(newProgramRef, programData);
 
         toast({
             title: 'Program Created Successfully!',
-            description: 'The new program has been saved to Firestore.',
+            description: 'The new program has been saved.',
         });
 
-        router.push(`/admin/dashboard`);
+        router.push(`/admin/programs/${programId}/edit`);
 
     } catch (error: any) {
         console.error("Error creating program: ", error);
@@ -392,5 +388,3 @@ export default function CreateProgramPage() {
     </Form>
   );
 }
-
-    
