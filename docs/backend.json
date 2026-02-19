@@ -217,6 +217,61 @@
         "issuedAt",
         "status"
       ]
+    },
+    "ActivityEvidence": {
+      "title": "ActivityEvidence",
+      "type": "object",
+      "description": "Represents the evidence of participation submitted by a student for a program.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the evidence record."
+        },
+        "user_id": {
+          "type": "string",
+          "description": "Reference to the User who submitted the evidence."
+        },
+        "studentName": {
+          "type": "string",
+          "description": "Full name of the student for easy reference."
+        },
+        "program_id": {
+          "type": "string",
+          "description": "Reference to the Program."
+        },
+        "programname": {
+          "type": "string",
+          "description": "Name of the program for easy reference."
+        },
+        "submissionDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the evidence was submitted."
+        },
+        "image_url": {
+          "type": "string",
+          "description": "URL of the uploaded evidence image."
+        },
+        "status": {
+          "type": "string",
+          "description": "Verification status of the evidence.",
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "user_id",
+        "studentName",
+        "program_id",
+        "programname",
+        "submissionDate",
+        "image_url",
+        "status"
+      ]
     }
   },
   "auth": {
@@ -275,8 +330,18 @@
           },
           "description": "Stores certificates issued to a specific user. Nested under the user to ensure privacy and ownership."
         }
+      },
+      {
+        "path": "/users/{userId}/activity_evidence/{evidenceId}",
+        "definition": {
+          "entityName": "ActivityEvidence",
+          "schema": {
+            "$ref": "#/entities/ActivityEvidence"
+          },
+          "description": "Stores evidence of participation submitted by a user for a specific program. Nested under user for ownership-based security."
+        }
       }
     ],
-    "reasoning": "This Firestore structure is designed for scalability and security. Publicly accessible data like 'programs' resides in a top-level collection. User-specific data that requires privacy, such as 'certificates', is nested within that user's document path to simplify ownership-based security rules. Program-specific subcollections like 'registrations' and 'attendance' are nested under each program, which allows for efficient querying of all participants for a given event, a common requirement for administrators. This model balances query efficiency with a strong, user-centric security posture."
+    "reasoning": "This Firestore structure is designed for scalability and security. Publicly accessible data like 'programs' resides in a top-level collection. User-specific data that requires privacy, such as 'certificates' and 'activity_evidence', is nested within that user's document path to simplify ownership-based security rules. Program-specific subcollections like 'registrations' and 'attendance' are nested under each program, which allows for efficient querying of all participants for a given event, a common requirement for administrators. This model balances query efficiency with a strong, user-centric security posture."
   }
 }

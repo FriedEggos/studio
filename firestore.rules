@@ -35,6 +35,14 @@ service cloud.firestore {
         // Admins can manage all certificates.
         allow read, write: if isAdmin();
       }
+
+      // User-specific activity evidence
+      match /activity_evidence/{evidenceId} {
+        // A user can manage their own evidence submissions.
+        allow get, list, create, update: if isOwner(userId);
+        // Admins can manage all evidence for verification purposes.
+        allow read, write, delete: if isAdmin();
+      }
     }
 
     // Program information
