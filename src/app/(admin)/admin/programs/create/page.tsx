@@ -82,83 +82,75 @@ export default function CreateProgramPage() {
 
   const onSubmit = async (data: ProgramFormValues) => {
     if (!user || !firestore || !storage) {
-        toast({ variant: 'destructive', title: 'Error', description: 'User data not loaded. Please try again.' });
+        toast({ variant: 'destructive', title: 'Error', description: 'User not authenticated or services unavailable.' });
         return;
     }
     setIsSubmitting(true);
-    setQrImageUrl(null);
+    setQrImageUrl(null); // Clear previous QR code
 
     const newProgramRef = doc(collection(firestore, "programs"));
     const programId = newProgramRef.id;
 
     try {
-      // Generate QR code first and show it to the user immediately
-      const qrCodeDataUrl = await QRCode.toDataURL(programId, { width: 300 });
-      setQrImageUrl(qrCodeDataUrl);
-      
-      toast({
-        title: "QR Code Generated!",
-        description: "You can download it now. Saving program details in the background...",
-      });
-
-      // All cloud operations are performed in the background without blocking the UI
-      const backgroundSave = async () => {
+        // Step 1: Upload Poster Image (if it exists)
         let imageUrl = "";
         if (data.image) {
-          const imageRef = ref(storage, `programs/${programId}/poster.jpg`);
-          await uploadBytes(imageRef, data.image);
-          imageUrl = await getDownloadURL(imageRef);
+            const imageRef = ref(storage, `programs/${programId}/poster.jpg`);
+            await uploadBytes(imageRef, data.image);
+            imageUrl = await getDownloadURL(imageRef);
         }
 
+        // Step 2: Generate and Upload QR Code
+        const qrCodeDataUrl = await QRCode.toDataURL(programId, { width: 300 });
         const qrCodeRef = ref(storage, `qrcodes/${programId}.png`);
         await uploadString(qrCodeRef, qrCodeDataUrl, 'data_url');
         const qrCodeUrl = await getDownloadURL(qrCodeRef);
 
+        // Show the QR code to the user
+        setQrImageUrl(qrCodeDataUrl);
+
+        // Step 3: Prepare Program Data
         const programData = {
-          id: programId,
-          name: data.name,
-          briefDescription: data.briefDescription,
-          description: data.description,
-          startDate: data.startDate.toISOString(),
-          endDate: data.endDate.toISOString(),
-          venue: data.venue,
-          organizerUnit: data.organizerUnit,
-          status: data.status,
-          adminId: user.uid,
-          imageUrl: imageUrl,
-          qrCodeUrl: qrCodeUrl,
-          createdAt: new Date().toISOString(),
+            id: programId,
+            name: data.name,
+            briefDescription: data.briefDescription,
+            description: data.description,
+            startDate: data.startDate.toISOString(),
+            endDate: data.endDate.toISOString(),
+            venue: data.venue,
+            organizerUnit: data.organizerUnit,
+            status: data.status,
+            adminId: user.uid,
+            imageUrl: imageUrl,
+            qrCodeUrl: qrCodeUrl,
+            createdAt: new Date().toISOString(),
         };
 
+        // Step 4: Save Program Data to Firestore
         await setDoc(newProgramRef, programData);
-      };
-      
-      backgroundSave()
-        .then(() => {
-          toast({
-            title: 'Program Saved Successfully!',
-            description: 'All details have been saved to the database.',
-          });
-        })
-        .catch((error) => {
-          console.error("Error creating program in background: ", error);
-          toast({
-            variant: 'destructive',
-            title: 'Background Save Failed',
-            description: error instanceof Error ? error.message : 'An unexpected error occurred while saving.',
-          });
-        })
-        .finally(() => {
-          setIsSubmitting(false);
+
+        toast({
+            title: 'Program Created Successfully!',
+            description: 'The new program has been saved to Firestore.',
         });
 
-    } catch (error) { // This only catches errors from QRCode.toDataURL
-        console.error("Error generating QR Code: ", error);
+    } catch (error: any) {
+        console.error("Error creating program: ", error);
+        
+        let description = 'An unexpected error occurred. Please try again.';
+        if (error.code === 'permission-denied') {
+            description = 'You do not have permission to create programs. Please contact an administrator.';
+        } else if (error instanceof Error) {
+            description = error.message;
+        }
+
         toast({
             variant: 'destructive',
             title: 'Failed to Create Program',
-            description: 'Could not generate the QR code. Please try again.',
+            description: description,
         });
+        setQrImageUrl(null); // Hide QR code if process failed
+    } finally {
         setIsSubmitting(false);
     }
   };
@@ -411,7 +403,7 @@ export default function CreateProgramPage() {
             <CardHeader>
                 <CardTitle className="font-headline">Program QR Code</CardTitle>
                 <CardDescription>
-                This QR code will be generated automatically after the program is saved.
+                This QR code will be generated after the program is successfully saved.
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center justify-center gap-4">
