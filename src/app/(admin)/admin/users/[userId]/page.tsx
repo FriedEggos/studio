@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -13,10 +14,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
-export default function UserProfilePage({ params }: { params: { userId: string } }) {
-  const { userId } = params;
+export default function UserProfilePage() {
+  const params = useParams();
+  const userId = params.userId as string;
   const firestore = useFirestore();
 
   const userDocRef = useMemoFirebase(() => {

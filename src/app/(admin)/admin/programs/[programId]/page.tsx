@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -12,6 +13,7 @@ import { doc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Edit, Calendar, MapPin, Users } from "lucide-react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
@@ -30,8 +32,9 @@ interface Program {
   imageUrl: string;
 }
 
-export default function ProgramDetailsPage({ params }: { params: { programId: string } }) {
-  const { programId } = params;
+export default function ProgramDetailsPage() {
+  const params = useParams();
+  const programId = params.programId as string;
   const firestore = useFirestore();
 
   const programDocRef = useMemoFirebase(() => {

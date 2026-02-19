@@ -19,7 +19,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useUser, useFirestore, useStorage, useDoc, useMemoFirebase } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { doc, updateDoc } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { format, parseISO } from "date-fns";
@@ -62,8 +62,9 @@ type Program = {
   imageUrl: string;
 }
 
-export default function EditProgramPage({ params }: { params: { programId: string } }) {
-  const { programId } = params;
+export default function EditProgramPage() {
+  const params = useParams();
+  const programId = params.programId as string;
   const router = useRouter();
   const { toast } = useToast();
   const { user } = useUser();
