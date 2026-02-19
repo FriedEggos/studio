@@ -101,13 +101,16 @@ export default function AdminDashboard() {
 
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        console.error("Error fetching from Google Sheet:", error);
         setSheetError(errorMessage);
-        toast({
-          variant: 'destructive',
-          title: 'Failed to load programs from Sheet',
-          description: errorMessage,
-        });
+        // We only show a toast for unexpected errors. The "Access Forbidden" error is a
+        // user configuration issue that is clearly displayed in the UI.
+        if (!errorMessage.includes("Access Forbidden")) {
+            toast({
+              variant: 'destructive',
+              title: 'Failed to load programs from Sheet',
+              description: errorMessage,
+            });
+        }
       } finally {
         setIsLoadingSheetPrograms(false);
       }
@@ -339,10 +342,12 @@ export default function AdminDashboard() {
                 ) : sheetError ? (
                   <Alert variant="destructive">
                     <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>Error Loading Programs</AlertTitle>
+                    <AlertTitle>Could Not Connect to Google Sheet</AlertTitle>
                     <AlertDescription>
-                      Could not fetch program list from Google Sheet.
-                      <p className="text-xs mt-2 font-mono">Details: {sheetError}</p>
+                      {sheetError}
+                      <p className="text-xs mt-2">
+                        Please ensure your Google Apps Script is deployed correctly and allows public access ('Anyone').
+                      </p>
                     </AlertDescription>
                   </Alert>
                 ) : sheetPrograms && sheetPrograms.length > 0 ? (
