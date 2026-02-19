@@ -76,23 +76,25 @@ export default function CreateProgramPage() {
         const newProgramRef = doc(collection(firestore, "programs"));
         const programId = newProgramRef.id;
 
-        // 1. Upload program image if it exists
-        let imageUrl = '';
-        if (data.image) {
-            const imageRef = ref(storage, `programs/${programId}/poster.jpg`);
-            await uploadBytes(imageRef, data.image);
-            imageUrl = await getDownloadURL(imageRef);
-        }
+        // Use Promise.all to run uploads in parallel for better performance
+        const [imageUrl, qrCodeUrl] = await Promise.all([
+            (async () => {
+                if (data.image) {
+                    const imageRef = ref(storage, `programs/${programId}/poster.jpg`);
+                    await uploadBytes(imageRef, data.image);
+                    return getDownloadURL(imageRef);
+                }
+                return '';
+            })(),
+            (async () => {
+                const qrCodeDataUrl = await QRCode.toDataURL(programId, { width: 300 });
+                const qrCodeRef = ref(storage, `qrcodes/${programId}.png`);
+                await uploadString(qrCodeRef, qrCodeDataUrl, 'data_url');
+                return getDownloadURL(qrCodeRef);
+            })()
+        ]);
 
-        // 2. Generate QR code
-        const qrCodeDataUrl = await QRCode.toDataURL(programId, { width: 300 });
-        
-        // 3. Upload QR code to storage
-        const qrCodeRef = ref(storage, `qrcodes/${programId}.png`);
-        await uploadString(qrCodeRef, qrCodeDataUrl, 'data_url');
-        const qrCodeUrl = await getDownloadURL(qrCodeRef);
-
-        // 4. Create program document in Firestore
+        // Once uploads are complete, create the Firestore document
         const programData = {
             id: programId,
             name: data.name,
@@ -104,19 +106,15 @@ export default function CreateProgramPage() {
             imageUrl: imageUrl,
             qrCodeUrl: qrCodeUrl,
         };
-
         await setDoc(newProgramRef, programData);
 
-        setQrImageUrl(qrCodeUrl); // Show the generated QR code
+        // Update UI immediately after all operations are successful
+        setQrImageUrl(qrCodeUrl); 
         
         toast({
             title: 'Program Created Successfully!',
-            description: 'The QR code has been generated and saved.',
+            description: 'You can now download the QR code.',
         });
-
-        setTimeout(() => {
-            router.push('/admin/dashboard');
-        }, 2000);
 
     } catch (error) {
         console.error("Error creating program: ", error);
