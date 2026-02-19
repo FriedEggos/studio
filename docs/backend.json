@@ -2,10 +2,9 @@
 {
   "entities": {
     "User": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
-      "description": "Represents a user of the JTMK+ system, either a student or an admin.",
+      "description": "Represents a user of the system, either a student or an admin.",
       "properties": {
         "id": {
           "type": "string",
@@ -45,10 +44,9 @@
       ]
     },
     "Program": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Program",
       "type": "object",
-      "description": "Represents a JTMK program or event.",
+      "description": "Represents a program or event.",
       "properties": {
         "id": {
           "type": "string",
@@ -76,9 +74,22 @@
           "description": "End date and time of the program.",
           "format": "date-time"
         },
+        "venue": {
+            "type": "string",
+            "description": "Location where the program will be held."
+        },
+        "organizerUnit": {
+            "type": "string",
+            "description": "The department or unit organizing the program."
+        },
+        "status": {
+            "type": "string",
+            "description": "Current status of the program.",
+            "enum": ["active", "closed", "draft"]
+        },
         "adminId": {
           "type": "string",
-          "description": "Reference to User (admin). (Relationship: User 1:N Program)"
+          "description": "Reference to the User (admin) who created the program."
         },
         "imageUrl": {
           "type": "string",
@@ -86,7 +97,12 @@
         },
         "qrCodeUrl": {
           "type": "string",
-          "description": "URL of the generated QR code for program registration."
+          "description": "URL of the generated QR code for program attendance."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the program was created.",
+          "format": "date-time"
         }
       },
       "required": [
@@ -96,125 +112,110 @@
         "description",
         "startDate",
         "endDate",
-        "adminId"
+        "adminId",
+        "status",
+        "createdAt"
       ]
     },
-    "ActivityEvidence": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "ActivityEvidence",
+    "Registration": {
+      "title": "Registration",
       "type": "object",
-      "description": "Represents the evidence of activity submitted by a user for a program.",
+      "description": "Represents a user's registration for a specific program.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the evidence record."
+          "description": "Unique identifier for the registration record."
         },
-        "user_id": {
-          "type": "string",
-          "description": "Reference to the User who submitted the evidence."
-        },
-        "studentName": {
-          "type": "string",
-          "description": "Denormalized name of the student for easy display."
-        },
-        "program_id": {
+        "programId": {
           "type": "string",
           "description": "Reference to the Program."
         },
-        "programname": {
+        "userId": {
           "type": "string",
-          "description": "The name of the program."
-        },
-        "submissionDate": {
-          "type": "string",
-          "description": "Date and time of evidence submission.",
-          "format": "date-time"
-        },
-        "image_url": {
-          "type": "string",
-          "description": "URL of the uploaded activity evidence (image)."
+          "description": "Reference to the User."
         },
         "status": {
           "type": "string",
-          "description": "Status of the evidence verification.",
-          "enum": [
-            "pending",
-            "approved",
-            "rejected"
-          ]
+          "description": "The status of the registration.",
+          "enum": ["registered", "attended", "cancelled"]
+        },
+        "registeredAt": {
+          "type": "string",
+          "description": "Timestamp when the user registered for the program.",
+          "format": "date-time"
         }
       },
-      "required": [
-        "id",
-        "user_id",
-        "studentName",
-        "program_id",
-        "programname",
-        "submissionDate",
-        "image_url",
-        "status"
-      ]
+      "required": ["id", "programId", "userId", "status", "registeredAt"]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "type": "object",
+      "description": "Represents a user's attendance record for a program.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the attendance record."
+        },
+        "programId": {
+          "type": "string",
+          "description": "Reference to the Program."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User."
+        },
+        "checkInTime": {
+          "type": "string",
+          "description": "The timestamp when the user checked in.",
+          "format": "date-time"
+        },
+        "method": {
+            "type": "string",
+            "description": "The method used for check-in.",
+            "enum": ["QR", "manual"]
+        }
+      },
+      "required": ["id", "programId", "userId", "checkInTime", "method"]
     },
     "Certificate": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Certificate",
       "type": "object",
       "description": "Represents a digital certificate issued to a user for a program.",
       "properties": {
-        "cert_id": {
+        "id": {
           "type": "string",
           "description": "Unique identifier for the certificate."
         },
-        "user_id": {
+        "programId": {
+            "type": "string",
+            "description": "Reference to the Program for which the certificate was issued."
+        },
+        "userId": {
           "type": "string",
           "description": "Reference to the User who received the certificate."
         },
-        "programname": {
-          "type": "string",
-          "description": "The name of the program for which the certificate was issued."
+        "certificateNumber": {
+            "type": "string",
+            "description": "A unique number or code for the certificate."
         },
-        "issuedate": {
+        "issuedAt": {
           "type": "string",
           "description": "The date the certificate was issued.",
           "format": "date-time"
+        },
+        "status": {
+            "type": "string",
+            "description": "The status of the certificate.",
+            "enum": ["generated", "downloaded"]
         }
       },
       "required": [
-        "cert_id",
-        "user_id",
-        "programname",
-        "issuedate"
-      ]
-    },
-    "Attendance": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Attendance",
-      "type": "object",
-      "description": "Represents a user's attendance record for a program, captured via QR scan.",
-      "properties": {
-        "attendance_id": {
-          "type": "string",
-          "description": "Unique identifier for the attendance record."
-        },
-        "user_id": {
-          "type": "string",
-          "description": "Reference to the User."
-        },
-        "program_id": {
-          "type": "string",
-          "description": "Reference to the Program."
-        },
-        "scan_time": {
-          "type": "string",
-          "description": "The timestamp when the user scanned the QR code.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "attendance_id",
-        "user_id",
-        "program_id",
-        "scan_time"
+        "id",
+        "programId",
+        "userId",
+        "certificateNumber",
+        "issuedAt",
+        "status"
       ]
     }
   },
@@ -230,7 +231,7 @@
         "definition": {
           "entityName": "User",
           "schema": {
-            "$ref": "#/backend/entities/User"
+            "$ref": "#/entities/User"
           },
           "description": "Stores individual user profile data."
         }
@@ -240,19 +241,29 @@
         "definition": {
           "entityName": "Program",
           "schema": {
-            "$ref": "#/backend/entities/Program"
+            "$ref": "#/entities/Program"
           },
-          "description": "Stores publicly-readable program and event details."
+          "description": "Stores details for all programs and events."
         }
       },
       {
-        "path": "/users/{userId}/activity_evidence/{evidenceId}",
+        "path": "/programs/{programId}/registrations/{registrationId}",
         "definition": {
-          "entityName": "ActivityEvidence",
+          "entityName": "Registration",
           "schema": {
-            "$ref": "#/backend/entities/ActivityEvidence"
+            "$ref": "#/entities/Registration"
           },
-          "description": "Stores user-submitted evidence for program participation. Nested under the user to enforce ownership and simplify security rules."
+          "description": "Stores registration records for a program. Nested under programs for easy querying of all participants for an event."
+        }
+      },
+      {
+        "path": "/programs/{programId}/attendance/{attendanceId}",
+        "definition": {
+            "entityName": "Attendance",
+            "schema": {
+                "$ref": "#/entities/Attendance"
+            },
+            "description": "Stores attendance check-in records for a program. Nested for efficient queries by program."
         }
       },
       {
@@ -260,24 +271,12 @@
         "definition": {
           "entityName": "Certificate",
           "schema": {
-            "$ref": "#/backend/entities/Certificate"
+            "$ref": "#/entities/Certificate"
           },
           "description": "Stores certificates issued to a specific user. Nested under the user to ensure privacy and ownership."
         }
-      },
-      {
-        "path": "/users/{userId}/attendance/{attendanceId}",
-        "definition": {
-          "entityName": "Attendance",
-          "schema": {
-            "$ref": "#/backend/entities/Attendance"
-          },
-          "description": "Stores attendance records for a specific user. Nested under the user to ensure privacy and ownership."
-        }
       }
     ],
-    "reasoning": "The Firestore structure is designed with a user-centric security model. User-specific data (evidence, certificates, attendance) is nested within that user's document path. This simplifies security rules by allowing path-based ownership checks, which is more secure and efficient than filtering in rules. Public data like Programs is kept in a top-level collection for easy access by all users."
+    "reasoning": "This Firestore structure is designed for scalability and security. Publicly accessible data like 'programs' resides in a top-level collection. User-specific data that requires privacy, such as 'certificates', is nested within that user's document path to simplify ownership-based security rules. Program-specific subcollections like 'registrations' and 'attendance' are nested under each program, which allows for efficient querying of all participants for a given event, a common requirement for administrators. This model balances query efficiency with a strong, user-centric security posture."
   }
 }
-
-    

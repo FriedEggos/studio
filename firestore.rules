@@ -1,134 +1,74 @@
 
-/**
- * This ruleset enforces a user-centric security model for the JTMK+ application.
- *
- * Core Philosophy:
- * The rules prioritize strict user ownership of personal data while allowing public
- * read-access for shared resources like programs. Authorization decisions are
- * designed to be fast and independent, avoiding cross-collection reads by relying
- * on denormalized ownership fields (e.g., `adminId` on programs).
- *
- * Data Structure:
- * - /users/{userId}: Contains private user profiles.
- * - /users/{userId}/activity_evidence/{evidenceId}: User-submitted proof of participation.
- * - /users/{userId}/certificates/{certificateId}: Certificates issued to a user.
- * - /users/{userId}/attendance/{attendanceId}: QR-code scan attendance records.
- * - /programs/{programId}: Publicly readable program information.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     // Helper functions for reusable logic
-    // ===================================
-
-    /**
-     * Checks if the user is authenticated.
-     */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * Checks if the currently authenticated user's UID matches the provided userId.
-     * This is the core function for enforcing document ownership.
-     */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /**
-     * A stricter version of isOwner for update/delete operations.
-     * Ensures the document exists before checking for ownership.
-     */
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
-    }
-
-    /**
-     * Checks if the signed-in user has an 'admin' role by reading their profile.
-     * This is safe because the rule to read a user's own profile ('get /users/{userId}')
-     * does not recursively call this function.
-     */
     function isAdmin() {
       return isSignedIn() &&
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-
-    // Collection Rules
-    // ================
-
-    /**
-     * @description Manages user profile documents. A user can create their own
-     *   profile and fully control it afterward. Access by any other user is denied,
-     *   except for admins.
-     * @path /users/{userId}
-     */
+    // User profiles
     match /users/{userId} {
-      // A user can get their own profile. Admins can get any user profile.
       allow get: if isOwner(userId) || isAdmin();
-      // Admins can list all users for management purposes.
       allow list: if isAdmin();
+      // Allow user creation if the document ID matches the user's UID.
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) 
-                    && request.resource.data.id == resource.data.id
-                    && request.resource.data.role == resource.data.role; // Prevent role escalation
-      allow delete: if isExistingOwner(userId);
+      // Allow a user to update their own profile, but not change their role.
+      allow update: if isOwner(userId) && request.resource.data.role == resource.data.role;
+      allow delete: if isOwner(userId);
 
-      /**
-       * @description Manages a user's submitted activity evidence. Only the user who
-       *   owns the parent profile can manage their own submissions. Admins can update
-       *   records for verification.
-       */
-      match /activity_evidence/{evidenceId} {
-        allow get: if isOwner(userId) || isAdmin();
-        allow list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.user_id == userId;
-        allow update: if (isExistingOwner(userId) && request.resource.data.user_id == resource.data.user_id) || isAdmin();
-        allow delete: if isExistingOwner(userId);
-      }
-
-      /**
-       * @description Manages certificates issued to a user. Only admins can create,
-       *   update, or delete certificates. Users can only view their own.
-       */
+      // User-specific certificates
       match /certificates/{certificateId} {
-        allow get, list: if isOwner(userId) || isAdmin();
-        allow write: if isAdmin(); // Create, Update, Delete
+        // A user can only view their own certificates.
+        allow get, list: if isOwner(userId);
+        // Admins can manage all certificates.
+        allow read, write: if isAdmin();
+      }
+    }
+
+    // Program information
+    match /programs/{programId} {
+      // Any signed-in user can view program details.
+      allow get, list: if isSignedIn();
+      // Only admins can create, update, or delete programs.
+      allow write: if isAdmin();
+
+      // Program-specific registrations
+      match /registrations/{registrationId} {
+        // Admins can list all registrations for a program.
+        allow list: if isAdmin();
+        // A user can get their own registration. Admins can also read.
+        allow get: if isAdmin() || (resource.data.userId == request.auth.uid);
+        // A user can create their own registration.
+        allow create: if isOwner(request.resource.data.userId);
+        // A user can update (e.g. cancel) their own registration. Admins can also update.
+        allow update: if isAdmin() || isOwner(resource.data.userId);
+        // Only Admins can delete registrations.
+        allow delete: if isAdmin();
       }
 
-      /**
-       * @description Manages attendance records from QR scans. Users can create
-       *   their own attendance records. Only admins can modify or delete them.
-       */
+      // Program-specific attendance records
       match /attendance/{attendanceId} {
-        allow get, list: if isOwner(userId) || isAdmin();
-        allow create: if isOwner(userId) && request.resource.data.user_id == userId;
+        // Admins can list all attendance for a program.
+        allow list: if isAdmin();
+        // A user can get their own attendance record. Admins can also read.
+        allow get: if isAdmin() || (resource.data.userId == request.auth.uid);
+        // A user can create their own attendance record (e.g., by scanning a QR code).
+        allow create: if isOwner(request.resource.data.userId);
+        // Only admins can modify or delete attendance records.
         allow update, delete: if isAdmin();
       }
     }
-
-    /**
-     * @description Manages program documents. Programs are public and can be read by anyone.
-     *   However, only the authenticated admin who created the program can modify or delete it.
-     * @path /programs/{programId}
-     */
-    match /programs/{programId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isAdmin() && request.resource.data.adminId == request.auth.uid;
-      allow update: if resource != null && isOwner(resource.data.adminId);
-      allow delete: if resource != null && isOwner(resource.data.adminId);
-    }
-
-    /**
-     * @description Collection group rule to allow admins to query all 'activity_evidence'
-     *   across all users for verification.
-     */
-     match /{path=**}/activity_evidence/{evidenceId} {
-       allow read: if isAdmin();
-     }
   }
 }
