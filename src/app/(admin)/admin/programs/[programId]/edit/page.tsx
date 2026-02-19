@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Download, Upload, Loader2, QrCode as QrCodeIcon, Calendar as CalendarIcon, ArrowLeft } from "lucide-react";
+import { Upload, Loader2, Calendar as CalendarIcon, ArrowLeft } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -58,7 +58,6 @@ type Program = {
   organizerUnit: string;
   status: 'draft' | 'active' | 'closed';
   imageUrl: string;
-  qrCodeUrl: string;
 }
 
 export default function EditProgramPage({ params }: { params: { programId: string } }) {
@@ -171,7 +170,6 @@ export default function EditProgramPage({ params }: { params: { programId: strin
                   </div>
                   <div className="space-y-4">
                     <Skeleton className="h-64 w-full" />
-                    <Skeleton className="h-40 w-full" />
                   </div>
               </div>
           </div>
@@ -432,35 +430,6 @@ export default function EditProgramPage({ params }: { params: { programId: strin
                         </div>
                     </div>
                 </CardContent>
-            </Card>
-            <Card>
-            <CardHeader>
-                <CardTitle className="font-headline">Program QR Code</CardTitle>
-                <CardDescription>
-                    This QR code is used for attendance check-in.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center justify-center gap-4">
-                <div className="aspect-square w-full max-w-[200px] rounded-lg bg-muted flex items-center justify-center">
-                {program?.qrCodeUrl ? (
-                    <Image
-                    src={program.qrCodeUrl}
-                    alt="Program QR Code"
-                    width={200}
-                    height={200}
-                    className="rounded-lg object-cover"
-                    />
-                ) : (
-                    <QrCodeIcon className="h-10 w-10 text-muted-foreground" />
-                )}
-                </div>
-                <Button variant="outline" className="w-full" disabled={!program?.qrCodeUrl} asChild>
-                <a href={program?.qrCodeUrl || '#'} download={`program-qr-${programId}.png`}>
-                    <Download className="mr-2 h-4 w-4" />
-                    Download QR
-                </a>
-                </Button>
-            </CardContent>
             </Card>
         </div>
         </form>

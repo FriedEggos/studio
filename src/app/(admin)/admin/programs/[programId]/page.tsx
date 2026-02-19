@@ -10,7 +10,7 @@ import {
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Edit, Calendar, MapPin, Users, Download, QrCode } from "lucide-react";
+import { ArrowLeft, Edit, Calendar, MapPin, Users } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
@@ -28,7 +28,6 @@ interface Program {
   organizerUnit: string;
   status: 'draft' | 'active' | 'closed';
   imageUrl: string;
-  qrCodeUrl: string;
 }
 
 export default function ProgramDetailsPage({ params }: { params: { programId: string } }) {
@@ -149,23 +148,6 @@ export default function ProgramDetailsPage({ params }: { params: { programId: st
                     </CardHeader>
                     <CardContent>
                         <p>{program.organizerUnit}</p>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2"><QrCode className="h-5 w-5" /> QR Code</CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex flex-col items-center gap-4">
-                        {program.qrCodeUrl && (
-                            <>
-                                <Image src={program.qrCodeUrl} alt="Program QR Code" width={150} height={150} className="rounded-md border p-1" />
-                                <Button variant="outline" className="w-full" asChild>
-                                    <a href={program.qrCodeUrl} download={`qr-code-${program.id}.png`}>
-                                        <Download className="mr-2 h-4 w-4"/> Download
-                                    </a>
-                                </Button>
-                            </>
-                        )}
                     </CardContent>
                 </Card>
             </div>

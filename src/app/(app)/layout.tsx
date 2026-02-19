@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Home, Menu, User, QrCode } from "lucide-react";
+import { Home, Menu, User } from "lucide-react";
 
 import {
   Sheet,
@@ -13,7 +13,6 @@ import { UserNav } from "@/components/user-nav";
 const navLinks = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
   { href: "/profile", label: "My Profile", icon: User },
-  { href: "/scan", label: "Scan QR", icon: QrCode },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

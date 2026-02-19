@@ -341,4 +341,3 @@
     "reasoning": "This Firestore structure is designed for scalability and security. Publicly accessible data like 'programs' resides in a top-level collection. User-specific data that requires privacy, such as 'certificates' and 'activity_evidence', is nested within that user's document path to simplify ownership-based security rules. Program-specific subcollections like 'registrations' and 'attendance' are nested under each program, which allows for efficient querying of all participants for a given event, a common requirement for administrators. This model balances query efficiency with a strong, user-centric security posture."
   }
 }
-
