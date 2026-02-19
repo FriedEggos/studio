@@ -1,8 +1,9 @@
+
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   // The URL provided by the user
-  const appsScriptUrl = "https://script.google.com/macros/s/AKfycbyOt3XVmoHOkHE4QxwLbP3uWPp2ffGbqVDVatF7rX0NqVmuxDnvSSafGzvb68e1JI0keg/exec";
+  const appsScriptUrl = "https://script.google.com/macros/s/AKfycbyefPItSHjx_8-bqf5ZcTBsJM9xfvr55FYQO3-aiTOLnkw68PjFy1VzficvnQ2mkME7mg/exec";
   
   try {
     const payload = await request.json();
