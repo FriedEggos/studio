@@ -11,9 +11,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Download, Upload, Loader2, QrCode as QrCodeIcon, Calendar as CalendarIcon } from "lucide-react";
+import { Upload, Loader2, Calendar as CalendarIcon } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,9 +20,8 @@ import * as z from "zod";
 import { useUser, useFirestore, useStorage } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import QRCode from "qrcode";
 import { collection, doc, setDoc } from "firebase/firestore";
-import { getDownloadURL, ref, uploadBytes, uploadString } from "firebase/storage";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -57,7 +55,6 @@ export default function CreateProgramPage() {
   const storage = useStorage();
 
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const form = useForm<ProgramFormValues>({
@@ -86,13 +83,11 @@ export default function CreateProgramPage() {
         return;
     }
     setIsSubmitting(true);
-    setQrImageUrl(null); // Clear previous QR code
 
     const newProgramRef = doc(collection(firestore, "programs"));
     const programId = newProgramRef.id;
 
     try {
-        // Step 1: Upload Poster Image (if it exists)
         let imageUrl = "";
         if (data.image) {
             const imageRef = ref(storage, `programs/${programId}/poster.jpg`);
@@ -100,16 +95,6 @@ export default function CreateProgramPage() {
             imageUrl = await getDownloadURL(imageRef);
         }
 
-        // Step 2: Generate and Upload QR Code
-        const qrCodeDataUrl = await QRCode.toDataURL(programId, { width: 300 });
-        const qrCodeRef = ref(storage, `qrcodes/${programId}.png`);
-        await uploadString(qrCodeRef, qrCodeDataUrl, 'data_url');
-        const qrCodeUrl = await getDownloadURL(qrCodeRef);
-
-        // Show the QR code to the user
-        setQrImageUrl(qrCodeDataUrl);
-
-        // Step 3: Prepare Program Data
         const programData = {
             id: programId,
             name: data.name,
@@ -122,17 +107,17 @@ export default function CreateProgramPage() {
             status: data.status,
             adminId: user.uid,
             imageUrl: imageUrl,
-            qrCodeUrl: qrCodeUrl,
             createdAt: new Date().toISOString(),
         };
 
-        // Step 4: Save Program Data to Firestore
         await setDoc(newProgramRef, programData);
 
         toast({
             title: 'Program Created Successfully!',
-            description: 'The new program has been saved to Firestore.',
+            description: 'The new program has been saved.',
         });
+
+        router.push(`/admin/programs/${programId}/edit`);
 
     } catch (error: any) {
         console.error("Error creating program: ", error);
@@ -149,7 +134,6 @@ export default function CreateProgramPage() {
             title: 'Failed to Create Program',
             description: description,
         });
-        setQrImageUrl(null); // Hide QR code if process failed
     } finally {
         setIsSubmitting(false);
     }
@@ -345,7 +329,7 @@ export default function CreateProgramPage() {
             <Button variant="outline" type="button" onClick={() => router.push('/admin/dashboard')}>Cancel</Button>
             <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isSubmitting ? 'Saving...' : 'Save & Generate QR'}
+                {isSubmitting ? 'Saving...' : 'Save Program'}
             </Button>
             </div>
         </div>
@@ -398,36 +382,6 @@ export default function CreateProgramPage() {
                         </div>
                     </div>
                 </CardContent>
-            </Card>
-            <Card>
-            <CardHeader>
-                <CardTitle className="font-headline">Program QR Code</CardTitle>
-                <CardDescription>
-                This QR code will be generated after the program is successfully saved.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center justify-center gap-4">
-                <div className="aspect-square w-full max-w-[200px] rounded-lg bg-muted flex items-center justify-center">
-                {isSubmitting && !qrImageUrl && <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />}
-                {qrImageUrl ? (
-                    <Image
-                    src={qrImageUrl}
-                    alt="Generated QR Code"
-                    width={200}
-                    height={200}
-                    className="rounded-lg object-cover"
-                    />
-                ) : !isSubmitting && (
-                    <QrCodeIcon className="h-10 w-10 text-muted-foreground" />
-                )}
-                </div>
-                <Button variant="outline" className="w-full" disabled={!qrImageUrl} asChild>
-                <a href={qrImageUrl || '#'} download={`program-qr.png`}>
-                    <Download className="mr-2 h-4 w-4" />
-                    Download QR
-                </a>
-                </Button>
-            </CardContent>
             </Card>
         </div>
         </form>
