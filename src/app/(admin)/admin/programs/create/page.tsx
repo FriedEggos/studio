@@ -23,7 +23,7 @@ import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import { collection, doc, setDoc } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes, uploadString } from "firebase/storage";
-import { useFirestore, useStorage } from "@/firebase/provider";
+import { useFirestore, useStorage, useDoc, useMemoFirebase } from "@/firebase/provider";
 
 const programFormSchema = z.object({
   name: z.string().min(1, "Program name is required."),
@@ -42,6 +42,12 @@ export default function CreateProgramPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   const storage = useStorage();
+
+  const userDocRef = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [user, firestore]);
+  const { data: userProfile } = useDoc(userDocRef);
 
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
@@ -65,8 +71,8 @@ export default function CreateProgramPage() {
   };
 
   const onSubmit = async (data: ProgramFormValues) => {
-    if (!user || !firestore || !storage) {
-        toast({ variant: 'destructive', title: 'Error', description: 'User not authenticated or Firebase not initialized.' });
+    if (!user || !firestore || !storage || !userProfile) {
+        toast({ variant: 'destructive', title: 'Error', description: 'User data not loaded. Please try again.' });
         return;
     }
     setIsSubmitting(true);
@@ -76,6 +82,7 @@ export default function CreateProgramPage() {
         const newProgramRef = doc(collection(firestore, "programs"));
         const programId = newProgramRef.id;
 
+        // Step 1: Upload poster image (if provided)
         let imageUrl = "";
         if (data.image) {
             const imageRef = ref(storage, `programs/${programId}/poster.jpg`);
@@ -83,11 +90,37 @@ export default function CreateProgramPage() {
             imageUrl = await getDownloadURL(imageRef);
         }
 
+        // Step 2: Send program and user info to Google Apps Script
+        const appsScriptUrl = "https://script.google.com/macros/s/AKfycbwD1VGlmPthwKNoayWqF1qM5wRsDuHOMzk2eeMhdJtO8Gl1OJ438w4sUs2mJBHdqJSe/exec";
+        const scriptPayload = {
+            userName: userProfile.fullName,
+            userId: user.uid,
+            programId: programId,
+            programName: data.name,
+            briefDescription: data.briefDescription,
+            startDate: data.startDate,
+            endDate: data.endDate,
+        };
+
+        // We use `mode: 'no-cors'` for fire-and-forget. We can't read the response,
+        // but it prevents CORS errors with standard Apps Script deployments.
+        fetch(appsScriptUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(scriptPayload)
+        }).catch(err => {
+            // Log the error but don't block the main flow.
+            console.warn("Could not send data to Google Apps Script:", err);
+        });
+
+        // Step 3: Generate QR code from programId and upload it
         const qrCodeDataUrl = await QRCode.toDataURL(programId, { width: 300 });
         const qrCodeRef = ref(storage, `qrcodes/${programId}.png`);
         await uploadString(qrCodeRef, qrCodeDataUrl, 'data_url');
         const qrCodeUrl = await getDownloadURL(qrCodeRef);
 
+        // Step 4: Save all data to Firestore
         const programData = {
             id: programId,
             name: data.name,
@@ -100,12 +133,13 @@ export default function CreateProgramPage() {
             qrCodeUrl: qrCodeUrl,
         };
         await setDoc(newProgramRef, programData);
-
+        
+        // Step 5: Update UI
         setQrImageUrl(qrCodeUrl); 
         
         toast({
             title: 'Program Created Successfully!',
-            description: 'You can now download the QR code.',
+            description: 'Data saved and QR code generated. You can now download the QR code.',
         });
 
     } catch (error) {
