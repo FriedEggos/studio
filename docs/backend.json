@@ -232,7 +232,7 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Stores user profiles. Path-based ownership ensures only the user can access their data."
+          "description": "Stores individual user profile data."
         }
       },
       {
@@ -242,7 +242,7 @@
           "schema": {
             "$ref": "#/backend/entities/Program"
           },
-          "description": "Stores program details. Includes 'adminId' for authorization, ensuring only the admin who created the program can modify it."
+          "description": "Stores publicly-readable program and event details."
         }
       },
       {
@@ -252,7 +252,7 @@
           "schema": {
             "$ref": "#/backend/entities/ActivityEvidence"
           },
-          "description": "Stores evidence of activity submitted by users for program participation."
+          "description": "Stores user-submitted evidence for program participation. Nested under the user to enforce ownership and simplify security rules."
         }
       },
       {
@@ -262,7 +262,7 @@
           "schema": {
             "$ref": "#/backend/entities/Certificate"
           },
-          "description": "Stores certificates issued to users."
+          "description": "Stores certificates issued to a specific user. Nested under the user to ensure privacy and ownership."
         }
       },
       {
@@ -272,10 +272,12 @@
           "schema": {
             "$ref": "#/backend/entities/Attendance"
           },
-          "description": "Stores attendance records for users."
+          "description": "Stores attendance records for a specific user. Nested under the user to ensure privacy and ownership."
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed based on user requirements to separate concerns for activity evidence, certificates, and attendance, while maintaining user-owned data patterns. Collections are nested under users to simplify security rules. Denormalized fields like `studentName` and `programname` are used to avoid extra reads in security rules and on the client."
+    "reasoning": "The Firestore structure is designed with a user-centric security model. User-specific data (evidence, certificates, attendance) is nested within that user's document path. This simplifies security rules by allowing path-based ownership checks, which is more secure and efficient than filtering in rules. Public data like Programs is kept in a top-level collection for easy access by all users."
   }
 }
+
+    
