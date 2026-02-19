@@ -54,11 +54,19 @@ export default function CreateProgramPage() {
                 />
               </div>
               <div className="grid gap-3">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="briefDescription">Brief Description</Label>
+                <Textarea
+                  id="briefDescription"
+                  placeholder="A short summary for the program card preview."
+                  className="min-h-24"
+                />
+              </div>
+              <div className="grid gap-3">
+                <Label htmlFor="description">Full Description</Label>
                 <Textarea
                   id="description"
-                  placeholder="Briefly describe this program."
-                  className="min-h-32"
+                  placeholder="Provide a detailed description of the program here."
+                  className="min-h-40"
                 />
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

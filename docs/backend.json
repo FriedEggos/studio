@@ -58,9 +58,13 @@
           "type": "string",
           "description": "Name of the program."
         },
+        "briefDescription": {
+          "type": "string",
+          "description": "A short, one-sentence description for program previews."
+        },
         "description": {
           "type": "string",
-          "description": "Description of the program."
+          "description": "A long, detailed description of the program."
         },
         "startDate": {
           "type": "string",
@@ -84,6 +88,7 @@
       "required": [
         "id",
         "name",
+        "briefDescription",
         "description",
         "startDate",
         "endDate",

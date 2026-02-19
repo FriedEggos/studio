@@ -48,6 +48,7 @@ interface Program {
     name: string;
     startDate: string;
     endDate: string;
+    briefDescription: string;
     description: string;
     imageId: string;
 }
@@ -321,7 +322,7 @@ export default function StudentDashboard() {
         </CardHeader>
         <CardContent className="flex-grow">
           <p className="text-sm text-muted-foreground line-clamp-2">
-            {program.description}
+            {program.briefDescription}
           </p>
         </CardContent>
         <CardFooter className="flex-col items-start gap-3 pt-4">
