@@ -111,6 +111,11 @@ export default function CreateProgramPage() {
             const errorData = await sheetResponse.json().catch(() => ({error: 'Failed to save to Google Sheet and could not parse error response.'}));
             throw new Error(errorData.error || 'Failed to save program to Google Sheet.');
         }
+        
+        const sheetResult = await sheetResponse.json();
+        if (sheetResult.result === 'error' || sheetResult.status === 'error' || sheetResult.success === false) {
+            throw new Error(sheetResult.error || sheetResult.message || 'The Google Sheet integration reported an error.');
+        }
 
 
         // Step 3: Generate QR code from programId and upload it

@@ -91,13 +91,14 @@ export default function AdminDashboard() {
         }
         const result = await response.json();
         
-        const programsData = Array.isArray(result) ? result : (result.data && Array.isArray(result.data)) ? result.data : [];
-
-        if (programsData) {
-            setSheetPrograms(programsData);
-        } else {
-            throw new Error("Unexpected data format from Google Sheet API");
+        let programsData = [];
+        if (Array.isArray(result)) {
+          programsData = result; // Handles `[...]`
+        } else if (result && Array.isArray(result.data)) {
+          programsData = result.data; // Handles `{"data": [...]}` or any object with a data property that is an array
         }
+
+        setSheetPrograms(programsData);
 
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
