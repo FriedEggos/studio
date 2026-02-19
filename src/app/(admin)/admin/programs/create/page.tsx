@@ -76,25 +76,18 @@ export default function CreateProgramPage() {
         const newProgramRef = doc(collection(firestore, "programs"));
         const programId = newProgramRef.id;
 
-        // Use Promise.all to run uploads in parallel for better performance
-        const [imageUrl, qrCodeUrl] = await Promise.all([
-            (async () => {
-                if (data.image) {
-                    const imageRef = ref(storage, `programs/${programId}/poster.jpg`);
-                    await uploadBytes(imageRef, data.image);
-                    return getDownloadURL(imageRef);
-                }
-                return '';
-            })(),
-            (async () => {
-                const qrCodeDataUrl = await QRCode.toDataURL(programId, { width: 300 });
-                const qrCodeRef = ref(storage, `qrcodes/${programId}.png`);
-                await uploadString(qrCodeRef, qrCodeDataUrl, 'data_url');
-                return getDownloadURL(qrCodeRef);
-            })()
-        ]);
+        let imageUrl = "";
+        if (data.image) {
+            const imageRef = ref(storage, `programs/${programId}/poster.jpg`);
+            await uploadBytes(imageRef, data.image);
+            imageUrl = await getDownloadURL(imageRef);
+        }
 
-        // Once uploads are complete, create the Firestore document
+        const qrCodeDataUrl = await QRCode.toDataURL(programId, { width: 300 });
+        const qrCodeRef = ref(storage, `qrcodes/${programId}.png`);
+        await uploadString(qrCodeRef, qrCodeDataUrl, 'data_url');
+        const qrCodeUrl = await getDownloadURL(qrCodeRef);
+
         const programData = {
             id: programId,
             name: data.name,
@@ -108,7 +101,6 @@ export default function CreateProgramPage() {
         };
         await setDoc(newProgramRef, programData);
 
-        // Update UI immediately after all operations are successful
         setQrImageUrl(qrCodeUrl); 
         
         toast({
@@ -121,7 +113,7 @@ export default function CreateProgramPage() {
         toast({
             variant: 'destructive',
             title: 'Failed to create program',
-            description: 'An unexpected error occurred. Please try again.',
+            description: error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.',
         });
     } finally {
         setIsSubmitting(false);
