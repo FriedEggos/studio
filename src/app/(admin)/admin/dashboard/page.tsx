@@ -91,11 +91,16 @@ export default function AdminDashboard() {
         }
         const result = await response.json();
         
-        let programsData = [];
+        let programsData: SheetProgram[] = [];
         if (Array.isArray(result)) {
-          programsData = result; // Handles `[...]`
-        } else if (result && Array.isArray(result.data)) {
-          programsData = result.data; // Handles `{"data": [...]}` or any object with a data property that is an array
+          // Case 1: The response is the array itself.
+          programsData = result;
+        } else if (typeof result === 'object' && result !== null) {
+          // Case 2: The response is an object. Find the first property that is an array.
+          const arrayProperty = Object.values(result).find(value => Array.isArray(value));
+          if (arrayProperty && Array.isArray(arrayProperty)) {
+            programsData = arrayProperty;
+          }
         }
 
         setSheetPrograms(programsData);
