@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
-  const appsScriptUrl = "https://script.google.com/macros/s/AKfycbw-w4RIeD4LXhP206jU0FYL1Pr8OiFo1JbFkpEwUjkMOwflbKvZpcWnG58DAiHU4SuO2g/exec";
+  const appsScriptUrl = "https://script.google.com/macros/s/AKfycbw0DMJa_qoliZiNhYxBr9046sVtFv3IvWJM-Mfb_bRpjglG__rxZUmgr84PDNz7uvDt4A/exec";
   
   try {
     const payload = await request.json();
@@ -31,6 +31,9 @@ export async function POST(request: Request) {
     // Attempt to parse JSON, but handle cases where Apps Script returns HTML on success.
     try {
         const responseData = await scriptResponse.json();
+        if (responseData.result === 'error' || responseData.status === 'error' || responseData.success === false) {
+          throw new Error(responseData.error || responseData.message || 'The Google Sheet integration reported an error.');
+        }
         return NextResponse.json(responseData);
     } catch (e) {
         // This is a common success case if the script returns a simple text/html response.

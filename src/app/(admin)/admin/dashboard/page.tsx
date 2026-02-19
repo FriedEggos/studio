@@ -327,7 +327,7 @@ export default function AdminDashboard() {
           </Card>
           <Card className="col-span-4 lg:col-span-3">
             <CardHeader>
-              <CardTitle className="font-headline">Program List (from Google Sheet)</CardTitle>
+              <CardTitle className="font-headline">Program List</CardTitle>
               <CardDescription>
                 Summary of all programs from the linked Google Sheet.
               </CardDescription>

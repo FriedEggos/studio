@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  const appsScriptUrl = "https://script.google.com/macros/s/AKfycbw-w4RIeD4LXhP206jU0FYL1Pr8OiFo1JbFkpEwUjkMOwflbKvZpcWnG58DAiHU4SuO2g/exec";
+  const appsScriptUrl = "https://script.google.com/macros/s/AKfycbw0DMJa_qoliZiNhYxBr9046sVtFv3IvWJM-Mfb_bRpjglG__rxZUmgr84PDNz7uvDt4A/exec";
   
   try {
     const response = await fetch(appsScriptUrl, { cache: 'no-store' });
