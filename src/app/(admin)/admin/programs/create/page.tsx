@@ -17,13 +17,12 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useUser } from "@/firebase";
+import { useUser, useFirestore, useStorage, useDoc, useMemoFirebase } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import { collection, doc, setDoc } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes, uploadString } from "firebase/storage";
-import { useFirestore, useStorage, useDoc, useMemoFirebase } from "@/firebase/provider";
 
 const programFormSchema = z.object({
   name: z.string().min(1, "Program name is required."),
