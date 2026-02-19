@@ -83,6 +83,10 @@
         "imageUrl": {
           "type": "string",
           "description": "URL of the program's poster image."
+        },
+        "qrCodeUrl": {
+          "type": "string",
+          "description": "URL of the generated QR code for program registration."
         }
       },
       "required": [
