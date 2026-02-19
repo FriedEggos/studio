@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Clock, Users, List, Eye, Check, XIcon } from "lucide-react";
+import { CheckCircle, Clock, Users, List, Eye, Check, XIcon, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { useState, useMemo, useEffect } from "react";
 import {
@@ -45,6 +45,7 @@ import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, collectionGroup, query, where, doc, updateDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isFuture, isPast, parseISO } from 'date-fns';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 type SheetProgram = {
     programId: string;
@@ -68,14 +69,25 @@ export default function AdminDashboard() {
 
   const [sheetPrograms, setSheetPrograms] = useState<SheetProgram[]>([]);
   const [isLoadingSheetPrograms, setIsLoadingSheetPrograms] = useState(true);
+  const [sheetError, setSheetError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchSheetData = async () => {
       setIsLoadingSheetPrograms(true);
+      setSheetError(null);
       try {
         const response = await fetch("/api/programs-from-sheet");
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+           let errorDetails = `HTTP error! status: ${response.status}`;
+           try {
+             const errorJson = await response.json();
+             if (errorJson.error) {
+               errorDetails = errorJson.error;
+             }
+           } catch (e) {
+             // Ignore if response body is not json
+           }
+           throw new Error(errorDetails);
         }
         const result = await response.json();
         
@@ -88,11 +100,13 @@ export default function AdminDashboard() {
         }
 
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
         console.error("Error fetching from Google Sheet:", error);
+        setSheetError(errorMessage);
         toast({
           variant: 'destructive',
           title: 'Failed to load programs from Sheet',
-          description: error instanceof Error ? error.message : 'An unknown error occurred.',
+          description: errorMessage,
         });
       } finally {
         setIsLoadingSheetPrograms(false);
@@ -123,7 +137,7 @@ export default function AdminDashboard() {
 
   // Modal and confirmation state
   const [reviewItem, setReviewItem] = useState<PendingVerification | null>(null);
-  const [confirmationState, setConfirmationState] = useState<{
+  const [confirmationState, setConfirmationState = useState<{
     isOpen: boolean;
     action: 'approve' | 'reject' | null;
   }>({ isOpen: false, action: null });
@@ -322,6 +336,15 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   ))
+                ) : sheetError ? (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Error Loading Programs</AlertTitle>
+                    <AlertDescription>
+                      Could not fetch program list from Google Sheet.
+                      <p className="text-xs mt-2 font-mono">Details: {sheetError}</p>
+                    </AlertDescription>
+                  </Alert>
                 ) : sheetPrograms && sheetPrograms.length > 0 ? (
                   sheetPrograms.map((program) => {
                     const status = getProgramStatus(program.startDate, program.endDate);
