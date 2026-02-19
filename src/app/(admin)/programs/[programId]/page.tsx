@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -10,14 +11,12 @@ import {
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Edit, Calendar, MapPin, Users, Download, QrCode } from "lucide-react";
+import { ArrowLeft, Edit, Calendar, MapPin, Users } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { format, isFuture, isPast, parseISO } from 'date-fns';
-import { useState, useEffect } from "react";
-import QRCode from 'qrcode';
 
 interface Program {
   id: string;
@@ -35,7 +34,6 @@ interface Program {
 export default function ProgramDetailsPage({ params }: { params: { programId: string } }) {
   const { programId } = params;
   const firestore = useFirestore();
-  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
 
   const programDocRef = useMemoFirebase(() => {
     if (!programId || !firestore) return null;
@@ -43,14 +41,6 @@ export default function ProgramDetailsPage({ params }: { params: { programId: st
   }, [programId, firestore]);
 
   const { data: program, isLoading } = useDoc<Program>(programDocRef);
-
-  useEffect(() => {
-    if (programId) {
-        QRCode.toDataURL(programId, { width: 200, margin: 1 })
-            .then(setQrCodeDataUrl)
-            .catch(err => console.error("QR generation failed: ", err));
-    }
-  }, [programId]);
   
   const getProgramStatus = (startDateString: string, endDateString: string): { text: 'Upcoming' | 'Ongoing' | 'Completed'; variant: "secondary" | "default" | "outline" } => {
       try {
@@ -159,25 +149,6 @@ export default function ProgramDetailsPage({ params }: { params: { programId: st
                     </CardHeader>
                     <CardContent>
                         <p>{program.organizerUnit}</p>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2"><QrCode className="h-5 w-5" /> QR Code</CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex flex-col items-center gap-4">
-                        {qrCodeDataUrl ? (
-                            <>
-                                <Image src={qrCodeDataUrl} alt="Program QR Code" width={150} height={150} className="rounded-md border p-1" />
-                                <Button variant="outline" className="w-full" asChild>
-                                    <a href={qrCodeDataUrl} download={`qr-code-${program.id}.png`}>
-                                        <Download className="mr-2 h-4 w-4"/> Download
-                                    </a>
-                                </Button>
-                            </>
-                        ) : (
-                          <Skeleton className="h-[150px] w-[150px]" />
-                        )}
                     </CardContent>
                 </Card>
             </div>
