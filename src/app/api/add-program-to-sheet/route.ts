@@ -2,7 +2,6 @@
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
-  // The URL provided by the user
   const appsScriptUrl = "https://script.google.com/macros/s/AKfycbyefPItSHjx_8-bqf5ZcTBsJM9xfvr55FYQO3-aiTOLnkw68PjFy1VzficvnQ2mkME7mg/exec";
   
   try {
@@ -16,32 +15,32 @@ export async function POST(request: Request) {
         body: JSON.stringify(payload),
     });
 
-    // It's common for Apps Scripts to redirect on POST. The response URL might change.
-    // However, we primarily care if the request was accepted. A 200 OK or a redirect (3xx)
-    // can both be considered success in this context, but a simple 'ok' check is often sufficient.
     if (!scriptResponse.ok) {
         const errorText = await scriptResponse.text();
         console.error(`Error from Google Apps Script (POST): ${scriptResponse.status} ${errorText}`);
-        return NextResponse.json(
-            { error: `Failed to post to Google Sheet. Status: ${scriptResponse.status}. Message: ${errorText}` },
-            { status: scriptResponse.status }
-        );
+        
+        let detailedError = `Failed to post to Google Sheet. Status: ${scriptResponse.status}. Message: ${errorText}`;
+        if (scriptResponse.status === 403) {
+            detailedError = "Access Forbidden. Please check your Google Apps Script deployment settings. It must be set to allow access for 'Anyone'.";
+        }
+        
+        return NextResponse.json({ error: detailedError }, { status: scriptResponse.status });
     }
     
-    // Try to parse the response as JSON, as this is the expected success format.
-    // If the script redirects and returns HTML, this will fail, and the catch block will handle it.
-    const responseData = await scriptResponse.json();
-    return NextResponse.json(responseData);
+    // Attempt to parse JSON, but handle cases where Apps Script returns HTML on success.
+    try {
+        const responseData = await scriptResponse.json();
+        return NextResponse.json(responseData);
+    } catch (e) {
+        // This is a common success case if the script returns a simple text/html response.
+        return NextResponse.json({ success: true, message: "Request processed by Google Sheet." });
+    }
 
   } catch (error) {
     console.error("Error in add-program-to-sheet API proxy route:", error);
     let errorMessage = 'An unknown internal server error occurred';
     if (error instanceof Error) {
         errorMessage = error.message;
-        // Check for JSON parsing error, which can happen if the script returns HTML after a redirect
-        if (error.name === 'SyntaxError') {
-          errorMessage = "The Google Apps Script did not return valid JSON. It may have redirected. Please check the script's doPost function.";
-        }
     }
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
