@@ -73,8 +73,7 @@ export default function AdminDashboard() {
     const fetchSheetData = async () => {
       setIsLoadingSheetPrograms(true);
       try {
-        const appsScriptUrl = "https://script.google.com/macros/s/AKfycbwD1VGlmPthwKNoayWqF1qM5wRsDuHOMzk2eeMhdJtO8Gl1OJ438w4sUs2mJBHdqJSe/exec";
-        const response = await fetch(appsScriptUrl);
+        const response = await fetch("/api/programs-from-sheet");
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -406,4 +405,3 @@ export default function AdminDashboard() {
     </>
   );
 }
-
