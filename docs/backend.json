@@ -15,6 +15,10 @@
           "description": "Email address of the user.",
           "format": "email"
         },
+        "displayName": {
+          "type": "string",
+          "description": "Display name of the user."
+        },
         "fullName": {
           "type": "string",
           "description": "Full name of the user."
@@ -99,6 +103,14 @@
           "type": "string",
           "description": "Timestamp when the program was created.",
           "format": "date-time"
+        },
+        "attendanceOpen": {
+          "type": "boolean",
+          "description": "Whether attendance check-in is currently open."
+        },
+        "qrValue": {
+          "type": "string",
+          "description": "The relative path for the QR code scan link."
         }
       },
       "required": [
@@ -113,54 +125,67 @@
         "createdAt"
       ]
     },
-    "Registration": {
-      "title": "Registration",
+    "JoinedProgram": {
+      "title": "Joined Program",
       "type": "object",
-      "description": "Represents a user's registration for a specific program.",
+      "description": "A record indicating a user has joined a program.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the registration record."
-        },
         "programId": {
           "type": "string",
           "description": "Reference to the Program."
         },
+        "joinedAt": {
+          "type": "string",
+          "description": "Timestamp when the user joined.",
+          "format": "date-time"
+        },
+        "status": {
+            "type": "string",
+            "description": "The status of the join.",
+            "enum": ["joined"]
+        }
+      },
+      "required": ["programId", "joinedAt", "status"]
+    },
+    "Participant": {
+      "title": "Participant",
+      "type": "object",
+      "description": "A mirror record of a user who joined a program, for easier querying.",
+      "properties": {
         "userId": {
           "type": "string",
           "description": "Reference to the User."
         },
-        "status": {
+        "displayName": {
           "type": "string",
-          "description": "The status of the registration.",
-          "enum": ["registered", "attended", "cancelled"]
+          "description": "The user's display name at the time of joining."
         },
-        "registeredAt": {
+        "email": {
           "type": "string",
-          "description": "Timestamp when the user registered for the program.",
+          "description": "The user's email at the time of joining."
+        },
+        "joinedAt": {
+          "type": "string",
+          "description": "Timestamp when the user joined.",
           "format": "date-time"
         }
       },
-      "required": ["id", "programId", "userId", "status", "registeredAt"]
+      "required": ["userId", "joinedAt"]
     },
     "Attendance": {
       "title": "Attendance",
       "type": "object",
       "description": "Represents a user's attendance record for a program.",
       "properties": {
-        "id": {
+        "userId": {
           "type": "string",
-          "description": "Unique identifier for the attendance record."
+          "description": "Reference to the User."
         },
         "programId": {
           "type": "string",
           "description": "Reference to the Program."
         },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User."
-        },
-        "checkInTime": {
+        "checkedInAt": {
           "type": "string",
           "description": "The timestamp when the user checked in.",
           "format": "date-time"
@@ -168,10 +193,18 @@
         "method": {
             "type": "string",
             "description": "The method used for check-in.",
-            "enum": ["QR", "manual"]
+            "enum": ["self_scan", "manual"]
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The user's display name at the time of check-in."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email at the time of check-in."
         }
       },
-      "required": ["id", "programId", "userId", "checkInTime", "method"]
+      "required": ["userId", "programId", "checkedInAt", "method"]
     },
     "Certificate": {
       "title": "Certificate",
@@ -288,6 +321,36 @@
         }
       },
       {
+        "path": "/users/{userId}/joinedPrograms/{programId}",
+        "definition": {
+            "entityName": "JoinedProgram",
+            "schema": {
+                "$ref": "#/entities/JoinedProgram"
+            },
+            "description": "Stores a record of programs a user has joined."
+        }
+      },
+      {
+        "path": "/users/{userId}/certificates/{certificateId}",
+        "definition": {
+          "entityName": "Certificate",
+          "schema": {
+            "$ref": "#/entities/Certificate"
+          },
+          "description": "Stores certificates issued to a specific user."
+        }
+      },
+      {
+        "path": "/users/{userId}/activity_evidence/{evidenceId}",
+        "definition": {
+          "entityName": "ActivityEvidence",
+          "schema": {
+            "$ref": "#/entities/ActivityEvidence"
+          },
+          "description": "Stores evidence of participation submitted by a user."
+        }
+      },
+      {
         "path": "/programs/{programId}",
         "definition": {
           "entityName": "Program",
@@ -298,46 +361,28 @@
         }
       },
       {
-        "path": "/programs/{programId}/registrations/{registrationId}",
+        "path": "/programs/{programId}/participants/{userId}",
         "definition": {
-          "entityName": "Registration",
-          "schema": {
-            "$ref": "#/entities/Registration"
-          },
-          "description": "Stores registration records for a program. Nested under programs for easy querying of all participants for an event."
+            "entityName": "Participant",
+            "schema": {
+                "$ref": "#/entities/Participant"
+            },
+            "description": "A mirror of users who joined a program for easier querying by admins."
         }
       },
       {
-        "path": "/programs/{programId}/attendance/{attendanceId}",
+        "path": "/programs/{programId}/attendance/{userId}",
         "definition": {
             "entityName": "Attendance",
             "schema": {
                 "$ref": "#/entities/Attendance"
             },
-            "description": "Stores attendance check-in records for a program. Nested for efficient queries by program."
-        }
-      },
-      {
-        "path": "/users/{userId}/certificates/{certificateId}",
-        "definition": {
-          "entityName": "Certificate",
-          "schema": {
-            "$ref": "#/entities/Certificate"
-          },
-          "description": "Stores certificates issued to a specific user. Nested under the user to ensure privacy and ownership."
-        }
-      },
-      {
-        "path": "/users/{userId}/activity_evidence/{evidenceId}",
-        "definition": {
-          "entityName": "ActivityEvidence",
-          "schema": {
-            "$ref": "#/entities/ActivityEvidence"
-          },
-          "description": "Stores evidence of participation submitted by a user for a specific program. Nested under user for ownership-based security."
+            "description": "Stores attendance check-in records for a program. Document ID is the user ID to prevent duplicates."
         }
       }
     ],
     "reasoning": "This Firestore structure is designed for scalability and security. Publicly accessible data like 'programs' resides in a top-level collection. User-specific data that requires privacy, such as 'certificates' and 'activity_evidence', is nested within that user's document path to simplify ownership-based security rules. Program-specific subcollections like 'registrations' and 'attendance' are nested under each program, which allows for efficient querying of all participants for a given event, a common requirement for administrators. This model balances query efficiency with a strong, user-centric security posture."
   }
 }
+
+    

@@ -13,6 +13,8 @@ service cloud.firestore {
     }
 
     function isAdmin() {
+      // In a real app, this should check a custom claim or a separate 'roles' document
+      // For this app, we check a 'role' field on the user's profile.
       return isSignedIn() &&
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
@@ -27,6 +29,11 @@ service cloud.firestore {
       // Allow a user to update their own profile, but not change their role.
       allow update: if isOwner(userId) && request.resource.data.role == resource.data.role;
       allow delete: if isOwner(userId);
+
+      // A user can manage their own list of joined programs
+      match /joinedPrograms/{programId} {
+        allow read, create, update, delete: if isOwner(userId);
+      }
 
       // User-specific certificates
       match /certificates/{certificateId} {
@@ -48,35 +55,31 @@ service cloud.firestore {
     // Program information
     match /programs/{programId} {
       // Any signed-in user can view program details.
-      allow get, list: if isSignedIn();
+      allow read: if isSignedIn();
       // Only admins can create, update, or delete programs.
       allow write: if isAdmin();
 
-      // Program-specific registrations
-      match /registrations/{registrationId} {
-        // Admins can list all registrations for a program.
-        allow list: if isAdmin();
-        // A user can get their own registration. Admins can also read.
-        allow get: if isAdmin() || (resource.data.userId == request.auth.uid);
-        // A user can create their own registration.
-        allow create: if isOwner(request.resource.data.userId);
-        // A user can update (e.g. cancel) their own registration. Admins can also update.
-        allow update: if isAdmin() || isOwner(resource.data.userId);
-        // Only Admins can delete registrations.
-        allow delete: if isAdmin();
+      // Mirrored list of participants for a program
+      match /participants/{userId} {
+        // Any signed-in user can read the participants list
+        allow read: if isSignedIn();
+        // Only the user themselves can add or remove their entry from the list
+        allow create, delete: if isOwner(userId);
+        // Updates are not allowed to prevent tampering
+        allow update: if false;
       }
-
-      // Program-specific attendance records
-      match /attendance/{attendanceId} {
-        // Admins can list all attendance for a program.
-        allow list: if isAdmin();
-        // A user can get their own attendance record. Admins can also read.
-        allow get: if isAdmin() || (resource.data.userId == request.auth.uid);
-        // A user can create their own attendance record (e.g., by scanning a QR code).
-        allow create: if isOwner(request.resource.data.userId);
-        // Only admins can modify or delete attendance records.
-        allow update, delete: if isAdmin();
+      
+      // Program-specific attendance records (document ID is the userId)
+      match /attendance/{userId} {
+         // Anyone signed-in can read (e.g. to check if they've attended)
+        allow read: if isSignedIn();
+        // A user can create their own attendance record
+        allow create: if isOwner(userId);
+        // No updates or deletes allowed to preserve attendance history
+        allow update, delete: if false;
       }
     }
   }
 }
+
+    
