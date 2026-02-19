@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Clock, Users, List, Eye, Check, XIcon, AlertTriangle } from "lucide-react";
+import { CheckCircle, Clock, Users, List, Eye, Check, XIcon, AlertTriangle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useState, useMemo, useEffect } from "react";
 import {
@@ -41,8 +41,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, collectionGroup, query, where, doc, updateDoc } from "firebase/firestore";
+import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase";
+import { collection, collectionGroup, query, where, doc, updateDoc, setDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isFuture, isPast, parseISO } from 'date-fns';
 
@@ -65,6 +65,9 @@ type PendingVerification = {
 export default function AdminDashboard() {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { user } = useUser();
+
+  const [isSeeding, setIsSeeding] = useState(false);
 
   const programsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -159,6 +162,90 @@ export default function AdminDashboard() {
     handleCloseModals();
   };
 
+  const handleSeedDatabase = async () => {
+    if (!firestore || !user) {
+        toast({
+            variant: "destructive",
+            title: "Cannot Seed Data",
+            description: "User not authenticated or Firestore is unavailable."
+        });
+        return;
+    }
+    setIsSeeding(true);
+
+    const dummyPrograms = [
+        {
+            id: 'dummy-prog-1',
+            name: "UI/UX Design Workshop",
+            briefDescription: "Learn the fundamentals of UI/UX design with industry experts.",
+            description: "A comprehensive workshop covering user research, wireframing, prototyping, and user testing. Perfect for beginners and those looking to refine their skills.",
+            startDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+            endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+            venue: "Main Hall, JTMK",
+            organizerUnit: "Jabatan Teknologi Maklumat & Komunikasi",
+            status: "active",
+            adminId: user.uid,
+            imageUrl: "https://images.unsplash.com/photo-1581091226033-d5c48150dbaa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxjb2RpbmclMjB3b3Jrc2hvcHxlbnwwfHx8fDE3Njg3OTY0Mjd8MA&ixlib=rb-4.1.0&q=80&w=1080",
+            qrCodeUrl: "https://images.unsplash.com/photo-1629128625414-374a9e16d56a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxxciUyMGNvZGV8ZW58MHx8fHwxNzY4NzU5ODAxfDA&ixlib=rb-4.1.0&q=80&w=1080",
+            createdAt: new Date().toISOString(),
+        },
+        {
+            id: 'dummy-prog-2',
+            name: "Cybersecurity Awareness Talk",
+            briefDescription: "Stay safe online! A talk on the latest cybersecurity threats and how to protect yourself.",
+            description: "This talk will cover phishing, malware, social engineering, and best practices for personal and organizational security. Q&A session with a security professional.",
+            startDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+            endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+            venue: "Auditorium, PSIS",
+            organizerUnit: "MPP PSIS",
+            status: "active",
+            adminId: user.uid,
+            imageUrl: "https://images.unsplash.com/photo-1719255417989-b6858e87359e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8Y3liZXJzZWN1cml0eSUyMHNlbWluYXJ8ZW58MHx8fHwxNzY4Nzk2NDI3fDA&ixlib=rb-4.1.0&q=80&w=1080",
+            qrCodeUrl: "https://images.unsplash.com/photo-1629128625414-374a9e16d56a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxxciUyMGNvZGV8ZW58MHx8fHwxNzY4NzU5ODAxfDA&ixlib=rb-4.1.0&q=80&w=1080",
+            createdAt: new Date().toISOString(),
+        },
+        {
+            id: 'dummy-prog-3',
+            name: "Agile & Scrum Fundamentals",
+            briefDescription: "An introduction to Agile methodologies and the Scrum framework for project management.",
+            description: "Learn how to manage projects effectively with Agile and Scrum. This session will cover sprints, stand-ups, retrospectives, and the roles within a Scrum team.",
+            startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+            endDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+            venue: "Bilik Kuliah 4, JTMK",
+            organizerUnit: "Jabatan Perdagangan",
+            status: "closed",
+            adminId: user.uid,
+            imageUrl: "https://images.unsplash.com/photo-1550177977-ad69e8f3cae0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxuZXR3b3JraW5nJTIwZXZlbnR8ZW58MHx8fHwxNzY4NzI3MTc1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+            qrCodeUrl: "https://images.unsplash.com/photo-1629128625414-374a9e16d56a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxxciUyMGNvZGV8ZW58MHx8fHwxNzY4NzU5ODAxfDA&ixlib=rb-4.1.0&q=80&w=1080",
+            createdAt: new Date().toISOString(),
+        }
+    ];
+
+    try {
+        const promises = dummyPrograms.map(program => {
+            const programRef = doc(firestore, "programs", program.id);
+            return setDoc(programRef, program);
+        });
+
+        await Promise.all(promises);
+
+        toast({
+            title: "Database Seeded!",
+            description: `${dummyPrograms.length} programs have been added to Firestore.`
+        });
+    } catch(error) {
+        console.error("Error seeding database: ", error);
+        toast({
+            variant: "destructive",
+            title: "Seeding Failed",
+            description: "Could not add dummy data to the database. Check console for errors.",
+        });
+    } finally {
+        setIsSeeding(false);
+    }
+  };
+
+
   const StatCard = ({ title, icon: Icon, value, isLoading, description }: { title: string, icon: React.ElementType, value: number, isLoading: boolean, description: string }) => (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -183,9 +270,15 @@ export default function AdminDashboard() {
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
             Admin Dashboard
           </h1>
-          <Button asChild>
-            <Link href="/admin/programs/create">Create New Program</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={handleSeedDatabase} variant="outline" disabled={isSeeding}>
+              {isSeeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {isSeeding ? 'Seeding...' : 'Seed Database'}
+            </Button>
+            <Button asChild>
+              <Link href="/admin/programs/create">Create New Program</Link>
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
