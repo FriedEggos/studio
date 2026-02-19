@@ -137,7 +137,7 @@ export default function AdminDashboard() {
 
   // Modal and confirmation state
   const [reviewItem, setReviewItem] = useState<PendingVerification | null>(null);
-  const [confirmationState, setConfirmationState = useState<{
+  const [confirmationState, setConfirmationState] = useState<{
     isOpen: boolean;
     action: 'approve' | 'reject' | null;
   }>({ isOpen: false, action: null });
