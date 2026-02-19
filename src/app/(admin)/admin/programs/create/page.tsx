@@ -29,12 +29,16 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
 const programFormSchema = z.object({
   name: z.string().min(1, "Program name is required."),
   briefDescription: z.string().min(1, "Brief description is required.").max(150, "Brief description cannot exceed 150 characters."),
   description: z.string().min(1, "Full description is required."),
+  venue: z.string().min(1, "Venue is required."),
+  organizerUnit: z.string().min(1, "Organizer unit is required."),
+  status: z.enum(["draft", "active", "closed"]),
   startDate: z.date({ required_error: "A start date is required." }),
   endDate: z.date({ required_error: "An end date is required." }),
   image: z.instanceof(File).optional().refine(file => !file || file.size <= 5000000, `Max image size is 5MB.`),
@@ -62,6 +66,9 @@ export default function CreateProgramPage() {
         name: "",
         briefDescription: "",
         description: "",
+        venue: "",
+        organizerUnit: "",
+        status: "draft",
     }
   });
   
@@ -81,50 +88,77 @@ export default function CreateProgramPage() {
     setIsSubmitting(true);
     setQrImageUrl(null);
 
-    try {
-        const newProgramRef = doc(collection(firestore, "programs"));
-        const programId = newProgramRef.id;
+    const newProgramRef = doc(collection(firestore, "programs"));
+    const programId = newProgramRef.id;
 
+    try {
+      // Generate QR code first and show it to the user immediately
+      const qrCodeDataUrl = await QRCode.toDataURL(programId, { width: 300 });
+      setQrImageUrl(qrCodeDataUrl);
+      
+      toast({
+        title: "QR Code Generated!",
+        description: "You can download it now. Saving program details in the background...",
+      });
+
+      // All cloud operations are performed in the background without blocking the UI
+      const backgroundSave = async () => {
         let imageUrl = "";
         if (data.image) {
-            const imageRef = ref(storage, `programs/${programId}/poster.jpg`);
-            await uploadBytes(imageRef, data.image);
-            imageUrl = await getDownloadURL(imageRef);
+          const imageRef = ref(storage, `programs/${programId}/poster.jpg`);
+          await uploadBytes(imageRef, data.image);
+          imageUrl = await getDownloadURL(imageRef);
         }
 
-        const qrCodeDataUrl = await QRCode.toDataURL(programId, { width: 300 });
         const qrCodeRef = ref(storage, `qrcodes/${programId}.png`);
         await uploadString(qrCodeRef, qrCodeDataUrl, 'data_url');
         const qrCodeUrl = await getDownloadURL(qrCodeRef);
 
         const programData = {
-            id: programId,
-            name: data.name,
-            briefDescription: data.briefDescription,
-            description: data.description,
-            startDate: data.startDate.toISOString(),
-            endDate: data.endDate.toISOString(),
-            adminId: user.uid,
-            imageUrl: imageUrl,
-            qrCodeUrl: qrCodeUrl,
+          id: programId,
+          name: data.name,
+          briefDescription: data.briefDescription,
+          description: data.description,
+          startDate: data.startDate.toISOString(),
+          endDate: data.endDate.toISOString(),
+          venue: data.venue,
+          organizerUnit: data.organizerUnit,
+          status: data.status,
+          adminId: user.uid,
+          imageUrl: imageUrl,
+          qrCodeUrl: qrCodeUrl,
+          createdAt: new Date().toISOString(),
         };
+
         await setDoc(newProgramRef, programData);
-        
-        setQrImageUrl(qrCodeUrl); 
-        
-        toast({
-            title: 'Program Created Successfully!',
-            description: 'Data saved to Firestore and QR code generated. You can now download the QR code.',
+      };
+      
+      backgroundSave()
+        .then(() => {
+          toast({
+            title: 'Program Saved Successfully!',
+            description: 'All details have been saved to the database.',
+          });
+        })
+        .catch((error) => {
+          console.error("Error creating program in background: ", error);
+          toast({
+            variant: 'destructive',
+            title: 'Background Save Failed',
+            description: error instanceof Error ? error.message : 'An unexpected error occurred while saving.',
+          });
+        })
+        .finally(() => {
+          setIsSubmitting(false);
         });
 
-    } catch (error) {
-        console.error("Error creating program: ", error);
+    } catch (error) { // This only catches errors from QRCode.toDataURL
+        console.error("Error generating QR Code: ", error);
         toast({
             variant: 'destructive',
-            title: 'Failed to create program',
-            description: error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.',
+            title: 'Failed to Create Program',
+            description: 'Could not generate the QR code. Please try again.',
         });
-    } finally {
         setIsSubmitting(false);
     }
   };
@@ -181,6 +215,34 @@ export default function CreateProgramPage() {
                             </FormItem>
                         )}
                     />
+                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <FormField
+                            control={form.control}
+                            name="venue"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Venue</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="e.g., Main Hall, JTMK" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="organizerUnit"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Organizer Unit</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="e.g., MPJTMK" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <FormField
                         control={form.control}
@@ -262,6 +324,28 @@ export default function CreateProgramPage() {
                         )}
                     />
                 </div>
+                 <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                            <SelectTrigger>
+                            <SelectValue placeholder="Select program status" />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            <SelectItem value="draft">Draft</SelectItem>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="closed">Closed</SelectItem>
+                        </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
                 </div>
             </CardContent>
             </Card>
