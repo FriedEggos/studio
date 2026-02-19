@@ -1,3 +1,4 @@
+
 'use client';
 
 import Image from "next/image";
@@ -150,10 +151,20 @@ export default function EditProgramPage({ params }: { params: { programId: strin
 
     } catch (error: any) {
         console.error("Error updating program: ", error);
+        
+        let description = 'An unexpected error occurred. Please try again.';
+        if (error.code === 'storage/unauthorized') {
+            description = 'Image upload failed. You may not have permission. Please check your Firebase Storage security rules.';
+        } else if (error.code === 'permission-denied') {
+            description = 'You do not have permission to update programs. Please check your Firestore security rules.';
+        } else if (error instanceof Error) {
+            description = error.message;
+        }
+
         toast({
             variant: 'destructive',
             title: 'Failed to Update Program',
-            description: error.message,
+            description: description,
         });
     } finally {
         setIsSubmitting(false);

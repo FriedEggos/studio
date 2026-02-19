@@ -117,14 +117,16 @@ export default function CreateProgramPage() {
             description: 'The new program has been saved.',
         });
 
-        router.push(`/admin/programs/${programId}/edit`);
+        router.push(`/admin/programs/${programId}`);
 
     } catch (error: any) {
         console.error("Error creating program: ", error);
         
         let description = 'An unexpected error occurred. Please try again.';
-        if (error.code === 'permission-denied') {
-            description = 'You do not have permission to create programs. Please contact an administrator.';
+        if (error.code === 'storage/unauthorized') {
+            description = 'Image upload failed. You may not have permission. Please check your Firebase Storage security rules.';
+        } else if (error.code === 'permission-denied') {
+            description = 'You do not have permission to create programs. Please check your Firestore security rules.';
         } else if (error instanceof Error) {
             description = error.message;
         }
