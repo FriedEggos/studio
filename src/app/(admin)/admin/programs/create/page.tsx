@@ -91,7 +91,7 @@ export default function CreateProgramPage() {
         }
 
         // Step 2: Send program and user info to Google Apps Script
-        const appsScriptUrl = "https://script.google.com/macros/s/AKfycby2Vd9g1yI-i3lYgxOwRtn9AI4w2PFEdmVa491aLOi3PIWGjsX7SCOE7TX3Yg2pk3w4/exec";
+        const appsScriptUrl = "https://script.google.com/macros/s/AKfycbyOt3XVmoHOkHE4QxwLbP3uWPp2ffGbqVDVatF7rX0NqVmuxDnvSSafGzvb68e1JI0keg/exec";
         const scriptPayload = {
             userName: userProfile.fullName,
             userId: user.uid,
