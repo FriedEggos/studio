@@ -90,8 +90,7 @@ export default function CreateProgramPage() {
             imageUrl = await getDownloadURL(imageRef);
         }
 
-        // Step 2: Send program and user info to Google Apps Script
-        const appsScriptUrl = "https://script.google.com/macros/s/AKfycbyOt3XVmoHOkHE4QxwLbP3uWPp2ffGbqVDVatF7rX0NqVmuxDnvSSafGzvb68e1JI0keg/exec";
+        // Step 2: Send program and user info to our API proxy for Google Apps Script
         const scriptPayload = {
             userName: userProfile.fullName,
             userId: user.uid,
@@ -102,17 +101,17 @@ export default function CreateProgramPage() {
             endDate: data.endDate,
         };
 
-        // We use `mode: 'no-cors'` for fire-and-forget. We can't read the response,
-        // but it prevents CORS errors with standard Apps Script deployments.
-        fetch(appsScriptUrl, {
+        const sheetResponse = await fetch('/api/add-program-to-sheet', {
             method: 'POST',
-            mode: 'no-cors',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(scriptPayload)
-        }).catch(err => {
-            // Log the error but don't block the main flow.
-            console.warn("Could not send data to Google Apps Script:", err);
         });
+
+        if (!sheetResponse.ok) {
+            const errorData = await sheetResponse.json().catch(() => ({error: 'Failed to save to Google Sheet and could not parse error response.'}));
+            throw new Error(errorData.error || 'Failed to save program to Google Sheet.');
+        }
+
 
         // Step 3: Generate QR code from programId and upload it
         const qrCodeDataUrl = await QRCode.toDataURL(programId, { width: 300 });
