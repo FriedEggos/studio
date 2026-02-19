@@ -17,9 +17,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Clock, Users, List, Eye, Check, XIcon } from "lucide-react";
+import { CheckCircle, Clock, Users, List, Eye, Check, XIcon, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -38,12 +38,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, collectionGroup, query, where, doc, updateDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
-import { isFuture, isPast, parseISO } from 'date-fns';
+import { isFuture, isPast, parseISO, format } from 'date-fns';
 
 type Program = {
     id: string;
@@ -278,46 +285,72 @@ export default function AdminDashboard() {
             <CardHeader>
               <CardTitle className="font-headline">Program List</CardTitle>
               <CardDescription>
-                Summary of all programs from the database.
+                A summary of all programs.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {isLoadingPrograms ? (
-                  [...Array(3)].map((_, i) => (
-                    <div key={i} className="flex items-center">
-                      <div className="space-y-1">
-                         <Skeleton className="h-5 w-40" />
-                      </div>
-                      <div className="ml-auto font-medium flex items-center gap-2">
-                        <Skeleton className="h-5 w-20" />
-                      </div>
-                    </div>
-                  ))
-                ) : programs && programs.length > 0 ? (
-                  programs.map((program) => {
-                    const status = getProgramStatus(program.startDate, program.endDate);
-                    return (
-                      <div key={program.id} className="flex items-center">
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium leading-none">
-                            {program.name}
-                          </p>
-                        </div>
-                        <div className="ml-auto font-medium flex items-center gap-2">
-                          <Badge variant={status.variant}>
-                            {status.text}
-                          </Badge>
-                        </div>
-                      </div>
-                    )
-                  })
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center h-24 flex items-center justify-center">
-                    No programs found in the database.
-                  </p>
-                )}
-              </div>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                        <TableHead>Program</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead><span className="sr-only">Actions</span></TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {isLoadingPrograms ? (
+                        [...Array(3)].map((_, i) => (
+                            <TableRow key={i}>
+                            <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                            <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
+                            </TableRow>
+                        ))
+                        ) : programs && programs.length > 0 ? (
+                        programs.map((program) => {
+                            const status = getProgramStatus(program.startDate, program.endDate);
+                            return (
+                            <TableRow key={program.id}>
+                                <TableCell>
+                                <div className="font-medium">{program.name}</div>
+                                <div className="text-sm text-muted-foreground hidden md:inline">
+                                    {format(parseISO(program.startDate), "d MMM")} - {format(parseISO(program.endDate), "d MMM yyyy")}
+                                </div>
+                                </TableCell>
+                                <TableCell>
+                                <Badge variant={status.variant} className="capitalize">{status.text}</Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                    <Button size="icon" variant="ghost">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                        <span className="sr-only">Actions</span>
+                                    </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                    <DropdownMenuItem asChild>
+                                        <Link href={`/admin/programs/${program.id}`}>View Details</Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem asChild>
+                                        <Link href={`/admin/programs/${program.id}/edit`}>Edit Program</Link>
+                                    </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                            )
+                        })
+                        ) : (
+                        <TableRow>
+                            <TableCell colSpan={3} className="h-24 text-center">
+                            No programs found.
+                            </TableCell>
+                        </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
             </CardContent>
           </Card>
         </div>
