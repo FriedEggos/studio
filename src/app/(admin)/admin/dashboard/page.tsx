@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Clock, Users, List, Eye, Check, XIcon } from "lucide-react";
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -45,15 +46,11 @@ import { collection, collectionGroup, query, where, doc, updateDoc } from "fireb
 import { Skeleton } from "@/components/ui/skeleton";
 import { isFuture, isPast, parseISO } from 'date-fns';
 
-// This Program type should match the Firestore document
-type Program = {
-    id: string;
-    name: string;
-    description: string;
+type SheetProgram = {
+    programId: string;
+    programName: string;
     startDate: string;
     endDate: string;
-    adminId: string;
-    imageUrl?: string;
 };
 
 type PendingVerification = {
@@ -69,18 +66,49 @@ export default function AdminDashboard() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  // Data fetching
+  const [sheetPrograms, setSheetPrograms] = useState<SheetProgram[]>([]);
+  const [isLoadingSheetPrograms, setIsLoadingSheetPrograms] = useState(true);
+
+  useEffect(() => {
+    const fetchSheetData = async () => {
+      setIsLoadingSheetPrograms(true);
+      try {
+        const appsScriptUrl = "https://script.google.com/macros/s/AKfycbwD1VGlmPthwKNoayWqF1qM5wRsDuHOMzk2eeMhdJtO8Gl1OJ438w4sUs2mJBHdqJSe/exec";
+        const response = await fetch(appsScriptUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const result = await response.json();
+        
+        const programsData = Array.isArray(result) ? result : (result.data && Array.isArray(result.data)) ? result.data : [];
+
+        if (programsData) {
+            setSheetPrograms(programsData);
+        } else {
+            throw new Error("Unexpected data format from Google Sheet API");
+        }
+
+      } catch (error) {
+        console.error("Error fetching from Google Sheet:", error);
+        toast({
+          variant: 'destructive',
+          title: 'Failed to load programs from Sheet',
+          description: error instanceof Error ? error.message : 'An unknown error occurred.',
+        });
+      } finally {
+        setIsLoadingSheetPrograms(false);
+      }
+    };
+
+    fetchSheetData();
+  }, [toast]);
+
+  // Data fetching from firestore for other stats
   const pendingQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collectionGroup(firestore, 'activity_evidence'), where('status', '==', 'pending'));
   }, [firestore]);
   const { data: pending, isLoading: isLoadingPending } = useCollection<PendingVerification>(pendingQuery);
-
-  const programsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, 'programs');
-  }, [firestore]);
-  const { data: programs, isLoading: isLoadingPrograms } = useCollection<Program>(programsQuery);
 
   const attendanceQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -195,9 +223,9 @@ export default function AdminDashboard() {
           <StatCard
             title="Total Programs"
             icon={List}
-            value={programs?.length ?? 0}
-            isLoading={isLoadingPrograms}
-            description="Total active and past programs."
+            value={sheetPrograms?.length ?? 0}
+            isLoading={isLoadingSheetPrograms}
+            description="Total programs from Google Sheet."
           />
            <StatCard
             title="Total Attendances"
@@ -277,14 +305,14 @@ export default function AdminDashboard() {
           </Card>
           <Card className="col-span-4 lg:col-span-3">
             <CardHeader>
-              <CardTitle className="font-headline">Program List</CardTitle>
+              <CardTitle className="font-headline">Program List (from Google Sheet)</CardTitle>
               <CardDescription>
-                Summary of all past and future programs.
+                Summary of all programs from the linked Google Sheet.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {isLoadingPrograms ? (
+                {isLoadingSheetPrograms ? (
                   [...Array(3)].map((_, i) => (
                     <div key={i} className="flex items-center">
                       <div className="space-y-1">
@@ -295,14 +323,14 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   ))
-                ) : programs && programs.length > 0 ? (
-                  programs.map((program) => {
+                ) : sheetPrograms && sheetPrograms.length > 0 ? (
+                  sheetPrograms.map((program) => {
                     const status = getProgramStatus(program.startDate, program.endDate);
                     return (
-                      <div key={program.id} className="flex items-center">
+                      <div key={program.programId} className="flex items-center">
                         <div className="space-y-1">
                           <p className="text-sm font-medium leading-none">
-                            {program.name}
+                            {program.programName}
                           </p>
                         </div>
                         <div className="ml-auto font-medium flex items-center gap-2">
@@ -315,7 +343,7 @@ export default function AdminDashboard() {
                   })
                 ) : (
                   <p className="text-sm text-muted-foreground text-center h-24 flex items-center justify-center">
-                    No programs created yet.
+                    No programs found in the Google Sheet.
                   </p>
                 )}
               </div>
@@ -378,3 +406,4 @@ export default function AdminDashboard() {
     </>
   );
 }
+
