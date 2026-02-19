@@ -31,8 +31,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ArrowRight, Calendar, X, Camera, RefreshCw, Upload, Loader2 } from "lucide-react";
-import { programs as allPrograms } from "@/lib/data";
-import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +39,7 @@ import { useUser, useFirestore, useStorage, useCollection, useMemoFirebase, useD
 import { useToast } from "@/hooks/use-toast";
 import { collection, serverTimestamp, query, doc, setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { Skeleton } from "@/components/ui/skeleton";
 
 
 interface Program {
@@ -50,8 +49,29 @@ interface Program {
     endDate: string;
     briefDescription: string;
     description: string;
-    imageId: string;
+    imageUrl?: string;
+    qrCodeUrl?: string;
+    adminId: string;
 }
+
+const ProgramCardSkeleton = () => (
+  <Card className="overflow-hidden flex flex-col">
+    <Skeleton className="w-full h-40" />
+    <CardHeader>
+      <Skeleton className="h-6 w-3/4" />
+      <Skeleton className="h-4 w-1/2 mt-2" />
+    </CardHeader>
+    <CardContent className="flex-grow">
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-5/6 mt-2" />
+    </CardContent>
+    <CardFooter className="flex-col items-start gap-3 pt-4">
+      <Skeleton className="h-6 w-20" />
+      <Skeleton className="h-10 w-full" />
+    </CardFooter>
+  </Card>
+);
+
 
 export default function StudentDashboard() {
   const [myProgramIds, setMyProgramIds] = useState<Set<string>>(new Set());
@@ -71,6 +91,12 @@ export default function StudentDashboard() {
   const firestore = useFirestore();
   const storage = useStorage();
   const { toast } = useToast();
+  
+  const programsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'programs');
+  }, [firestore]);
+  const { data: allPrograms, isLoading: isLoadingPrograms } = useCollection<Program>(programsQuery);
 
   const userDocRef = useMemoFirebase(() => {
     if (!user || !firestore) return null;
@@ -185,7 +211,7 @@ export default function StudentDashboard() {
   };
   
   const handleOpenImageModal = () => {
-    if (selectedProgram) {
+    if (selectedProgram && selectedProgram.imageUrl) {
       setIsImageModalOpen(true);
     }
   };
@@ -271,45 +297,45 @@ export default function StudentDashboard() {
     }
   };
 
-  const selectedImage = PlaceHolderImages.find(
-    (img) => img.id === selectedProgram?.imageId
-  );
-  
   const selectedProgramStatus = selectedProgram ? getProgramStatus(selectedProgram.startDate, selectedProgram.endDate) : null;
   const isProgramJoined = selectedProgram ? myProgramIds.has(selectedProgram.id) : false;
   const hasSubmittedEvidence = selectedProgram ? submittedProgramIds.has(selectedProgram.id) : false;
 
+  const programs = allPrograms || [];
+
   // Re-organize program lists
-  const myPrograms = allPrograms.filter(program => 
+  const myPrograms = programs.filter(program => 
     myProgramIds.has(program.id) && getProgramStatus(program.startDate, program.endDate).text !== 'Completed'
   );
 
-  const upcomingPrograms = allPrograms.filter(p => 
+  const upcomingPrograms = programs.filter(p => 
     !myProgramIds.has(p.id) && getProgramStatus(p.startDate, p.endDate).text === 'Upcoming'
   );
 
-  const ongoingPrograms = allPrograms.filter(p =>
+  const ongoingPrograms = programs.filter(p =>
     !myProgramIds.has(p.id) && getProgramStatus(p.startDate, p.endDate).text === 'Ongoing'
   );
 
 
   const ProgramCard = ({ program }: { program: Program }) => {
-    const image = PlaceHolderImages.find((img) => img.id === program.imageId);
     const status = getProgramStatus(program.startDate, program.endDate);
     return (
       <Card
         key={program.id}
         className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col"
       >
-        {image && (
+        {program.imageUrl ? (
           <Image
-            src={image.imageUrl}
-            alt={image.description}
+            src={program.imageUrl}
+            alt={program.name}
             width={600}
             height={400}
-            data-ai-hint={image.imageHint}
             className="w-full h-40 object-cover"
           />
+        ) : (
+          <div className="w-full h-40 bg-muted flex items-center justify-center">
+            <Camera className="h-10 w-10 text-muted-foreground" />
+          </div>
         )}
         <CardHeader>
           <CardTitle className="font-headline text-lg">
@@ -359,7 +385,11 @@ export default function StudentDashboard() {
           <h2 className="text-xl font-semibold tracking-tight font-headline mb-4">
             My Programs
           </h2>
-            {myPrograms.length > 0 ? (
+            {isLoadingPrograms ? (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {[...Array(myPrograms.length || 1)].map((_, i) => <ProgramCardSkeleton key={i} />)}
+                </div>
+            ) : myPrograms.length > 0 ? (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {myPrograms.map((program) => (
                   <ProgramCard key={program.id} program={program} />
@@ -378,7 +408,11 @@ export default function StudentDashboard() {
           <h2 className="text-xl font-semibold tracking-tight font-headline mb-4">
             Upcoming Programs
           </h2>
-          {upcomingPrograms.length > 0 ? (
+          {isLoadingPrograms ? (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {[...Array(3)].map((_, i) => <ProgramCardSkeleton key={i} />)}
+                </div>
+            ) : upcomingPrograms.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {upcomingPrograms.map((program) => (
                 <ProgramCard key={program.id} program={program} />
@@ -397,7 +431,11 @@ export default function StudentDashboard() {
           <h2 className="text-xl font-semibold tracking-tight font-headline mb-4">
             Ongoing Programs
           </h2>
-          {ongoingPrograms.length > 0 ? (
+          {isLoadingPrograms ? (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {[...Array(3)].map((_, i) => <ProgramCardSkeleton key={i} />)}
+                </div>
+            ) : ongoingPrograms.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {ongoingPrograms.map((program) => (
                   <ProgramCard key={program.id} program={program} />
@@ -421,14 +459,13 @@ export default function StudentDashboard() {
             </DialogTitle>
           </DialogHeader>
           <div className="py-4 px-2 space-y-4">
-            {selectedImage && (
+            {selectedProgram?.imageUrl && (
               <div className="flex justify-center">
                  <Image
-                    src={selectedImage.imageUrl}
-                    alt={selectedImage.description}
+                    src={selectedProgram.imageUrl}
+                    alt={selectedProgram.name}
                     width={500}
                     height={333}
-                    data-ai-hint={selectedImage.imageHint}
                     className="rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
                     onClick={handleOpenImageModal}
                   />
@@ -491,10 +528,10 @@ export default function StudentDashboard() {
              <DialogTitle>{selectedProgram?.name || 'Program'} Image</DialogTitle>
              <DialogDescription>Enlarged view of the poster for {selectedProgram?.name}.</DialogDescription>
            </DialogHeader>
-           {selectedImage && (
+           {selectedProgram?.imageUrl && (
               <Image
-                src={selectedImage.imageUrl}
-                alt={selectedImage.description}
+                src={selectedProgram.imageUrl}
+                alt={selectedProgram.name}
                 width={1200}
                 height={800}
                 className="rounded-lg object-contain w-full h-full"
