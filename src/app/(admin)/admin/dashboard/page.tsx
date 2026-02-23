@@ -37,7 +37,9 @@ type Program = {
     id: string;
     title: string;
     startDate: string;
+    startTime: string;
     endDate: string;
+    endTime: string;
     status: 'upcoming' | 'ongoing' | 'completed';
     qrSlug: string;
 };
@@ -124,7 +126,7 @@ export default function AdminDashboard() {
                                 <TableCell>
                                 <div className="font-medium">{program.title}</div>
                                 <div className="text-sm text-muted-foreground hidden md:inline">
-                                    {format(parseISO(program.startDate), "d MMM")} - {format(parseISO(program.endDate), "d MMM yyyy")}
+                                    {format(parseISO(program.startDate), "d MMM yyyy")} @ {program.startTime}
                                 </div>
                                 </TableCell>
                                 <TableCell>

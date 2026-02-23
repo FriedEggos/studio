@@ -30,7 +30,9 @@ const programFormSchema = z.object({
   description: z.string().min(1, "Description is required."),
   location: z.string().min(1, "Location is required."),
   startDate: z.date({ required_error: "Start date is required." }),
+  startTime: z.string().min(1, "Start time is required."),
   endDate: z.date({ required_error: "End date is required." }),
+  endTime: z.string().min(1, "End time is required."),
   status: z.enum(["upcoming", "ongoing", "completed"]),
   qrSlug: z.string().optional(),
   redirectUrl: z.string().optional(),
@@ -52,6 +54,14 @@ const programFormSchema = z.object({
 }).refine(data => data.endDate >= data.startDate, {
     message: "End date must be on or after start date.",
     path: ['endDate'],
+}).refine(data => {
+    if (data.startDate.toDateString() === data.endDate.toDateString()) {
+        return data.endTime > data.startTime;
+    }
+    return true;
+}, {
+    message: "End time must be after start time on the same day.",
+    path: ['endTime'],
 }).refine(data => !data.checkOutCloseTime || !data.checkOutOpenTime || data.checkOutCloseTime >= data.checkOutOpenTime, {
     message: "Check-out close time must be after open time.",
     path: ['checkOutCloseTime'],
@@ -76,6 +86,8 @@ export default function EditProgramPage() {
             title: "",
             description: "",
             location: "",
+            startTime: "",
+            endTime: "",
             status: "upcoming",
             redirectUrl: "",
             copywriting: "",
@@ -116,7 +128,9 @@ export default function EditProgramPage() {
                     description: programData.description,
                     location: programData.location,
                     startDate: parseISO(programData.startDate),
+                    startTime: programData.startTime,
                     endDate: parseISO(programData.endDate),
+                    endTime: programData.endTime,
                     status: programData.status,
                     qrSlug: programData.qrSlug,
                     redirectUrl: programData.redirectUrl,
@@ -164,7 +178,9 @@ export default function EditProgramPage() {
                 description: data.description,
                 location: data.location,
                 startDate: data.startDate.toISOString(),
+                startTime: data.startTime,
                 endDate: data.endDate.toISOString(),
+                endTime: data.endTime,
                 status: data.status,
                 qrSlug: newSlug,
                 redirectUrl: data.redirectUrl || "",
@@ -236,6 +252,10 @@ export default function EditProgramPage() {
                         <div className="grid grid-cols-2 gap-4">
                             <FormField name="startDate" render={({ field }) => (<FormItem><FormLabel>Start Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
                             <FormField name="endDate" render={({ field }) => (<FormItem><FormLabel>End Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < (form.getValues("startDate") || new Date())} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField name="startTime" render={({ field }) => ( <FormItem><FormLabel>Start Time</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            <FormField name="endTime" render={({ field }) => ( <FormItem><FormLabel>End Time</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem> )} />
                         </div>
                         <FormField name="status" render={({ field }) => (<FormItem><FormLabel>Status</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="upcoming">Upcoming</SelectItem><SelectItem value="ongoing">Ongoing</SelectItem><SelectItem value="completed">Completed</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
                     </CardContent>

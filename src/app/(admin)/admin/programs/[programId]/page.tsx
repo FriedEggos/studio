@@ -56,7 +56,9 @@ interface Program {
   description: string;
   location: string;
   startDate: string;
+  startTime: string;
   endDate: string;
+  endTime: string;
   status: 'upcoming' | 'ongoing' | 'completed';
   qrSlug: string;
   redirectUrl?: string;
@@ -276,10 +278,10 @@ export default function ProgramDetailsPage() {
             </div>
             <div className="space-y-6">
                  <Card>
-                    <CardHeader> <CardTitle className="text-lg flex items-center gap-2"><Calendar className="h-5 w-5" /> Dates</CardTitle> </CardHeader>
+                    <CardHeader> <CardTitle className="text-lg flex items-center gap-2"><Calendar className="h-5 w-5" /> Dates & Times</CardTitle> </CardHeader>
                     <CardContent>
-                        <p><strong>Start:</strong> {format(parseISO(program.startDate), 'PPP')}</p>
-                        <p><strong>End:</strong> {format(parseISO(program.endDate), 'PPP')}</p>
+                        <p><strong>Start:</strong> {format(parseISO(program.startDate), 'PPP')} at {program.startTime}</p>
+                        <p><strong>End:</strong> {format(parseISO(program.endDate), 'PPP')} at {program.endTime}</p>
                     </CardContent>
                 </Card>
                  <Card>
