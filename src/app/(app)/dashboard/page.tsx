@@ -33,6 +33,7 @@ interface Program {
     id: string;
     title: string;
     startDate: string; // ISO string
+    checkOutOpenTime?: { toDate: () => Date };
 }
 
 interface UserProfile {
@@ -43,7 +44,101 @@ interface UserProfile {
 type AttendedProgram = Attendance & {
     programTitle: string;
     programStartDate: string;
+    checkOutOpenTime?: { toDate: () => Date };
 };
+
+const CheckoutTimer = ({ program, handleCheckout, checkingOutId }: {
+    program: AttendedProgram;
+    handleCheckout: (programId: string, email: string) => void;
+    checkingOutId: string | null;
+}) => {
+    const [status, setStatus] = useState<'loading' | 'not_open' | 'open' | 'closed' | 'no_time_set'>('loading');
+    const [remainingTime, setRemainingTime] = useState('');
+
+    useEffect(() => {
+        if (!program.checkOutOpenTime) {
+            setStatus('no_time_set');
+            return;
+        }
+
+        const checkoutOpenDate = program.checkOutOpenTime.toDate();
+        const checkoutCloseDate = new Date(checkoutOpenDate.getTime() + 3 * 60 * 60 * 1000);
+
+        const updateStatus = () => {
+            const now = new Date();
+
+            if (now < checkoutOpenDate) {
+                setStatus('not_open');
+                return false; // Interval continues
+            } else if (now > checkoutCloseDate) {
+                setStatus('closed');
+                return true; // Interval should be cleared
+            } else {
+                setStatus('open');
+                const diffSeconds = Math.floor((checkoutCloseDate.getTime() - now.getTime()) / 1000);
+                
+                const h = Math.floor(diffSeconds / 3600).toString().padStart(2, '0');
+                const m = Math.floor((diffSeconds % 3600) / 60).toString().padStart(2, '0');
+                const s = Math.floor(diffSeconds % 60).toString().padStart(2, '0');
+
+                setRemainingTime(`${h}:${m}:${s}`);
+                return false; // Interval continues
+            }
+        };
+
+        if (updateStatus()) {
+            return;
+        }
+
+        const interval = setInterval(() => {
+            if (updateStatus()) {
+                clearInterval(interval);
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [program.checkOutOpenTime]);
+
+    const isCheckingOut = checkingOutId === program.email;
+
+    switch (status) {
+        case 'loading':
+            return <Skeleton className="h-9 w-36" />;
+        
+        case 'not_open':
+            return <span className="text-sm font-medium">Check-out is not yet open.</span>;
+
+        case 'closed':
+            return <Button size="sm" className="bg-muted-foreground" disabled>Check-out Closed</Button>;
+
+        case 'no_time_set':
+        case 'open':
+            return (
+                 <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+                    {status === 'open' && <span className="font-mono text-sm font-semibold">{remainingTime}</span>}
+                    <Button
+                        onClick={() => handleCheckout(program.programId, program.email)}
+                        disabled={isCheckingOut}
+                        size="sm"
+                        className="bg-amber-600 text-white hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-amber-950 w-full sm:w-auto shrink-0"
+                    >
+                        {isCheckingOut ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Please wait...
+                            </>
+                        ) : (
+                            'Check Out Now'
+                        )}
+                    </Button>
+                </div>
+            );
+
+        default:
+            return null;
+    }
+}
+
 
 export default function StudentDashboard() {
     const { user, isUserLoading } = useUser();
@@ -69,7 +164,7 @@ export default function StudentDashboard() {
 
             setIsLoading(true);
             try {
-                // 1. Get all programs. This is less efficient but avoids the index requirement.
+                // 1. Get all programs.
                 const programsSnapshot = await getDocs(collection(firestore, 'programs'));
                 const programs = programsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Program[];
 
@@ -79,7 +174,7 @@ export default function StudentDashboard() {
                     return;
                 }
 
-                // 2. For each program, create a promise to get the user's specific attendance doc.
+                // 2. For each program, get the user's specific attendance doc.
                 const attendancePromises = programs.map(p => 
                     getDoc(doc(firestore, `programs/${p.id}/attendances`, user.email!))
                 );
@@ -96,6 +191,7 @@ export default function StudentDashboard() {
                             ...attendance,
                             programTitle: program.title,
                             programStartDate: program.startDate,
+                            checkOutOpenTime: program.checkOutOpenTime,
                         });
                     }
                 });
@@ -273,21 +369,11 @@ export default function StudentDashboard() {
                         <span>
                             Please check out for the <strong>{program.programTitle}</strong> program.
                         </span>
-                        <Button
-                            onClick={() => handleCheckout(program.programId, program.email)}
-                            disabled={checkingOutId === program.email}
-                            size="sm"
-                            className="bg-amber-600 text-white hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-amber-950 w-full sm:w-auto shrink-0"
-                        >
-                            {checkingOutId === program.email ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Please wait...
-                                </>
-                            ) : (
-                                'Check Out Now'
-                            )}
-                        </Button>
+                        <CheckoutTimer 
+                            program={program}
+                            handleCheckout={handleCheckout}
+                            checkingOutId={checkingOutId}
+                        />
                     </AlertDescription>
                 </Alert>
             ))}
