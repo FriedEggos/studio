@@ -28,6 +28,27 @@
             "type": "string",
             "format": "date-time",
             "description": "Timestamp when the user account was created."
+        },
+        "course": {
+            "type": "string",
+            "description": "The student's department or course."
+        },
+        "matricId": {
+            "type": "string",
+            "description": "The student's matriculation ID."
+        },
+        "phoneNumber": {
+            "type": "string",
+            "description": "The student's phone number."
+        },
+        "badge": {
+          "type": "string",
+          "description": "Activity badge earned by the student (e.g., Legend, Active).",
+          "enum": ["Legend", "Active", "Rookie"]
+        },
+        "rating": {
+          "type": "number",
+          "description": "Student's activity rating from 1 to 5."
         }
       },
       "required": [

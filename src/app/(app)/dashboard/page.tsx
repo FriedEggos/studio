@@ -16,9 +16,10 @@ import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Ticket, Loader2 } from "lucide-react";
+import { AlertCircle, Ticket, Loader2, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 // Interfaces for our data structures
 interface Attendance {
@@ -38,6 +39,9 @@ interface Program {
 
 interface UserProfile {
     role: 'student' | 'admin';
+    badge?: string;
+    rating?: number;
+    displayName?: string;
 }
 
 // Combined type for easy rendering
@@ -46,6 +50,66 @@ type AttendedProgram = Attendance & {
     programStartDate: string;
     checkOutOpenTime?: { toDate: () => Date };
 };
+
+const ActivityStatsCard = ({ badge, rating }: { badge?: string; rating?: number; }) => {
+    if (!badge && (rating === undefined || rating === null)) {
+        return null; // Don't render if there's no data
+    }
+
+    const renderStars = () => {
+        const stars = [];
+        const totalStars = 5;
+        const filledStars = rating || 0;
+        for (let i = 1; i <= totalStars; i++) {
+            stars.push(
+                <Star
+                    key={i}
+                    className={`h-5 w-5 ${i <= filledStars ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground/30'}`}
+                />
+            );
+        }
+        return stars;
+    };
+
+    const getBadgeColor = (badgeName?: string) => {
+        switch (badgeName?.toLowerCase()) {
+            case 'legend':
+                return 'bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90';
+            case 'active':
+                return 'bg-blue-500 text-white hover:bg-blue-500/90';
+            case 'rookie':
+                return 'bg-gray-400 text-gray-900 hover:bg-gray-400/90';
+            default:
+                return 'bg-secondary text-secondary-foreground';
+        }
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="text-xl font-headline">My Activity Stats</CardTitle>
+                <CardDescription>Your current rank and rating.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg bg-muted/50">
+                    <p className="text-sm font-medium text-muted-foreground">Rank</p>
+                    {badge ? (
+                         <Badge className={cn('text-sm', getBadgeColor(badge))}>{badge}</Badge>
+                    ) : (
+                        <span className="text-sm font-semibold">Not Ranked</span>
+                    )}
+                </div>
+                 <div className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg bg-muted/50">
+                    <p className="text-sm font-medium text-muted-foreground">Rating</p>
+                    <div className="flex items-center">
+                        {renderStars()}
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+};
+
 
 const CheckoutTimer = ({ program, handleCheckout, checkingOutId }: {
     program: AttendedProgram;
@@ -259,7 +323,8 @@ export default function StudentDashboard() {
         if (isLoading || isUserLoading || isProfileLoading) {
             return (
                 <div className="grid gap-6">
-                    {[...Array(3)].map((_, i) => (
+                    <ActivityStatsCard />
+                    {[...Array(2)].map((_, i) => (
                         <Card key={i} className="rounded-xl">
                             <CardHeader>
                                 <Skeleton className="h-6 w-3/4" />
@@ -315,45 +380,48 @@ export default function StudentDashboard() {
         }
 
         return (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {attendedPrograms.map(item => (
-                    <Card key={`${item.programId}-${item.email}`} className="rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col">
-                        <CardHeader>
-                            <CardTitle className="font-bold">{item.programTitle}</CardTitle>
-                            <CardDescription>{format(parseISO(item.programStartDate), 'd MMMM yyyy')}</CardDescription>
-                        </CardHeader>
-                        <CardContent className="flex-grow grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                                <p className="font-medium text-muted-foreground">Check-in</p>
-                                <p>{item.createdAt ? format(item.createdAt.toDate(), 'p, d MMM') : 'N/A'}</p>
-                            </div>
-                             <div>
-                                <p className="font-medium text-muted-foreground">Check-out</p>
-                                <p>{item.checkOutAt ? format(item.checkOutAt.toDate(), 'p, d MMM') : 'N/A'}</p>
-                            </div>
-                        </CardContent>
-                        <CardFooter>
-                           {item.checkOutAt ? (
-                                <Badge variant="secondary" className="bg-green-100 text-green-800">Checked Out</Badge>
-                            ) : (
-                                <Button
-                                    onClick={() => handleCheckout(item.programId, item.email)}
-                                    disabled={checkingOutId === item.email}
-                                    size="sm"
-                                >
-                                    {checkingOutId === item.email ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Please wait...
-                                        </>
-                                    ) : (
-                                        'Check-out'
-                                    )}
-                                </Button>
-                            )}
-                        </CardFooter>
-                    </Card>
-                ))}
+            <div className="space-y-6">
+                <ActivityStatsCard badge={userProfile?.badge} rating={userProfile?.rating} />
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {attendedPrograms.map(item => (
+                        <Card key={`${item.programId}-${item.email}`} className="rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col">
+                            <CardHeader>
+                                <CardTitle className="font-bold">{item.programTitle}</CardTitle>
+                                <CardDescription>{format(parseISO(item.programStartDate), 'd MMMM yyyy')}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex-grow grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <p className="font-medium text-muted-foreground">Check-in</p>
+                                    <p>{item.createdAt ? format(item.createdAt.toDate(), 'p, d MMM') : 'N/A'}</p>
+                                </div>
+                                 <div>
+                                    <p className="font-medium text-muted-foreground">Check-out</p>
+                                    <p>{item.checkOutAt ? format(item.checkOutAt.toDate(), 'p, d MMM') : 'N/A'}</p>
+                                </div>
+                            </CardContent>
+                            <CardFooter>
+                               {item.checkOutAt ? (
+                                    <Badge variant="secondary" className="bg-green-100 text-green-800">Checked Out</Badge>
+                                ) : (
+                                    <Button
+                                        onClick={() => handleCheckout(item.programId, item.email)}
+                                        disabled={checkingOutId === item.email}
+                                        size="sm"
+                                    >
+                                        {checkingOutId === item.email ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Please wait...
+                                            </>
+                                        ) : (
+                                            'Check-out'
+                                        )}
+                                    </Button>
+                                )}
+                            </CardFooter>
+                        </Card>
+                    ))}
+                </div>
             </div>
         );
     };

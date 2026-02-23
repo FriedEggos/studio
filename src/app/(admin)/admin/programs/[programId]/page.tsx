@@ -38,7 +38,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { QRImageCard } from "@/components/qr-image-card";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { cn } from "@/lib/utils";
 
 
 interface Program {
@@ -62,7 +63,7 @@ interface Program {
 }
 
 interface Attendance {
-    id: string;
+    id: string; // This is the student's email
     studentName: string;
     studentId: string;
     classGroup: string;
@@ -72,6 +73,12 @@ interface Attendance {
     checkOutAt?: {
         toDate: () => Date;
     } | null;
+}
+
+interface User {
+  id: string;
+  email: string;
+  badge?: string;
 }
 
 
@@ -98,12 +105,36 @@ export default function ProgramDetailsPage() {
   
   const { data: attendances, isLoading: isLoadingAttendances } = useCollection<Attendance>(attendanceQuery);
 
+  const usersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'users');
+  }, [firestore]);
+
+  const { data: users, isLoading: isLoadingUsers } = useCollection<User>(usersQuery);
+
+  const studentRanks = useMemo(() => {
+      if (!users) return new Map<string, string | undefined>();
+      return new Map(users.map(user => [user.email, user.badge]));
+  }, [users]);
+
   useEffect(() => {
     if (typeof window !== 'undefined' && program?.qrSlug) {
       setQrFormUrl(`${window.location.origin}/p/${program.qrSlug}`);
     }
   }, [program]);
 
+  const getBadgeColor = (badgeName?: string) => {
+    switch (badgeName?.toLowerCase()) {
+        case 'legend':
+            return 'bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90';
+        case 'active':
+            return 'bg-blue-500 text-white hover:bg-blue-500/90';
+        case 'rookie':
+            return 'bg-gray-400 text-gray-900 hover:bg-gray-400/90';
+        default:
+            return 'bg-secondary text-secondary-foreground';
+    }
+  };
 
   const handleCopyLink = (url: string) => {
     if (!url) return;
@@ -311,6 +342,7 @@ export default function ProgramDetailsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Student Name</TableHead>
+                    <TableHead>Student Rank</TableHead>
                     <TableHead>Student ID</TableHead>
                     <TableHead>Class</TableHead>
                     <TableHead>Check-in Time</TableHead>
@@ -319,10 +351,11 @@ export default function ProgramDetailsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {isLoadingAttendances ? (
+                  {isLoadingAttendances || isLoadingUsers ? (
                      [...Array(3)].map((_, i) => (
                       <TableRow key={i}>
                         <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                         <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                         <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                         <TableCell><Skeleton className="h-5 w-28" /></TableCell>
@@ -334,6 +367,15 @@ export default function ProgramDetailsPage() {
                     attendances.map((att) => (
                       <TableRow key={att.id}>
                         <TableCell className="font-medium">{att.studentName}</TableCell>
+                        <TableCell>
+                          {studentRanks.get(att.id) ? (
+                            <Badge variant="outline" className={cn('text-xs', getBadgeColor(studentRanks.get(att.id)))}>
+                              {studentRanks.get(att.id)}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
                         <TableCell>{att.studentId || '-'}</TableCell>
                         <TableCell>{att.classGroup || '-'}</TableCell>
                         <TableCell>{att.createdAt ? format(att.createdAt.toDate(), 'Pp') : <span className="text-muted-foreground">Syncing...</span>}</TableCell>
@@ -356,7 +398,7 @@ export default function ProgramDetailsPage() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center">
+                      <TableCell colSpan={7} className="h-24 text-center">
                         No attendances recorded yet.
                       </TableCell>
                     </TableRow>

@@ -65,13 +65,13 @@ export default function AdminProfilePage() {
           <Link href="/admin/profile/edit" className="relative group">
             <Avatar className="w-24 h-24 mb-4">
               <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`} />
-              <AvatarFallback>{userProfile?.fullName?.[0].toUpperCase() || user.email?.[0].toUpperCase()}</AvatarFallback>
+              <AvatarFallback>{userProfile?.displayName?.[0].toUpperCase() || user.email?.[0].toUpperCase()}</AvatarFallback>
             </Avatar>
             <div className="absolute inset-0 mb-4 bg-black/40 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
               <Camera className="h-8 w-8 text-white" />
             </div>
           </Link>
-          <CardTitle className="font-headline">{userProfile?.fullName || "JTMK Administrator"}</CardTitle>
+          <CardTitle className="font-headline">{userProfile?.displayName || "JTMK Administrator"}</CardTitle>
           <CardDescription>{userProfile?.email}</CardDescription>
           <CardDescription className="font-semibold capitalize mt-1">{userProfile?.role}</CardDescription>
         </CardHeader>

@@ -27,7 +27,7 @@ import { Camera } from 'lucide-react';
 import { compressAndResizeImage } from '@/lib/image-utils';
 
 const profileFormSchema = z.object({
-  fullName: z.string().min(1, 'Full name is required.'),
+  displayName: z.string().min(1, 'Display name is required.'),
   email: z.string().email('Invalid email format.'),
 });
 
@@ -60,7 +60,7 @@ export default function AdminEditProfilePage() {
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      fullName: '',
+      displayName: '',
       email: '',
     }
   });
@@ -71,7 +71,7 @@ export default function AdminEditProfilePage() {
     }
     if (userProfile) {
       reset({
-        fullName: userProfile.fullName || '',
+        displayName: userProfile.displayName || '',
         email: userProfile.email || '',
       });
       if (!avatarPreview) {
@@ -116,7 +116,7 @@ export default function AdminEditProfilePage() {
       }
 
       const updatedData = {
-        fullName: data.fullName,
+        displayName: data.displayName,
         email: data.email, // Keep email for completeness, but it's disabled in the form
       };
 
@@ -192,7 +192,7 @@ export default function AdminEditProfilePage() {
               <div className="relative group w-28 h-28 mx-auto">
                 <Avatar className="w-28 h-28">
                   <AvatarImage src={avatarPreview || `https://picsum.photos/seed/${user.uid}/200/200`} alt="Profile Picture" />
-                  <AvatarFallback>{userProfile?.fullName?.[0].toUpperCase() || user.email?.[0].toUpperCase()}</AvatarFallback>
+                  <AvatarFallback>{userProfile?.displayName?.[0].toUpperCase() || user.email?.[0].toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <label htmlFor="avatar-upload" className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                   <Camera className="h-8 w-8 text-white" />
@@ -211,9 +211,9 @@ export default function AdminEditProfilePage() {
               <Input id="role" type="text" value={userProfile.role} disabled />
             </div>
             <div className="grid gap-3">
-              <Label htmlFor="fullName">Full Name</Label>
-              <Input id="fullName" type="text" {...register('fullName')} />
-              {errors.fullName && <p className="text-sm text-destructive mt-1">{errors.fullName.message}</p>}
+              <Label htmlFor="displayName">Display Name</Label>
+              <Input id="displayName" type="text" {...register('displayName')} />
+              {errors.displayName && <p className="text-sm text-destructive mt-1">{errors.displayName.message}</p>}
             </div>
             <div className="grid gap-3">
               <Label htmlFor="email">Email</Label>

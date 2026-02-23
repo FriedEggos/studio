@@ -63,9 +63,9 @@ export default function UserProfilePage() {
           <Avatar className="w-24 h-24 mb-4">
             {/* The user photoURL is not stored on the user document in firestore. We'll use a placeholder. */}
             <AvatarImage src={`https://picsum.photos/seed/${userProfile.id}/200/200`} />
-            <AvatarFallback>{userProfile.fullName?.[0].toUpperCase() || userProfile.email?.[0].toUpperCase()}</AvatarFallback>
+            <AvatarFallback>{userProfile.displayName?.[0].toUpperCase() || userProfile.email?.[0].toUpperCase()}</AvatarFallback>
           </Avatar>
-          <CardTitle className="font-headline">{userProfile.fullName}</CardTitle>
+          <CardTitle className="font-headline">{userProfile.displayName}</CardTitle>
           <CardDescription>{userProfile.email}</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-6">

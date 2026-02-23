@@ -26,7 +26,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 interface User {
   id: string;
-  fullName: string;
+  displayName: string;
   email: string;
   role: 'student' | 'admin';
   course?: string;
@@ -91,10 +91,10 @@ export default function UsersPage() {
                       <div className="flex items-center gap-4">
                         <Avatar>
                           <AvatarImage src={user.photoURL} />
-                          <AvatarFallback>{user.fullName?.[0].toUpperCase() || user.email[0].toUpperCase()}</AvatarFallback>
+                          <AvatarFallback>{user.displayName?.[0].toUpperCase() || user.email[0].toUpperCase()}</AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="font-medium">{user.fullName}</div>
+                          <div className="font-medium">{user.displayName}</div>
                           <div className="text-sm text-muted-foreground">{user.email}</div>
                         </div>
                       </div>
