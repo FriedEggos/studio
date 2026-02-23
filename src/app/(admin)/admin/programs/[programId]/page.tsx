@@ -9,9 +9,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, collection } from "firebase/firestore";
+import { doc, collection, deleteDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, Copy, Users, Download } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, Copy, Users, Download, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { QRImageCard } from "@/components/qr-image-card";
 import { useState, useEffect } from "react";
 
@@ -59,6 +69,8 @@ export default function ProgramDetailsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [qrFormUrl, setQrFormUrl] = useState('');
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [selectedAttendanceId, setSelectedAttendanceId] = useState<string | null>(null);
 
   const programDocRef = useMemoFirebase(() => {
     if (!programId || !firestore) return null;
@@ -104,6 +116,27 @@ export default function ProgramDetailsPage() {
     }));
     
     exportToCsv(`attendance_${program?.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`, dataToExport);
+  };
+  
+  const handleDeleteAttendance = async (attendanceId: string) => {
+    if (!firestore || !programId) return;
+    const attendanceDocRef = doc(firestore, 'programs', programId, 'attendances', attendanceId);
+    try {
+        await deleteDoc(attendanceDocRef);
+        toast({
+            title: 'Attendance Deleted',
+            description: 'The attendance record has been successfully removed.',
+        });
+    } catch (error) {
+        console.error("Error deleting attendance: ", error);
+        toast({
+            variant: 'destructive',
+            title: 'Deletion Failed',
+            description: 'Could not remove the attendance record.',
+        });
+    }
+    setIsAlertOpen(false);
+    setSelectedAttendanceId(null);
   };
 
 
@@ -220,6 +253,7 @@ export default function ProgramDetailsPage() {
                     <TableHead>Student ID</TableHead>
                     <TableHead>Class</TableHead>
                     <TableHead>Check-in Time</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -230,6 +264,7 @@ export default function ProgramDetailsPage() {
                         <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                         <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                         <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+                        <TableCell><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                       </TableRow>
                     ))
                   ) : attendances && attendances.length > 0 ? (
@@ -239,11 +274,25 @@ export default function ProgramDetailsPage() {
                         <TableCell>{att.studentId || '-'}</TableCell>
                         <TableCell>{att.classGroup || '-'}</TableCell>
                         <TableCell>{format(att.createdAt.toDate(), 'Pp')}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                                setSelectedAttendanceId(att.id);
+                                setIsAlertOpen(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Delete attendance</span>
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={4} className="h-24 text-center">
+                      <TableCell colSpan={5} className="h-24 text-center">
                         No attendances recorded yet.
                       </TableCell>
                     </TableRow>
@@ -252,6 +301,26 @@ export default function ProgramDetailsPage() {
               </Table>
           </CardContent>
       </Card>
+
+      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete this attendance record.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setSelectedAttendanceId(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  className={Button({ variant: "destructive" })}
+                  onClick={() => selectedAttendanceId && handleDeleteAttendance(selectedAttendanceId)}
+                >
+                    Delete
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
 
     </div>
   );
