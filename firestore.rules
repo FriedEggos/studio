@@ -28,10 +28,13 @@ service cloud.firestore {
     }
 
     function isCheckoutUpdate() {
+      // List of fields that are considered part of the initial check-in and should not be changed during a check-out update.
       let sensitiveFields = ['studentName', 'studentId', 'email', 'programId', 'createdAt', 'classGroup', 'customInput1', 'customInput2', 'userAgent'];
-      // Get the keys that are being added or changed in this update request.
+      
+      // Get the set of keys that are being modified in the incoming request data.
       let modifiedKeys = request.resource.data.keys().diff(resource.data.keys()).affectedKeys();
-      // The update is a valid checkout update if no modified keys are in our list of sensitive fields.
+      
+      // The update is a valid checkout update if NONE of the modified keys are in our list of sensitive fields.
       return modifiedKeys.hasAny(sensitiveFields) == false;
     }
 
