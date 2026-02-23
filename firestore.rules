@@ -49,16 +49,23 @@ service cloud.firestore {
       // Only admins can create, update, or delete programs.
       allow create, update, delete: if isAdmin();
       
-      // Attendance subcollection
+      // Rules for DIRECT access to the attendance subcollection
       match /attendances/{attendanceId} {
         // Anyone can create an attendance record (public form submission).
         allow create: if request.resource.data.programId == programId &&
                          request.resource.data.createdAt == request.time;
-        // Only admins can read or delete attendance records.
+        // Direct reads and deletes only for admins.
         allow read, delete: if isAdmin();
         // No updates allowed to preserve record integrity.
         allow update: if false;
       }
+    }
+    
+    // Rule for the 'attendances' collection group query
+    match /{path=**}/attendances/{attendanceId} {
+      // Allows `collectionGroup('attendances').where('email', '==', user.email)` for students
+      // and allows admins to perform any list query.
+      allow list: if isAdmin() || (isSignedIn() && request.auth.token.email == resource.data.email);
     }
     
     // Program form configurations
