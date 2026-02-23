@@ -18,7 +18,7 @@ import { format, parseISO } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
@@ -39,7 +39,6 @@ const programFormSchema = z.object({
   copywriting: z.string().optional(),
   requireStudentId: z.boolean().default(false),
   requirePhone: z.boolean().default(false),
-  requireEmail: z.boolean().default(false),
   requireClass: z.boolean().default(false),
   customInput1Enabled: z.boolean().default(false),
   customInput1Label: z.string().optional(),
@@ -73,7 +72,6 @@ export default function EditProgramPage() {
             redirectUrl: "",
             copywriting: "",
             requireStudentId: true,
-            requireEmail: false,
             requirePhone: false,
             requireClass: false,
             customInput1Enabled: false,
@@ -173,7 +171,7 @@ export default function EditProgramPage() {
                 fields: {
                     requireStudentId: data.requireStudentId,
                     requirePhone: data.requirePhone,
-                    requireEmail: data.requireEmail,
+                    requireEmail: true, // Always require email
                     requireClass: data.requireClass,
                     customInput1Enabled: data.customInput1Enabled,
                     customInput1Label: data.customInput1Label || "",
@@ -249,7 +247,15 @@ export default function EditProgramPage() {
                         <CardTitle className="text-base pt-4">Form Fields</CardTitle>
                         <div className="space-y-2">
                            <FormField name="requireStudentId" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3"><div className="space-y-0.5"><FormLabel>Require Student ID</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
-                           <FormField name="requireEmail" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3"><div className="space-y-0.5"><FormLabel>Require Email</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
+                           <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 bg-muted/50">
+                               <div className="space-y-0.5">
+                                   <FormLabel>Require Email</FormLabel>
+                                   <FormDescription className="text-xs">
+                                       Email is required for student attendance history.
+                                   </FormDescription>
+                               </div>
+                               <FormControl><Switch checked={true} disabled /></FormControl>
+                           </FormItem>
                            <FormField name="requirePhone" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3"><div className="space-y-0.5"><FormLabel>Require Phone Number</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
                            <FormField name="requireClass" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3"><div className="space-y-0.5"><FormLabel>Require Class</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
                         </div>
