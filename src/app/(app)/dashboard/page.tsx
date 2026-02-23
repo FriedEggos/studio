@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUser, useFirestore } from "@/firebase";
-import { collectionGroup, query, where, orderBy, getDocs, collection } from "firebase/firestore";
+import { collectionGroup, query, where, getDocs, collection } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 
@@ -48,12 +48,19 @@ export default function StudentDashboard() {
             try {
                 const attendanceQuery = query(
                     collectionGroup(firestore, 'attendances'),
-                    where('email', '==', user.email),
-                    orderBy('createdAt', 'desc')
+                    where('email', '==', user.email)
                 );
 
                 const attendanceSnapshot = await getDocs(attendanceQuery);
                 const attendances = attendanceSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Attendance[];
+                
+                // Sort on the client to avoid needing a composite index
+                attendances.sort((a, b) => {
+                    const dateA = a.createdAt?.toDate?.() || new Date(0);
+                    const dateB = b.createdAt?.toDate?.() || new Date(0);
+                    return dateB.getTime() - dateA.getTime();
+                });
+
 
                 // Fetch program titles for each attendance
                 const programIds = [...new Set(attendances.map(a => a.programId))];
