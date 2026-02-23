@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -11,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
-import { collectionGroup, query, where, getDocs, collection, doc } from "firebase/firestore";
+import { getDocs, collection, doc, getDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -75,40 +74,43 @@ export default function StudentDashboard() {
 
             setIsLoading(true);
             try {
-                // 1. Get all attendance records for the user's email
-                const attendanceQuery = query(
-                    collectionGroup(firestore, 'attendances'),
-                    where('email', '==', user.email)
-                );
-                const attendanceSnapshot = await getDocs(attendanceQuery);
-                const attendances = attendanceSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Attendance[];
+                // 1. Get all programs. This is less efficient but avoids the index requirement.
+                const programsSnapshot = await getDocs(collection(firestore, 'programs'));
+                const programs = programsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Program[];
 
-                if (attendances.length === 0) {
+                if (programs.length === 0) {
                     setAttendedPrograms([]);
                     setIsLoading(false);
                     return;
                 }
 
-                // 2. Get unique program IDs from the attendance records
-                const programIds = [...new Set(attendances.map(a => a.programId))];
+                // 2. For each program, create a promise to get the user's specific attendance doc.
+                const attendancePromises = programs.map(p => 
+                    getDoc(doc(firestore, `programs/${p.id}/attendances`, user.email!))
+                );
                 
-                // 3. Fetch the details for all attended programs in a single query
-                const programsQuery = query(collection(firestore, 'programs'), where('__name__', 'in', programIds));
-                const programsSnapshot = await getDocs(programsQuery);
-                const programsMap = new Map<string, Program>();
-                programsSnapshot.forEach(doc => {
-                    programsMap.set(doc.id, { id: doc.id, ...doc.data() } as Program);
+                const attendanceSnapshots = await Promise.all(attendancePromises);
+
+                // 3. Filter for attendances that exist and merge with program data.
+                const populatedAttendances: AttendedProgram[] = [];
+                attendanceSnapshots.forEach((attendanceSnap, index) => {
+                    if (attendanceSnap.exists()) {
+                        const program = programs[index];
+                        const attendance = { id: attendanceSnap.id, ...attendanceSnap.data() } as Attendance;
+                        populatedAttendances.push({
+                            ...attendance,
+                            programTitle: program.title,
+                            programStartDate: program.startDate,
+                        });
+                    }
                 });
 
-                // 4. Merge program details into attendance records
-                const populatedAttendances = attendances.map(att => {
-                    const program = programsMap.get(att.programId);
-                    return {
-                        ...att,
-                        programTitle: program?.title || 'Unknown Program',
-                        programStartDate: program?.startDate || new Date().toISOString(),
-                    };
-                }).sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()); // 5. Sort by latest first
+                // 4. Sort by latest first
+                populatedAttendances.sort((a, b) => {
+                    const dateA = a.createdAt?.toDate()?.getTime() || 0;
+                    const dateB = b.createdAt?.toDate()?.getTime() || 0;
+                    return dateB - dateA;
+                });
                 
                 setAttendedPrograms(populatedAttendances);
 
@@ -196,7 +198,7 @@ export default function StudentDashboard() {
                         <CardContent className="flex-grow space-y-3 text-sm">
                             <div>
                                 <p className="font-medium text-muted-foreground">Check-in</p>
-                                <p>{format(item.createdAt.toDate(), 'p, d MMM yyyy')}</p>
+                                <p>{item.createdAt ? format(item.createdAt.toDate(), 'p, d MMM yyyy') : 'N/A'}</p>
                             </div>
                              <div>
                                 <p className="font-medium text-muted-foreground">Check-out</p>
