@@ -52,7 +52,7 @@ export default function PublicAttendancePage({ params }: { params: { qrSlug: str
     const createFormSchema = (config: ProgramConfig | null) => z.object({
         studentName: z.string().min(1, { message: "Nama diperlukan." }),
         studentId: config?.fields.requireStudentId ? z.string().min(1, { message: "ID Pelajar diperlukan." }) : z.string().optional(),
-        email: config?.fields.requireEmail ? z.string().email({ message: "Format emel tidak sah." }).min(1, { message: "Emel diperlukan." }) : z.string().optional(),
+        email: z.string().email({ message: "Format emel tidak sah." }).min(1, { message: "Emel diperlukan." }),
         phone: config?.fields.requirePhone ? z.string().min(1, { message: "Nombor telefon diperlukan." }) : z.string().optional(),
         classGroup: config?.fields.requireClass ? z.string().min(1, { message: "Kelas diperlukan." }) : z.string().optional(),
         customInput1: config?.fields.customInput1Enabled ? z.string().min(1, { message: `${config.fields.customInput1Label} diperlukan.` }) : z.string().optional(),
@@ -134,15 +134,17 @@ export default function PublicAttendancePage({ params }: { params: { qrSlug: str
         if (!firestore || !program) return;
         setIsSubmitting(true);
         try {
-            const attendanceColRef = collection(firestore, `programs/${program.id}/attendances`);
-            const newAttendanceRef = doc(attendanceColRef);
+            // Use the student's email as the document ID to prevent duplicate submissions.
+            // This ensures one attendance record per email per program.
+            const docId = values.email.toLowerCase();
+            const attendanceDocRef = doc(firestore, `programs/${program.id}/attendances`, docId);
             
-            await setDoc(newAttendanceRef, {
+            await setDoc(attendanceDocRef, {
                 ...values,
                 programId: program.id,
                 createdAt: serverTimestamp(),
                 userAgent: navigator.userAgent,
-            });
+            }, { merge: true }); // Use merge:true to create or update.
 
             setStatus('success');
 
@@ -239,11 +241,10 @@ export default function PublicAttendancePage({ params }: { params: { qrSlug: str
                                 )}/>
                             )}
                             
-                            {programConfig?.fields.requireEmail && (
-                                <FormField control={form.control} name="email" render={({ field }) => (
-                                    <FormItem><FormLabel>Emel</FormLabel><FormControl><Input type="email" placeholder="alamat@emel.com" {...field} /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                            )}
+                            {/* Email is always required for linking attendance to student account */}
+                            <FormField control={form.control} name="email" render={({ field }) => (
+                                <FormItem><FormLabel>Emel</FormLabel><FormControl><Input type="email" placeholder="alamat@emel.com" {...field} /></FormControl><FormMessage /></FormItem>
+                            )}/>
                             
                             {programConfig?.fields.requirePhone && (
                                 <FormField control={form.control} name="phone" render={({ field }) => (
