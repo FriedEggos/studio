@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -14,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Program {
     id: string;
@@ -37,6 +37,11 @@ interface ProgramConfig {
 }
 
 type PageStatus = 'loading' | 'not_found' | 'form' | 'success';
+
+const classOptions = [
+    "DIT1A", "DIT1C", "DIT2A", "DIT2B", "DIT2C", "DIT2D", "DIT3A", "DIT3C",
+    "DIT4A", "DIT4B", "DIT4C", "DIT4D", "DIT5A", "DIT5C", "LAIN-LAIN"
+];
 
 export default function PublicAttendancePage({ params }: { params: { qrSlug: string } }) {
     const { qrSlug } = params;
@@ -253,9 +258,28 @@ export default function PublicAttendancePage({ params }: { params: { qrSlug: str
                             )}
 
                             {programConfig?.fields.requireClass && (
-                                <FormField control={form.control} name="classGroup" render={({ field }) => (
-                                    <FormItem><FormLabel>Kelas</FormLabel><FormControl><Input placeholder="e.g. DIT 3B" {...field} /></FormControl><FormMessage /></FormItem>
-                                )}/>
+                                <FormField
+                                    control={form.control}
+                                    name="classGroup"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Kelas</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Pilih kelas anda" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {classOptions.map((option) => (
+                                                        <SelectItem key={option} value={option}>{option}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
                             )}
 
                             {programConfig?.fields.customInput1Enabled && (
