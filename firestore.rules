@@ -27,9 +27,12 @@ service cloud.firestore {
                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'student';
     }
 
-    function isCheckoutUpdate(data) {
-        let sensitiveFields = ['studentName', 'studentId', 'email', 'programId', 'createdAt', 'classGroup', 'customInput1', 'customInput2', 'userAgent'];
-        return !data.keys().hasAny(sensitiveFields);
+    function isCheckoutUpdate() {
+      let sensitiveFields = ['studentName', 'studentId', 'email', 'programId', 'createdAt', 'classGroup', 'customInput1', 'customInput2', 'userAgent'];
+      // Get the keys that are being added or changed in this update request.
+      let modifiedKeys = request.resource.data.keys().diff(resource.data.keys());
+      // The update is a valid checkout update if none of the modified keys are in our list of sensitive fields.
+      return !modifiedKeys.hasAny(sensitiveFields);
     }
 
     // User profiles
@@ -58,8 +61,10 @@ service cloud.firestore {
       // Rules for DIRECT access to the attendance subcollection
       match /attendances/{attendanceId} {
         // Allow creating a record if the programId matches.
-        // Allow updating a record if it's a re-check-in (contains programId) OR if it's a checkout update (doesn't contain sensitive fields).
-        allow create, update: if (request.resource.data.programId == programId) || isCheckoutUpdate(request.resource.data);
+        allow create: if request.resource.data.programId == programId;
+        
+        // Allow updating a record if it's a valid checkout operation.
+        allow update: if request.resource.data.programId == programId && isCheckoutUpdate();
 
         // Students can read their own attendance record, admins can read any.
         allow get: if isAdmin() || (isSignedIn() && request.auth.token.email == attendanceId);
