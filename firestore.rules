@@ -43,20 +43,24 @@ service cloud.firestore {
 
     // Program documents
     match /programs/{programId} {
-      // Allow public GET for the QR form page. No public list.
+      // Allow public GET for the QR form page.
+      // Allow any signed-in user to list programs for their dashboard.
       allow get: if true;
-      allow list: if isAdmin();
+      allow list: if isSignedIn();
       // Only admins can create, update, or delete programs.
       allow create, update, delete: if isAdmin();
       
       // Rules for DIRECT access to the attendance subcollection
       match /attendances/{attendanceId} {
-        // Anyone can create OR update an attendance record, as long as it's for the correct program.
+        // Anyone can create OR update an attendance record.
         // The client uses the email as the doc ID to enforce one record per email.
         allow create, update: if request.resource.data.programId == programId;
 
-        // Admins can read and delete individual attendance records.
-        allow read, delete: if isAdmin();
+        // Students can read their own attendance record, admins can read any.
+        allow get: if isAdmin() || (isSignedIn() && request.auth.token.email == attendanceId);
+        
+        // Only admins can list or delete attendance records.
+        allow list, delete: if isAdmin();
       }
     }
     
