@@ -69,7 +69,6 @@ export default function ProgramDetailsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [qrFormUrl, setQrFormUrl] = useState('');
-  const [checkOutUrl, setCheckOutUrl] = useState('');
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [selectedAttendanceId, setSelectedAttendanceId] = useState<string | null>(null);
 
@@ -90,9 +89,8 @@ export default function ProgramDetailsPage() {
   useEffect(() => {
     if (typeof window !== 'undefined' && program?.qrSlug) {
       setQrFormUrl(`${window.location.origin}/p/${program.qrSlug}`);
-      setCheckOutUrl(`${window.location.origin}/checkout/${programId}`);
     }
-  }, [program, programId]);
+  }, [program]);
 
 
   const handleCopyLink = (url: string) => {
@@ -209,7 +207,7 @@ export default function ProgramDetailsPage() {
         </CardContent>
       </Card>
       
-      <div className="grid md:grid-cols-2 gap-6 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-1 gap-6 items-start max-w-md mx-auto">
         {qrFormUrl ? (
           <QRImageCard 
             qrUrl={qrFormUrl} 
@@ -220,24 +218,6 @@ export default function ProgramDetailsPage() {
            <Card>
             <CardHeader>
               <CardTitle className="font-headline">QR Code</CardTitle>
-              <CardDescription>Generating QR code...</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center gap-4 text-center">
-              <Skeleton className="h-[224px] w-[224px] rounded-lg" />
-              <Skeleton className="h-4 w-48" />
-            </CardContent>
-          </Card>
-        )}
-         {checkOutUrl ? (
-          <QRImageCard 
-            qrUrl={checkOutUrl} 
-            title="QR Check-out"
-            description="Scan this at the end of the program to record check-out."
-          />
-        ) : (
-           <Card>
-            <CardHeader>
-              <CardTitle className="font-headline">QR Check-out</CardTitle>
               <CardDescription>Generating QR code...</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-4 text-center">
