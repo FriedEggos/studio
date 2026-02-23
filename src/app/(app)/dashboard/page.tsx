@@ -132,6 +132,7 @@ const CheckoutStatusBadge = ({ attendance }: { attendance: AttendedProgram }) =>
 export default function StudentDashboard() {
     const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
+    const { toast } = useToast();
 
     const [attendedPrograms, setAttendedPrograms] = useState<AttendedProgram[]>([]);
     const [isLoading, setIsLoading] = useState(true);

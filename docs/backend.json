@@ -210,8 +210,16 @@
         },
         "createdAt": {
           "type": "string",
-          "description": "The timestamp when the attendance was recorded.",
+          "description": "The timestamp when the attendance was recorded (check-in).",
           "format": "date-time"
+        },
+        "checkInLat": {
+            "type": "number",
+            "description": "The latitude of the user at check-in."
+        },
+        "checkInLng": {
+            "type": "number",
+            "description": "The longitude of the user at check-in."
         },
         "checkOutAt": {
             "type": "string",

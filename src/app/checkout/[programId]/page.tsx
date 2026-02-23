@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { doc, getDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,8 +13,8 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
-import { differenceInMinutes, parseISO } from 'date-fns';
 import { submitCheckout } from '@/lib/attendance';
+import { getCurrentPosition } from '@/lib/location';
 
 const checkoutFormSchema = z.object({
   email: z.string().email({ message: 'Format emel tidak sah.' }).min(1, { message: 'Emel diperlukan.' }),
@@ -25,22 +26,6 @@ type ErrorState = {
   title: string;
   message: string;
 };
-
-// Haversine formula to calculate distance between two lat/lng points
-function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
-    const R = 6371e3; // metres
-    const φ1 = lat1 * Math.PI/180;
-    const φ2 = lat2 * Math.PI/180;
-    const Δφ = (lat2-lat1) * Math.PI/180;
-    const Δλ = (lon2-lon1) * Math.PI/180;
-
-    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ/2) * Math.sin(Δλ/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-    return R * c; // in metres
-}
 
 export default function CheckoutPage() {
   const params = useParams();
@@ -75,104 +60,34 @@ export default function CheckoutPage() {
     fetchProgramTitle();
   }, [firestore, programId]);
 
-  const performCheckout = async (values: CheckoutFormValues, position: GeolocationPosition | null) => {
-    if (!firestore || !programId) return;
-
-    const studentEmail = values.email.toLowerCase().trim();
-    const attendanceDocRef = doc(firestore, `programs/${programId}/attendances`, studentEmail);
-    const programDocRef = doc(firestore, 'programs', programId);
-
-    try {
-      const [attendanceSnap, programSnap] = await Promise.all([
-          getDoc(attendanceDocRef),
-          getDoc(programDocRef),
-      ]);
-
-      if (!attendanceSnap.exists()) {
-        setError({ title: 'Rekod Kehadiran Tidak Dijumpai', message: 'Pastikan anda menggunakan emel yang sama semasa check-in.' });
-        setStatus('error');
-        return;
-      }
-      
-      const attendanceData = attendanceSnap.data();
-      const programData = programSnap.data();
-      const now = new Date();
-      
-      if (attendanceData.checkOutAt) {
-          setError({ title: 'Telah Check-out', message: 'Anda telah merekodkan check-out untuk program ini sebelum ini.' });
-          setStatus('error');
-          return;
-      }
-      
-      const checkInAt = (attendanceData.createdAt as Timestamp).toDate();
-      const checkOutOpenTime = programData?.checkOutOpenTime ? parseISO(programData.checkOutOpenTime) : null;
-      const checkOutCloseTime = programData?.checkOutCloseTime ? parseISO(programData.checkOutCloseTime) : null;
-      const durationMinutes = differenceInMinutes(now, checkInAt);
-      
-      let checkOutStatus: string = "ok";
-
-      // Rule A: Must be after check-in
-      if (now <= checkInAt) {
-          checkOutStatus = "too_early";
-      }
-      // Rule B: Must be inside check-out window
-      else if (checkOutOpenTime && now < checkOutOpenTime) {
-          checkOutStatus = "outside_window";
-      }
-      else if (checkOutCloseTime && now > checkOutCloseTime) {
-          checkOutStatus = "outside_window";
-      }
-      // Rule C: Minimum duration
-      else if (durationMinutes < 60) {
-          checkOutStatus = "too_short";
-      }
-      // Rule D: GPS validation
-      else if (!position) {
-          checkOutStatus = "geo_failed";
-      } else if (programData?.venueLat && programData?.venueLng && programData?.allowedRadiusMeters) {
-          const distance = getDistance(position.coords.latitude, position.coords.longitude, programData.venueLat, programData.venueLng);
-          if (distance > programData.allowedRadiusMeters) {
-              checkOutStatus = "geo_failed";
-          }
-      }
-
-      // Construct the payload with only the fields allowed by security rules (excluding checkOutAt, which is handled by serverTimestamp)
-      const checkoutPayload = {
-        checkOutLat: position?.coords.latitude || null,
-        checkOutLng: position?.coords.longitude || null,
-        checkOutStatus: checkOutStatus,
-        durationMinutes: durationMinutes
-      };
-
-      // Call the dedicated checkout function
-      await submitCheckout(firestore, programId, studentEmail, checkoutPayload);
-      
-      setStatus('success');
-
-    } catch (err) {
-      console.error("Error updating document: ", err);
-      setError({ title: 'Gagal Check-out', message: 'Berlaku ralat semasa cuba merekodkan check-out anda. Sila cuba lagi.' });
-      setStatus('error');
-    }
-  };
-
-  const onSubmit = (values: CheckoutFormValues) => {
+  const onSubmit = async (values: CheckoutFormValues) => {
     setStatus('submitting');
     setError(null);
+    if (!firestore || !programId) return;
 
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          performCheckout(values, position);
-        },
-        (geoError) => {
-          console.warn(`Geolocation error: ${geoError.message}`);
-          performCheckout(values, null);
-        },
-        { timeout: 10000, enableHighAccuracy: true }
-      );
-    } else {
-      performCheckout(values, null);
+    try {
+        const location = await getCurrentPosition();
+        const studentEmail = values.email.toLowerCase().trim();
+        const result = await submitCheckout(firestore, programId, studentEmail, location);
+
+        if (result.status === 'success') {
+            setStatus('success');
+        } else {
+            let title = 'Check-out Gagal';
+            if (result.status === 'not_found') title = 'Rekod Kehadiran Tidak Dijumpai';
+            if (result.status === 'already_checked_out') title = 'Telah Check-out';
+            
+            setError({ title, message: result.message });
+            setStatus('error');
+        }
+    } catch (err: any) {
+        console.error("Error during checkout process: ", err);
+        let message = 'An unexpected error occurred.';
+        if (err.message.includes('Geolocation failed')) {
+            message = 'Could not get your location. Please enable location services and try again.';
+        }
+        setError({ title: 'Gagal Check-out', message });
+        setStatus('error');
     }
   };
 
