@@ -219,7 +219,7 @@
         "checkOutStatus": {
             "type": "string",
             "description": "The status of the checkout validation.",
-            "enum": ["ok", "too_early", "outside_window", "too_short"]
+            "enum": ["ok", "too_early", "outside_window", "too_short", "admin_override"]
         },
         "durationMinutes": {
             "type": "number",

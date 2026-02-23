@@ -122,3 +122,47 @@ export async function submitCheckout(
 
     return { status: 'success', message: 'Check-out successful!' };
 }
+
+/**
+ * Force-updates an attendance record to mark it as checked-out by an admin.
+ * Skips all validation rules.
+ * @param db Firestore instance.
+ * @param programId ID of the program.
+ * @param attendanceId ID of the attendance record (student's email).
+ * @returns An object with status and a message.
+ */
+export async function manualAdminCheckout(
+    db: Firestore,
+    programId: string,
+    attendanceId: string
+) {
+    const attendanceDocRef = doc(db, 'programs', programId, 'attendances', attendanceId);
+    const attendanceSnap = await getDoc(attendanceDocRef);
+
+    if (!attendanceSnap.exists()) {
+        return { status: 'error', message: 'Attendance record not found.' };
+    }
+    
+    const attendanceData = attendanceSnap.data();
+
+    if (attendanceData.checkOutAt) {
+        return { status: 'error', message: 'This user has already checked out.' };
+    }
+
+    const checkInAt = (attendanceData.createdAt as Timestamp).toDate();
+    const durationMinutes = differenceInMinutes(new Date(), checkInAt);
+
+    const overridePayload = {
+        checkOutAt: serverTimestamp(),
+        checkOutStatus: 'admin_override',
+        durationMinutes: durationMinutes >= 0 ? durationMinutes : 0,
+    };
+
+    try {
+        await updateDoc(attendanceDocRef, overridePayload);
+        return { status: 'success', message: 'User has been manually checked out.' };
+    } catch (error) {
+        console.error("Admin checkout override failed:", error);
+        return { status: 'error', message: 'Failed to update the attendance record.' };
+    }
+}

@@ -11,7 +11,7 @@ import {
 import { useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
 import { doc, collection, deleteDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, Users, Download, Trash2, ChevronDown, FileSpreadsheet, FileText } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, Users, Download, Trash2, ChevronDown, FileSpreadsheet, FileText, MoreHorizontal, Clock } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -48,6 +48,7 @@ import {
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { cn } from "@/lib/utils";
+import { manualAdminCheckout } from "@/lib/attendance";
 
 
 interface Program {
@@ -91,8 +92,10 @@ export default function ProgramDetailsPage() {
   const { toast } = useToast();
   const [qrFormUrl, setQrFormUrl] = useState('');
   const [checkOutUrl, setCheckOutUrl] = useState('');
-  const [isAlertOpen, setIsAlertOpen] = useState(false);
-  const [selectedAttendanceId, setSelectedAttendanceId] = useState<string | null>(null);
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const [selectedAttendanceIdForDelete, setSelectedAttendanceIdForDelete] = useState<string | null>(null);
+  const [isCheckoutAlertOpen, setIsCheckoutAlertOpen] = useState(false);
+  const [selectedAttendanceForCheckout, setSelectedAttendanceForCheckout] = useState<Attendance | null>(null);
 
   const programDocRef = useMemoFirebase(() => {
     if (!programId || !firestore) return null;
@@ -220,8 +223,30 @@ export default function ProgramDetailsPage() {
             description: 'Could not remove the attendance record.',
         });
     }
-    setIsAlertOpen(false);
-    setSelectedAttendanceId(null);
+    setIsDeleteAlertOpen(false);
+    setSelectedAttendanceIdForDelete(null);
+  };
+
+  const handleAdminCheckout = async (attendance: Attendance | null) => {
+    if (!firestore || !programId || !attendance) return;
+    
+    const result = await manualAdminCheckout(firestore, programId, attendance.id);
+
+    if (result.status === 'success') {
+      toast({
+        title: 'Success!',
+        description: result.message,
+      });
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Override Failed',
+        description: result.message,
+      });
+    }
+    
+    setIsCheckoutAlertOpen(false);
+    setSelectedAttendanceForCheckout(null);
   };
 
 
@@ -398,18 +423,36 @@ export default function ProgramDetailsPage() {
                         <TableCell>{att.createdAt ? format(att.createdAt.toDate(), 'Pp') : <span className="text-muted-foreground">Syncing...</span>}</TableCell>
                         <TableCell>{att.checkOutAt ? format(att.checkOutAt.toDate(), 'Pp') : '-'}</TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => {
-                                setSelectedAttendanceId(att.id);
-                                setIsAlertOpen(true);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Delete attendance</span>
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                disabled={!!att.checkOutAt}
+                                onClick={() => {
+                                  setSelectedAttendanceForCheckout(att);
+                                  setIsCheckoutAlertOpen(true);
+                                }}
+                              >
+                                <Clock className="mr-2 h-4 w-4" />
+                                <span>Mark as Checked-Out</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                onClick={() => {
+                                    setSelectedAttendanceIdForDelete(att.id);
+                                    setIsDeleteAlertOpen(true);
+                                }}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                <span>Delete</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))
@@ -425,7 +468,7 @@ export default function ProgramDetailsPage() {
           </CardContent>
       </Card>
 
-      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -434,16 +477,35 @@ export default function ProgramDetailsPage() {
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setSelectedAttendanceId(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogCancel onClick={() => setSelectedAttendanceIdForDelete(null)}>Cancel</AlertDialogCancel>
                 <AlertDialogAction 
                   className={buttonVariants({ variant: "destructive" })}
-                  onClick={() => selectedAttendanceId && handleDeleteAttendance(selectedAttendanceId)}
+                  onClick={() => selectedAttendanceIdForDelete && handleDeleteAttendance(selectedAttendanceIdForDelete)}
                 >
                     Delete
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
-    </AlertDialog>
+      </AlertDialog>
+
+      <AlertDialog open={isCheckoutAlertOpen} onOpenChange={setIsCheckoutAlertOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Manually Check-Out User?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will mark <span className="font-semibold">{selectedAttendanceForCheckout?.studentName}</span> as checked-out at the current time. This action cannot be undone.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setSelectedAttendanceForCheckout(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={() => handleAdminCheckout(selectedAttendanceForCheckout)}
+                >
+                    Confirm Check-out
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   );
