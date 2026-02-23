@@ -170,6 +170,16 @@
           "description": "The timestamp when the attendance was recorded.",
           "format": "date-time"
         },
+        "checkOutAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The timestamp when the user checked out."
+        },
+        "checkOutStatus": {
+            "type": "string",
+            "description": "The status of the GPS verification on checkout.",
+            "enum": ["ok", "geo_failed"]
+        },
         "userAgent": {
             "type": "string",
             "description": "The browser/device user agent of the person submitting the form."
