@@ -11,7 +11,7 @@ import {
 import { useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
 import { doc, collection, deleteDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, Copy, Users, Download, Trash2 } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, Copy, Users, Download, Trash2, ChevronDown, FileCsv, FilePdf } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -39,6 +39,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { QRImageCard } from "@/components/qr-image-card";
 import { useState, useEffect } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
 
 interface Program {
   id: string;
@@ -122,6 +131,45 @@ export default function ProgramDetailsPage() {
     exportToCsv(`attendance_${program?.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`, dataToExport);
   };
   
+  const handleExportPdf = () => {
+    if (!attendances || attendances.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "No Data",
+        description: "There is no attendance data to export for PDF.",
+      });
+      return;
+    }
+    
+    const doc = new jsPDF();
+    
+    const tableColumns = ["Student Name", "Student ID", "Class", "Check-in Time", "Check-out Time"];
+    const tableRows = attendances.map(att => ([
+      att.studentName || '',
+      att.studentId || '-',
+      att.classGroup || '-',
+      att.createdAt ? format(att.createdAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A',
+      att.checkOutAt ? format(att.checkOutAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A',
+    ]));
+
+    doc.setFontSize(18);
+    doc.text(`Attendances: ${program?.title || 'Program'}`, 14, 22);
+    doc.setFontSize(11);
+    doc.text(`Date: ${format(new Date(), 'PPP')}`, 14, 30);
+
+    autoTable(doc, {
+      startY: 35,
+      head: [tableColumns],
+      body: tableRows,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [37, 51, 89] // Corresponds to primary color approx
+      },
+    });
+
+    doc.save(`attendance_${program?.title.replace(/\s+/g, '_') ?? 'export'}.pdf`);
+  };
+
   const handleDeleteAttendance = async (attendanceId: string) => {
     if (!firestore || !programId) return;
     const attendanceDocRef = doc(firestore, 'programs', programId, 'attendances', attendanceId);
@@ -238,9 +286,25 @@ export default function ProgramDetailsPage() {
               <CardTitle className="font-headline flex items-center gap-2"><Users className="h-5 w-5" /> Attendances</CardTitle>
               <CardDescription>Total attendees: {isLoadingAttendances ? '...' : attendances?.length ?? 0}</CardDescription>
             </div>
-            <Button onClick={handleExport} disabled={isLoadingAttendances || !attendances || attendances.length === 0}>
-              <Download className="mr-2 h-4 w-4" /> Export CSV
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" disabled={isLoadingAttendances || !attendances || attendances.length === 0}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Export Data
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleExport}>
+                  <FileCsv className="mr-2 h-4 w-4" />
+                  Export as CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportPdf}>
+                  <FilePdf className="mr-2 h-4 w-4" />
+                  Export as PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </CardHeader>
           <CardContent>
               <Table>
