@@ -11,15 +11,15 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
-import { getDocs, collection, doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { getDocs, collection, doc, getDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Ticket, Loader2, Star } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { AlertCircle, Ticket, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MonthCalendarMobile } from "@/components/ui/month-calendar-mobile";
+
 
 // Interfaces for our data structures
 interface Attendance {
@@ -130,7 +130,6 @@ const CheckoutStatusBadge = ({ attendance }: { attendance: AttendedProgram }) =>
 export default function StudentDashboard() {
     const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
-    const { toast } = useToast();
 
     const [attendedPrograms, setAttendedPrograms] = useState<AttendedProgram[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -198,6 +197,13 @@ export default function StudentDashboard() {
         }
     }, [user, firestore, isUserLoading]);
     
+    const sampleEvents = {
+      5: 1,
+      12: 3,
+      13: 1,
+      25: 2,
+    };
+
     const renderContent = () => {
         if (isLoading || isUserLoading || isProfileLoading) {
             return (
@@ -291,16 +297,23 @@ export default function StudentDashboard() {
 
     return (
         <div className="space-y-8">
-            <div>
-                <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
-                    My Attendance
-                </h1>
-                <p className="text-muted-foreground">
-                    These are your attendance records recorded in the system.
-                </p>
+            <div className="grid gap-8 md:grid-cols-3">
+                <div className="space-y-2 md:col-span-2">
+                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
+                        My Attendance
+                    </h1>
+                    <p className="text-muted-foreground">
+                        These are your attendance records recorded in the system.
+                    </p>
+                </div>
+                 <div className="row-start-1 md:col-start-3">
+                    <MonthCalendarMobile year={2024} month={6} selectedDay={12} events={sampleEvents} />
+                </div>
             </div>
             
-            {renderContent()}
+            <div className="md:col-span-3">
+                {renderContent()}
+            </div>
         </div>
     );
 }
