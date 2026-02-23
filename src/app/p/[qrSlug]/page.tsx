@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Program {
@@ -43,8 +43,9 @@ const classOptions = [
     "DIT4A", "DIT4B", "DIT4C", "DIT4D", "DIT5A", "DIT5C", "LAIN-LAIN"
 ];
 
-export default function PublicAttendancePage({ params }: { params: { qrSlug: string } }) {
-    const { qrSlug } = params;
+export default function PublicAttendancePage() {
+    const params = useParams();
+    const qrSlug = params.qrSlug as string;
     const firestore = useFirestore();
     const router = useRouter();
 
