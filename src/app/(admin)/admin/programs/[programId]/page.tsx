@@ -59,7 +59,7 @@ interface Attendance {
     classGroup: string;
     createdAt: {
         toDate: () => Date;
-    };
+    } | null;
 }
 
 
@@ -112,7 +112,7 @@ export default function ProgramDetailsPage() {
       'Student Name': att.studentName,
       'Student ID': att.studentId,
       'Class': att.classGroup,
-      'Timestamp': format(att.createdAt.toDate(), 'yyyy-MM-dd HH:mm:ss'),
+      'Timestamp': att.createdAt ? format(att.createdAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A',
     }));
     
     exportToCsv(`attendance_${program?.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`, dataToExport);
@@ -336,7 +336,7 @@ export default function ProgramDetailsPage() {
                         <TableCell className="font-medium">{att.studentName}</TableCell>
                         <TableCell>{att.studentId || '-'}</TableCell>
                         <TableCell>{att.classGroup || '-'}</TableCell>
-                        <TableCell>{format(att.createdAt.toDate(), 'Pp')}</TableCell>
+                        <TableCell>{att.createdAt ? format(att.createdAt.toDate(), 'Pp') : <span className="text-muted-foreground">Syncing...</span>}</TableCell>
                         <TableCell className="text-right">
                           <Button
                             variant="ghost"
@@ -388,3 +388,5 @@ export default function ProgramDetailsPage() {
     </div>
   );
 }
+
+    
