@@ -28,14 +28,13 @@ service cloud.firestore {
     }
 
     function isCheckoutUpdate() {
-      // List of fields that are considered part of the initial check-in and should not be changed during a check-out update.
-      let sensitiveFields = ['studentName', 'studentId', 'email', 'programId', 'createdAt', 'classGroup', 'customInput1', 'customInput2', 'userAgent'];
+      // This function ensures that an update operation ONLY modifies the fields related to check-out.
+      // It compares the document before (resource.data) and after (request.resource.data) the update.
+      let modifiedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      let allowedCheckoutFields = ['checkOutAt', 'checkOutLat', 'checkOutLng', 'checkOutStatus'];
       
-      // Get the set of keys that are being modified in the incoming request data.
-      let modifiedKeys = request.resource.data.keys().diff(resource.data.keys()).affectedKeys();
-      
-      // The update is a valid checkout update if NONE of the modified keys are in our list of sensitive fields.
-      return modifiedKeys.hasAny(sensitiveFields) == false;
+      // The update is only allowed if the ONLY keys being changed are in the allowed list.
+      return modifiedKeys.hasOnly(allowedCheckoutFields);
     }
 
     // User profiles
@@ -67,8 +66,6 @@ service cloud.firestore {
         allow create: if request.resource.data.programId == programId;
         
         // Allow updating a record if it's a valid checkout operation.
-        // The programId check is removed here because it's not present in the update payload,
-        // and path matching already guarantees the correct program.
         allow update: if isCheckoutUpdate();
 
         // Students can read their own attendance record, admins can read any.
