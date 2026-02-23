@@ -121,18 +121,6 @@
             "type": "string",
             "format": "date-time",
             "description": "The time when check-out is no longer available."
-        },
-        "venueLat": {
-            "type": "number",
-            "description": "The latitude of the program venue for geo-validation."
-        },
-        "venueLng": {
-            "type": "number",
-            "description": "The longitude of the program venue for geo-validation."
-        },
-        "allowedRadiusMeters": {
-            "type": "number",
-            "description": "The allowed radius in meters from the venue for a valid check-out."
         }
       },
       "required": [
@@ -213,31 +201,15 @@
           "description": "The timestamp when the attendance was recorded (check-in).",
           "format": "date-time"
         },
-        "checkInLat": {
-            "type": "number",
-            "description": "The latitude of the user at check-in."
-        },
-        "checkInLng": {
-            "type": "number",
-            "description": "The longitude of the user at check-in."
-        },
         "checkOutAt": {
             "type": "string",
             "format": "date-time",
             "description": "The timestamp when the user checked out."
         },
-        "checkOutLat": {
-            "type": "number",
-            "description": "The latitude of the user at checkout."
-        },
-        "checkOutLng": {
-            "type": "number",
-            "description": "The longitude of the user at checkout."
-        },
         "checkOutStatus": {
             "type": "string",
-            "description": "The status of the GPS verification on checkout.",
-            "enum": ["ok", "geo_failed", "too_early", "outside_window", "too_short"]
+            "description": "The status of the checkout validation.",
+            "enum": ["ok", "too_early", "outside_window", "too_short"]
         },
         "durationMinutes": {
             "type": "number",

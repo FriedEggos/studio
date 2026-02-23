@@ -14,7 +14,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { submitCheckout } from '@/lib/attendance';
-import { getCurrentPosition } from '@/lib/location';
 
 const checkoutFormSchema = z.object({
   email: z.string().email({ message: 'Format emel tidak sah.' }).min(1, { message: 'Emel diperlukan.' }),
@@ -66,9 +65,8 @@ export default function CheckoutPage() {
     if (!firestore || !programId) return;
 
     try {
-        const location = await getCurrentPosition();
         const studentEmail = values.email.toLowerCase().trim();
-        const result = await submitCheckout(firestore, programId, studentEmail, location);
+        const result = await submitCheckout(firestore, programId, studentEmail);
 
         if (result.status === 'success') {
             setStatus('success');
@@ -82,10 +80,7 @@ export default function CheckoutPage() {
         }
     } catch (err: any) {
         console.error("Error during checkout process: ", err);
-        let message = 'An unexpected error occurred.';
-        if (err.message.includes('Geolocation failed')) {
-            message = 'Could not get your location. Please enable location services and try again.';
-        }
+        const message = 'An unexpected error occurred. Please try again.';
         setError({ title: 'Gagal Check-out', message });
         setStatus('error');
     }

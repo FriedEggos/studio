@@ -15,7 +15,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { getCurrentPosition } from '@/lib/location';
 import { createCheckIn } from '@/lib/attendance';
 
 interface Program {
@@ -140,8 +139,7 @@ export default function PublicAttendancePage() {
         setError(null);
         
         try {
-            const location = await getCurrentPosition();
-            const result = await createCheckIn(firestore, program.id, values, location);
+            const result = await createCheckIn(firestore, program.id, values);
 
             if (result.status === 'success') {
                 setStatus('success');

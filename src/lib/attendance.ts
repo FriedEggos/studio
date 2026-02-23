@@ -3,26 +3,18 @@
 
 import { doc, updateDoc, Firestore, serverTimestamp, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { differenceInMinutes, parseISO, subMinutes } from 'date-fns';
-import { getDistance } from './location';
-
-interface Location {
-    latitude: number;
-    longitude: number;
-}
 
 /**
  * Creates a new attendance record (check-in) after performing validation.
  * @param db Firestore instance.
  * @param programId ID of the program.
  * @param formData Data from the attendance form.
- * @param location User's current location.
  * @returns An object with status and a message.
  */
 export async function createCheckIn(
     db: Firestore,
     programId: string,
-    formData: any,
-    location: Location | null
+    formData: any
 ) {
     const now = new Date();
     const programDocRef = doc(db, 'programs', programId);
@@ -53,8 +45,6 @@ export async function createCheckIn(
         ...formData,
         programId: programId,
         createdAt: serverTimestamp(), // This is the checkInAt time
-        checkInLat: location?.latitude || null,
-        checkInLng: location?.longitude || null,
         userAgent: navigator.userAgent,
     }, { merge: true });
 
@@ -68,14 +58,12 @@ export async function createCheckIn(
  * @param db The Firestore instance.
  * @param programId The ID of the program.
  * @param attendanceId The ID of the attendance record (student's email).
- * @param location The user's current GPS location.
  * @returns An object with status and a message.
  */
 export async function submitCheckout(
     db: Firestore,
     programId: string,
-    attendanceId: string,
-    location: Location | null
+    attendanceId: string
 ) {
     const now = new Date();
     const attendanceDocRef = doc(db, 'programs', programId, 'attendances', attendanceId);
@@ -122,21 +110,10 @@ export async function submitCheckout(
     else if (durationMinutes < 60) {
         checkOutStatus = "too_short";
     }
-    // Rule D: GPS validation
-    else if (!location) {
-        checkOutStatus = "geo_failed";
-    } else if (programData?.venueLat && programData?.venueLng && programData?.allowedRadiusMeters) {
-        const distance = getDistance(location.latitude, location.longitude, programData.venueLat, programData.venueLng);
-        if (distance > programData.allowedRadiusMeters) {
-            checkOutStatus = "geo_failed";
-        }
-    }
 
     // This payload contains ONLY the fields allowed by the `isCheckoutUpdate` security rule.
     const checkoutUpdatePayload = {
         checkOutAt: serverTimestamp(),
-        checkOutLat: location?.latitude || null,
-        checkOutLng: location?.longitude || null,
         checkOutStatus: checkOutStatus,
         durationMinutes: durationMinutes,
     };

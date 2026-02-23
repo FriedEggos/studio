@@ -48,9 +48,6 @@ const programFormSchema = z.object({
   // Validation fields
   checkOutOpenTime: z.date().optional().nullable(),
   checkOutCloseTime: z.date().optional().nullable(),
-  venueLat: z.coerce.number().optional(),
-  venueLng: z.coerce.number().optional(),
-  allowedRadiusMeters: z.coerce.number().optional(),
 
 }).refine(data => data.endDate >= data.startDate, {
     message: "End date must be on or after start date.",
@@ -89,7 +86,6 @@ export default function EditProgramPage() {
             customInput1Label: "",
             customInput2Enabled: false,
             customInput2Label: "",
-            allowedRadiusMeters: 150,
         },
     });
 
@@ -128,9 +124,6 @@ export default function EditProgramPage() {
                     ...configData.fields,
                     checkOutOpenTime: programData.checkOutOpenTime ? parseISO(programData.checkOutOpenTime) : null,
                     checkOutCloseTime: programData.checkOutCloseTime ? parseISO(programData.checkOutCloseTime) : null,
-                    venueLat: programData.venueLat,
-                    venueLng: programData.venueLng,
-                    allowedRadiusMeters: programData.allowedRadiusMeters,
                 });
 
             } catch (error) {
@@ -177,9 +170,6 @@ export default function EditProgramPage() {
                 redirectUrl: data.redirectUrl || "",
                 checkOutOpenTime: data.checkOutOpenTime?.toISOString() || null,
                 checkOutCloseTime: data.checkOutCloseTime?.toISOString() || null,
-                venueLat: data.venueLat || null,
-                venueLng: data.venueLng || null,
-                allowedRadiusMeters: data.allowedRadiusMeters || null,
             };
             batch.update(programDocRef, programData);
 
@@ -253,18 +243,13 @@ export default function EditProgramPage() {
                  <Card>
                     <CardHeader>
                         <CardTitle>Check-out & Validation</CardTitle>
-                        <CardDescription>Configure check-out times and location validation.</CardDescription>
+                        <CardDescription>Configure check-out times.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                          <div className="grid grid-cols-2 gap-4">
                             <FormField name="checkOutOpenTime" render={({ field }) => (<FormItem><FormLabel>Check-out Opens</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "Pp") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
                             <FormField name="checkOutCloseTime" render={({ field }) => (<FormItem><FormLabel>Check-out Closes</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "Pp") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < (form.getValues("checkOutOpenTime") || new Date())} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <FormField name="venueLat" render={({ field }) => ( <FormItem><FormLabel>Venue Latitude</FormLabel><FormControl><Input type="number" step="any" {...field} placeholder="e.g., 3.14159" /></FormControl><FormMessage /></FormItem> )} />
-                            <FormField name="venueLng" render={({ field }) => ( <FormItem><FormLabel>Venue Longitude</FormLabel><FormControl><Input type="number" step="any" {...field} placeholder="e.g., 101.68653" /></FormControl><FormMessage /></FormItem> )} />
-                        </div>
-                         <FormField name="allowedRadiusMeters" render={({ field }) => ( <FormItem><FormLabel>Allowed Radius (meters)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem> )} />
                     </CardContent>
                 </Card>
             </div>

@@ -27,7 +27,7 @@ interface Attendance {
     programId: string;
     createdAt: { toDate: () => Date };
     checkOutAt?: { toDate: () => Date };
-    checkOutStatus?: 'ok' | 'geo_failed' | 'too_early' | 'outside_window' | 'too_short';
+    checkOutStatus?: 'ok' | 'too_early' | 'outside_window' | 'too_short';
     email: string;
 }
 
@@ -117,8 +117,6 @@ const CheckoutStatusBadge = ({ attendance }: { attendance: AttendedProgram }) =>
     switch (attendance.checkOutStatus) {
         case 'ok':
             return <Badge className="bg-green-100 text-green-800 border-green-200">Verified</Badge>;
-        case 'geo_failed':
-            return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">GPS Failed</Badge>;
         case 'too_early':
         case 'outside_window':
         case 'too_short':
