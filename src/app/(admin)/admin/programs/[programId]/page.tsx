@@ -27,6 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { QRImageCard } from "@/components/qr-image-card";
 
 interface Program {
   id: string;
@@ -125,6 +126,8 @@ export default function ProgramDetailsPage() {
       )
   }
 
+  const qrFormUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/p/${program.qrSlug}`;
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
         <div className="flex justify-between items-center">
@@ -166,15 +169,18 @@ export default function ProgramDetailsPage() {
         </CardContent>
       </Card>
       
-      <Card>
-          <CardHeader><CardTitle className="font-headline flex items-center gap-2"><LinkIcon className="h-5 w-5" /> QR Form Link</CardTitle></CardHeader>
-          <CardContent>
-              <div className="flex items-center gap-2 p-2 border rounded-md bg-muted">
-                  <p className="text-sm text-muted-foreground truncate flex-1">{`${typeof window !== 'undefined' ? window.location.origin : ''}/p/${program.qrSlug}`}</p>
-                  <Button variant="ghost" size="icon" onClick={handleCopyLink}><Copy className="h-4 w-4" /></Button>
-              </div>
-          </CardContent>
-      </Card>
+      <div className="grid md:grid-cols-2 gap-6 items-start">
+        <Card>
+            <CardHeader><CardTitle className="font-headline flex items-center gap-2"><LinkIcon className="h-5 w-5" /> QR Form Link</CardTitle></CardHeader>
+            <CardContent>
+                <div className="flex items-center gap-2 p-2 border rounded-md bg-muted">
+                    <p className="text-sm text-muted-foreground truncate flex-1">{qrFormUrl}</p>
+                    <Button variant="ghost" size="icon" onClick={handleCopyLink}><Copy className="h-4 w-4" /></Button>
+                </div>
+            </CardContent>
+        </Card>
+        <QRImageCard qrFormUrl={qrFormUrl} programTitle={program.title} />
+      </div>
 
       <Card>
           <CardHeader className="flex flex-row items-center justify-between">
