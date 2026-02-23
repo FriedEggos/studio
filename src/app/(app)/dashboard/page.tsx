@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -143,15 +144,15 @@ export default function StudentDashboard() {
             );
 
             toast({
-                title: "Check-out Berjaya",
-                description: "Waktu keluar anda telah direkodkan.",
+                title: "Check-out Successful",
+                description: "Your check-out time has been recorded.",
             });
         } catch (error) {
             console.error("Error during check-out:", error);
             toast({
                 variant: "destructive",
-                title: "Gagal Check-out",
-                description: "Gagal merekodkan waktu keluar anda. Sila hubungi penganjur.",
+                title: "Check-out Failed",
+                description: "Failed to record your check-out time. Please contact the organizer.",
             });
         } finally {
             setCheckingOutId(null);
@@ -247,7 +248,7 @@ export default function StudentDashboard() {
                                     {checkingOutId === item.email ? (
                                         <>
                                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Sila tunggu...
+                                            Please wait...
                                         </>
                                     ) : (
                                         'Check-out'
@@ -267,10 +268,10 @@ export default function StudentDashboard() {
             {programsNeedingCheckout.map((program) => (
                 <Alert key={program.id} className="bg-amber-100 border-amber-300 text-amber-900 dark:bg-amber-900/30 dark:border-amber-700/50 dark:text-amber-200">
                     <AlertCircle className="h-4 w-4 !text-amber-700 dark:!text-amber-200" />
-                    <AlertTitle className="font-bold text-amber-950 dark:text-amber-100">Peringatan: Anda Belum Check-out</AlertTitle>
+                    <AlertTitle className="font-bold text-amber-950 dark:text-amber-100">Reminder: You Haven't Checked Out</AlertTitle>
                     <AlertDescription className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 text-amber-800 dark:text-amber-200/90">
                         <span>
-                            Sila lakukan check-out untuk program <strong>{program.programTitle}</strong>.
+                            Please check out for the <strong>{program.programTitle}</strong> program.
                         </span>
                         <Button
                             onClick={() => handleCheckout(program.programId, program.email)}
@@ -281,10 +282,10 @@ export default function StudentDashboard() {
                             {checkingOutId === program.email ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Sila tunggu...
+                                    Please wait...
                                 </>
                             ) : (
-                                'Check Out Sekarang'
+                                'Check Out Now'
                             )}
                         </Button>
                     </AlertDescription>
