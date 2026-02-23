@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Ticket, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MinimalCalendar } from '@/components/ui/minimal-calendar';
 
 
 // Interfaces for our data structures
@@ -26,7 +27,7 @@ interface Attendance {
     programId: string;
     createdAt: { toDate: () => Date };
     checkOutAt?: { toDate: () => Date };
-    checkOutStatus?: 'ok' | 'too_early' | 'outside_window' | 'too_short';
+    checkOutStatus?: 'ok' | 'too_early' | 'outside_window' | 'too_short' | 'admin_override';
     email: string;
 }
 
@@ -49,65 +50,6 @@ type AttendedProgram = Attendance & {
     programStartDate: string;
 };
 
-const ActivityStatsCard = ({ badge, rating }: { badge?: string; rating?: number; }) => {
-    if (!badge && (rating === undefined || rating === null)) {
-        return null; // Don't render if there's no data
-    }
-
-    const renderStars = () => {
-        const stars = [];
-        const totalStars = 5;
-        const filledStars = rating || 0;
-        for (let i = 1; i <= totalStars; i++) {
-            stars.push(
-                <Star
-                    key={i}
-                    className={`h-5 w-5 ${i <= filledStars ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground/30'}`}
-                />
-            );
-        }
-        return stars;
-    };
-
-    const getBadgeColor = (badgeName?: string) => {
-        switch (badgeName?.toLowerCase()) {
-            case 'legend':
-                return 'bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90';
-            case 'active':
-                return 'bg-blue-500 text-white hover:bg-blue-500/90';
-            case 'rookie':
-                return 'bg-gray-400 text-gray-900 hover:bg-gray-400/90';
-            default:
-                return 'bg-secondary text-secondary-foreground';
-        }
-    };
-
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="text-xl font-headline">My Activity Stats</CardTitle>
-                <CardDescription>Your current rank and rating.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg bg-muted/50">
-                    <p className="text-sm font-medium text-muted-foreground">Rank</p>
-                    {badge ? (
-                         <Badge className={cn('text-sm', getBadgeColor(badge))}>{badge}</Badge>
-                    ) : (
-                        <span className="text-sm font-semibold">Not Ranked</span>
-                    )}
-                </div>
-                 <div className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg bg-muted/50">
-                    <p className="text-sm font-medium text-muted-foreground">Rating</p>
-                    <div className="flex items-center">
-                        {renderStars()}
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-    );
-};
-
 const CheckoutStatusBadge = ({ attendance }: { attendance: AttendedProgram }) => {
     if (!attendance.checkOutAt) {
         return <Badge variant="outline">No Checkout Yet</Badge>;
@@ -116,6 +58,8 @@ const CheckoutStatusBadge = ({ attendance }: { attendance: AttendedProgram }) =>
     switch (attendance.checkOutStatus) {
         case 'ok':
             return <Badge className="bg-green-100 text-green-800 border-green-200">Verified</Badge>;
+        case 'admin_override':
+            return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Admin Verified</Badge>;
         case 'too_early':
         case 'outside_window':
         case 'too_short':
@@ -200,7 +144,6 @@ export default function StudentDashboard() {
         if (isLoading || isUserLoading || isProfileLoading) {
             return (
                 <div className="grid gap-6">
-                    <ActivityStatsCard />
                     {[...Array(2)].map((_, i) => (
                         <Card key={i} className="rounded-xl">
                             <CardHeader>
@@ -257,9 +200,8 @@ export default function StudentDashboard() {
         }
 
         return (
-            <div className="space-y-6">
-                <ActivityStatsCard badge={userProfile?.badge} rating={userProfile?.rating} />
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid md:grid-cols-2 gap-8 items-start">
+                <div className="space-y-6">
                     {attendedPrograms.map(item => (
                         <Card key={`${item.programId}-${item.email}`} className="rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col">
                             <CardHeader>
@@ -281,6 +223,14 @@ export default function StudentDashboard() {
                             </CardFooter>
                         </Card>
                     ))}
+                </div>
+                <div className="sticky top-24">
+                     <MinimalCalendar
+                        year={new Date().getFullYear()}
+                        month={new Date().getMonth()}
+                        selectedDay={20}
+                        secondaryDay={29}
+                    />
                 </div>
             </div>
         );
