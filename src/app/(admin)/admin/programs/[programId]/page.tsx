@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, collection, deleteDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, collection, deleteDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, Copy, Users, Download, Trash2 } from "lucide-react";
 import Link from "next/link";
@@ -139,66 +139,6 @@ export default function ProgramDetailsPage() {
     setSelectedAttendanceId(null);
   };
 
-  const handleAddDummyData = async () => {
-    if (!firestore || !programId) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Cannot add dummy data. Program ID is missing.",
-      });
-      return;
-    }
-
-    const dummyAttendances = [
-      {
-        studentName: 'Ahmad bin Abdullah',
-        studentId: '2021123456',
-        classGroup: 'DIT3A',
-        email: 'ahmad.abdullah@example.com',
-        programId: programId,
-        createdAt: serverTimestamp(),
-        userAgent: 'dummy-data-script'
-      },
-      {
-        studentName: 'Siti Nurhaliza',
-        studentId: '2022654321',
-        classGroup: 'DIT2C',
-        email: 'siti.nurhaliza@example.com',
-        programId: programId,
-        createdAt: serverTimestamp(),
-        userAgent: 'dummy-data-script'
-      },
-      {
-        studentName: 'Ramesh Kumar',
-        studentId: '2023789012',
-        classGroup: 'DIT1A',
-        email: 'ramesh.kumar@example.com',
-        programId: programId,
-        createdAt: serverTimestamp(),
-        userAgent: 'dummy-data-script'
-      },
-    ];
-
-    try {
-      for (const attendance of dummyAttendances) {
-        // Using email as doc ID to simulate real submissions
-        const attendanceDocRef = doc(firestore, `programs/${programId}/attendances`, attendance.email);
-        await setDoc(attendanceDocRef, attendance);
-      }
-      toast({
-        title: 'Dummy Data Added',
-        description: '3 sample attendance records have been created.',
-      });
-    } catch (error) {
-      console.error("Error adding dummy data: ", error);
-      toast({
-        variant: "destructive",
-        title: "Failed to Add Dummy Data",
-        description: "Could not create sample attendance records.",
-      });
-    }
-  };
-
 
   if (isLoading) {
     return (
@@ -301,12 +241,9 @@ export default function ProgramDetailsPage() {
               <CardTitle className="font-headline flex items-center gap-2"><Users className="h-5 w-5" /> Attendances</CardTitle>
               <CardDescription>Total attendees: {isLoadingAttendances ? '...' : attendances?.length ?? 0}</CardDescription>
             </div>
-            <div className="flex items-center gap-2">
-                <Button onClick={handleAddDummyData} variant="outline">Add Dummy Data</Button>
-                <Button onClick={handleExport} disabled={isLoadingAttendances || !attendances || attendances.length === 0}>
-                <Download className="mr-2 h-4 w-4" /> Export CSV
-                </Button>
-            </div>
+            <Button onClick={handleExport} disabled={isLoadingAttendances || !attendances || attendances.length === 0}>
+              <Download className="mr-2 h-4 w-4" /> Export CSV
+            </Button>
           </CardHeader>
           <CardContent>
               <Table>
@@ -388,5 +325,3 @@ export default function ProgramDetailsPage() {
     </div>
   );
 }
-
-    
