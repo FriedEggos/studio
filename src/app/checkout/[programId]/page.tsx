@@ -1,11 +1,10 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { doc, getDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, Timestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { differenceInMinutes, parseISO } from 'date-fns';
+import { submitCheckout } from '@/lib/attendance';
 
 const checkoutFormSchema = z.object({
   email: z.string().email({ message: 'Format emel tidak sah.' }).min(1, { message: 'Emel diperlukan.' }),
@@ -136,15 +136,17 @@ export default function CheckoutPage() {
           }
       }
 
-      const updateData: any = {
-        checkOutAt: serverTimestamp(),
+      // Construct the payload with only the fields allowed by security rules (excluding checkOutAt, which is handled by serverTimestamp)
+      const checkoutPayload = {
         checkOutLat: position?.coords.latitude || null,
         checkOutLng: position?.coords.longitude || null,
         checkOutStatus: checkOutStatus,
         durationMinutes: durationMinutes
       };
 
-      await updateDoc(attendanceDocRef, updateData);
+      // Call the dedicated checkout function
+      await submitCheckout(firestore, programId, studentEmail, checkoutPayload);
+      
       setStatus('success');
 
     } catch (err) {
