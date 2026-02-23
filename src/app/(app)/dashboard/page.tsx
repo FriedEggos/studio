@@ -17,8 +17,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useUser, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { collectionGroup, query, where, orderBy, getDocs } from "firebase/firestore";
+import { useUser, useFirestore } from "@/firebase";
+import { collectionGroup, query, where, orderBy, getDocs, collection } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 
@@ -42,7 +42,7 @@ export default function StudentDashboard() {
 
     useEffect(() => {
         const fetchAttendanceHistory = async () => {
-            if (!user || !firestore) return;
+            if (!user || !firestore || !user.email) return;
 
             setIsLoading(true);
             try {
