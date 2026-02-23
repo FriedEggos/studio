@@ -43,9 +43,20 @@ const programFormSchema = z.object({
   customInput1Label: z.string().optional(),
   customInput2Enabled: z.boolean().default(false),
   customInput2Label: z.string().optional(),
+  
+  // Validation fields
+  checkOutOpenTime: z.date().optional(),
+  checkOutCloseTime: z.date().optional(),
+  venueLat: z.coerce.number().optional(),
+  venueLng: z.coerce.number().optional(),
+  allowedRadiusMeters: z.coerce.number().optional(),
+
 }).refine(data => data.endDate >= data.startDate, {
     message: "End date must be on or after start date.",
     path: ['endDate'],
+}).refine(data => !data.checkOutCloseTime || !data.checkOutOpenTime || data.checkOutCloseTime >= data.checkOutOpenTime, {
+    message: "Check-out close time must be after open time.",
+    path: ['checkOutCloseTime'],
 });
 
 type ProgramFormValues = z.infer<typeof programFormSchema>;
@@ -74,6 +85,7 @@ export default function CreateProgramPage() {
             customInput1Label: "",
             customInput2Enabled: false,
             customInput2Label: "",
+            allowedRadiusMeters: 150,
         },
     });
 
@@ -87,7 +99,6 @@ export default function CreateProgramPage() {
         const finalQrSlug = data.qrSlug || generateSlug();
 
         try {
-            // 1. Create the program document first to get its auto-generated ID
             const programCollectionRef = collection(firestore, "programs");
             const programData = {
                 title: data.title,
@@ -100,11 +111,15 @@ export default function CreateProgramPage() {
                 redirectUrl: data.redirectUrl || "",
                 createdBy: user.uid,
                 createdAt: serverTimestamp(),
+                checkOutOpenTime: data.checkOutOpenTime?.toISOString() || null,
+                checkOutCloseTime: data.checkOutCloseTime?.toISOString() || null,
+                venueLat: data.venueLat || null,
+                venueLng: data.venueLng || null,
+                allowedRadiusMeters: data.allowedRadiusMeters || null,
             };
             const programDocRef = await addDoc(programCollectionRef, programData);
             const programId = programDocRef.id;
 
-            // 2. In a batch, create the associated config and slug documents
             const batch = writeBatch(firestore);
 
             const configDocRef = doc(firestore, "programConfigs", programId);
@@ -113,7 +128,7 @@ export default function CreateProgramPage() {
                 fields: {
                     requireStudentId: data.requireStudentId,
                     requirePhone: data.requirePhone,
-                    requireEmail: true, // Always require email
+                    requireEmail: true,
                     requireClass: data.requireClass,
                     customInput1Enabled: data.customInput1Enabled,
                     customInput1Label: data.customInput1Label || "",
@@ -157,8 +172,8 @@ export default function CreateProgramPage() {
           </div>
         </div>
         
-        <div className="grid gap-6 lg:grid-cols-2">
-            <div className="space-y-6">
+        <div className="grid gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2 grid auto-rows-max gap-6">
                 <Card>
                     <CardHeader><CardTitle>Program Info</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
@@ -170,6 +185,23 @@ export default function CreateProgramPage() {
                             <FormField name="endDate" render={({ field }) => (<FormItem><FormLabel>End Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < (form.getValues("startDate") || new Date())} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
                         </div>
                         <FormField name="status" render={({ field }) => (<FormItem><FormLabel>Status</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="upcoming">Upcoming</SelectItem><SelectItem value="ongoing">Ongoing</SelectItem><SelectItem value="completed">Completed</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Check-out & Validation</CardTitle>
+                        <CardDescription>Configure check-out times and location validation.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                         <div className="grid grid-cols-2 gap-4">
+                            <FormField name="checkOutOpenTime" render={({ field }) => (<FormItem><FormLabel>Check-out Opens</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "Pp") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                            <FormField name="checkOutCloseTime" render={({ field }) => (<FormItem><FormLabel>Check-out Closes</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "Pp") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < (form.getValues("checkOutOpenTime") || new Date())} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField name="venueLat" render={({ field }) => ( <FormItem><FormLabel>Venue Latitude</FormLabel><FormControl><Input type="number" step="any" {...field} placeholder="e.g., 3.14159" /></FormControl><FormMessage /></FormItem> )} />
+                            <FormField name="venueLng" render={({ field }) => ( <FormItem><FormLabel>Venue Longitude</FormLabel><FormControl><Input type="number" step="any" {...field} placeholder="e.g., 101.68653" /></FormControl><FormMessage /></FormItem> )} />
+                        </div>
+                         <FormField name="allowedRadiusMeters" render={({ field }) => ( <FormItem><FormLabel>Allowed Radius (meters)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem> )} />
                     </CardContent>
                 </Card>
             </div>

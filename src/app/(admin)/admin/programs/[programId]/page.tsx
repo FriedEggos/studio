@@ -11,7 +11,7 @@ import {
 import { useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
 import { doc, collection, deleteDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, Copy, Users, Download, Trash2, ChevronDown, FileSpreadsheet, FileText } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, Users, Download, Trash2, ChevronDown, FileSpreadsheet, FileText } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -88,6 +88,7 @@ export default function ProgramDetailsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [qrFormUrl, setQrFormUrl] = useState('');
+  const [checkOutUrl, setCheckOutUrl] = useState('');
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [selectedAttendanceId, setSelectedAttendanceId] = useState<string | null>(null);
 
@@ -118,10 +119,15 @@ export default function ProgramDetailsPage() {
   }, [users]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && program?.qrSlug) {
-      setQrFormUrl(`${window.location.origin}/p/${program.qrSlug}`);
+    if (typeof window !== 'undefined') {
+        if(program?.qrSlug) {
+            setQrFormUrl(`${window.location.origin}/p/${program.qrSlug}`);
+        }
+        if(programId) {
+            setCheckOutUrl(`${window.location.origin}/checkout/${programId}`);
+        }
     }
-  }, [program]);
+  }, [program, programId]);
 
   const getBadgeColor = (badgeName?: string) => {
     switch (badgeName?.toLowerCase()) {
@@ -134,12 +140,6 @@ export default function ProgramDetailsPage() {
         default:
             return 'bg-secondary text-secondary-foreground';
     }
-  };
-
-  const handleCopyLink = (url: string) => {
-    if (!url) return;
-    navigator.clipboard.writeText(url);
-    toast({ title: "Link Copied!", description: "The link has been copied to your clipboard." });
   };
   
    const handleExport = () => {
@@ -194,7 +194,7 @@ export default function ProgramDetailsPage() {
       body: tableRows,
       theme: 'grid',
       headStyles: {
-        fillColor: [37, 51, 89] // Corresponds to primary color approx
+        fillColor: [37, 51, 89]
       },
     });
 
@@ -290,7 +290,7 @@ export default function ProgramDetailsPage() {
         </CardContent>
       </Card>
       
-      <div className="grid grid-cols-1 md:grid-cols-1 gap-6 items-start max-w-md mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
         {qrFormUrl ? (
           <QRImageCard 
             qrUrl={qrFormUrl} 
@@ -309,6 +309,21 @@ export default function ProgramDetailsPage() {
             </CardContent>
           </Card>
         )}
+        <Card>
+            <CardHeader>
+                <CardTitle className="font-headline flex items-center gap-2">
+                    <LinkIcon className="h-5 w-5" />
+                    Check-out Link
+                </CardTitle>
+                <CardDescription>Share this link with participants for check-out.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <Button asChild className="w-full">
+                    <a href={checkOutUrl} target="_blank" rel="noopener noreferrer">Open Check-out Page</a>
+                </Button>
+                <p className="text-sm text-muted-foreground text-center break-all">{checkOutUrl}</p>
+            </CardContent>
+        </Card>
       </div>
 
       <Card>

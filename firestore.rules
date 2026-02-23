@@ -31,7 +31,7 @@ service cloud.firestore {
       // This function ensures that an update operation ONLY modifies the fields related to check-out.
       // It compares the document before (resource.data) and after (request.resource.data) the update.
       let modifiedKeys = request.resource.data.diff(resource.data).affectedKeys();
-      let allowedCheckoutFields = ['checkOutAt', 'checkOutLat', 'checkOutLng', 'checkOutStatus'];
+      let allowedCheckoutFields = ['checkOutAt', 'checkOutLat', 'checkOutLng', 'checkOutStatus', 'durationMinutes'];
       
       // The update is only allowed if the ONLY keys being changed are in the allowed list.
       return modifiedKeys.hasOnly(allowedCheckoutFields);

@@ -27,6 +27,7 @@ interface Attendance {
     programId: string;
     createdAt: { toDate: () => Date };
     checkOutAt?: { toDate: () => Date };
+    checkOutStatus?: 'ok' | 'geo_failed' | 'too_early' | 'outside_window' | 'too_short';
     email: string;
 }
 
@@ -34,7 +35,6 @@ interface Program {
     id: string;
     title: string;
     startDate: string; // ISO string
-    checkOutOpenTime?: { toDate: () => Date };
 }
 
 interface UserProfile {
@@ -48,7 +48,6 @@ interface UserProfile {
 type AttendedProgram = Attendance & {
     programTitle: string;
     programStartDate: string;
-    checkOutOpenTime?: { toDate: () => Date };
 };
 
 const ActivityStatsCard = ({ badge, rating }: { badge?: string; rating?: number; }) => {
@@ -110,96 +109,22 @@ const ActivityStatsCard = ({ badge, rating }: { badge?: string; rating?: number;
     );
 };
 
-
-const CheckoutTimer = ({ program, handleCheckout, checkingOutId }: {
-    program: AttendedProgram;
-    handleCheckout: (programId: string, email: string) => void;
-    checkingOutId: string | null;
-}) => {
-    const [status, setStatus] = useState<'loading' | 'not_open' | 'open' | 'closed' | 'no_time_set'>('loading');
-    const [remainingTime, setRemainingTime] = useState('');
-
-    useEffect(() => {
-        if (!program.checkOutOpenTime) {
-            setStatus('no_time_set');
-            return;
-        }
-
-        const checkoutOpenDate = program.checkOutOpenTime.toDate();
-        const checkoutCloseDate = new Date(checkoutOpenDate.getTime() + 3 * 60 * 60 * 1000);
-
-        const updateStatus = () => {
-            const now = new Date();
-
-            if (now < checkoutOpenDate) {
-                setStatus('not_open');
-                return false; // Interval continues
-            } else if (now > checkoutCloseDate) {
-                setStatus('closed');
-                return true; // Interval should be cleared
-            } else {
-                setStatus('open');
-                const diffSeconds = Math.floor((checkoutCloseDate.getTime() - now.getTime()) / 1000);
-                
-                const h = Math.floor(diffSeconds / 3600).toString().padStart(2, '0');
-                const m = Math.floor((diffSeconds % 3600) / 60).toString().padStart(2, '0');
-                const s = Math.floor(diffSeconds % 60).toString().padStart(2, '0');
-
-                setRemainingTime(`${h}:${m}:${s}`);
-                return false; // Interval continues
-            }
-        };
-
-        if (updateStatus()) {
-            return;
-        }
-
-        const interval = setInterval(() => {
-            if (updateStatus()) {
-                clearInterval(interval);
-            }
-        }, 1000);
-
-        return () => clearInterval(interval);
-    }, [program.checkOutOpenTime]);
-
-    const isCheckingOut = checkingOutId === program.email;
-
-    switch (status) {
-        case 'loading':
-            return <Skeleton className="h-9 w-36" />;
-        
-        case 'not_open':
-            return <span className="text-sm font-medium">Check-out is not yet open.</span>;
-
-        case 'closed':
-            return <Button size="sm" className="bg-muted-foreground" disabled>Check-out Closed</Button>;
-
-        case 'no_time_set':
-        case 'open':
-            return (
-                 <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-                    {status === 'open' && <span className="font-mono text-sm font-semibold">{remainingTime}</span>}
-                    <Button
-                        onClick={() => handleCheckout(program.programId, program.email)}
-                        disabled={isCheckingOut}
-                        size="sm"
-                        className="bg-amber-600 text-white hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-amber-950 w-full sm:w-auto shrink-0"
-                    >
-                        {isCheckingOut ? (
-                            <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Please wait...
-                            </>
-                        ) : (
-                            'Check Out Now'
-                        )}
-                    </Button>
-                </div>
-            );
-
+const CheckoutStatusBadge = ({ attendance }: { attendance: AttendedProgram }) => {
+    if (!attendance.checkOutAt) {
+        return <Badge variant="outline">No Checkout Yet</Badge>;
+    }
+    
+    switch (attendance.checkOutStatus) {
+        case 'ok':
+            return <Badge className="bg-green-100 text-green-800 border-green-200">Verified</Badge>;
+        case 'geo_failed':
+            return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">GPS Failed</Badge>;
+        case 'too_early':
+        case 'outside_window':
+        case 'too_short':
+            return <Badge className="bg-red-100 text-red-800 border-red-200">Invalid Checkout</Badge>;
         default:
-            return null;
+            return <Badge variant="secondary">Checked Out</Badge>;
     }
 }
 
@@ -207,11 +132,9 @@ const CheckoutTimer = ({ program, handleCheckout, checkingOutId }: {
 export default function StudentDashboard() {
     const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
-    const { toast } = useToast();
 
     const [attendedPrograms, setAttendedPrograms] = useState<AttendedProgram[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [checkingOutId, setCheckingOutId] = useState<string | null>(null);
     
     const userDocRef = useMemoFirebase(() => {
         if (!user || !firestore) return null;
@@ -220,15 +143,12 @@ export default function StudentDashboard() {
     
     const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userDocRef);
 
-    const programsNeedingCheckout = attendedPrograms.filter(att => !att.checkOutAt);
-
     useEffect(() => {
         const fetchAttendanceHistory = async () => {
             if (!user || !firestore || !user.email) return;
 
             setIsLoading(true);
             try {
-                // 1. Get all programs.
                 const programsSnapshot = await getDocs(collection(firestore, 'programs'));
                 const programs = programsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Program[];
 
@@ -238,14 +158,12 @@ export default function StudentDashboard() {
                     return;
                 }
 
-                // 2. For each program, get the user's specific attendance doc.
                 const attendancePromises = programs.map(p => 
                     getDoc(doc(firestore, `programs/${p.id}/attendances`, user.email!))
                 );
                 
                 const attendanceSnapshots = await Promise.all(attendancePromises);
 
-                // 3. Filter for attendances that exist and merge with program data.
                 const populatedAttendances: AttendedProgram[] = [];
                 attendanceSnapshots.forEach((attendanceSnap, index) => {
                     if (attendanceSnap.exists()) {
@@ -255,12 +173,10 @@ export default function StudentDashboard() {
                             ...attendance,
                             programTitle: program.title,
                             programStartDate: program.startDate,
-                            checkOutOpenTime: program.checkOutOpenTime,
                         });
                     }
                 });
 
-                // 4. Sort by latest first
                 populatedAttendances.sort((a, b) => {
                     const dateA = a.createdAt?.toDate()?.getTime() || 0;
                     const dateB = b.createdAt?.toDate()?.getTime() || 0;
@@ -279,45 +195,9 @@ export default function StudentDashboard() {
         if (user && !isUserLoading) {
             fetchAttendanceHistory();
         } else if (!isUserLoading) {
-            setIsLoading(false); // No user, so not loading
+            setIsLoading(false);
         }
     }, [user, firestore, isUserLoading]);
-
-    const handleCheckout = async (programId: string, email: string) => {
-        if (!firestore) return;
-        const attendanceId = email; 
-        setCheckingOutId(attendanceId);
-        try {
-            const attendanceDocRef = doc(firestore, `programs/${programId}/attendances`, attendanceId);
-            await updateDoc(attendanceDocRef, {
-                checkOutAt: serverTimestamp(),
-            });
-
-            // Update local state to reflect the change immediately
-            const now = new Date();
-            setAttendedPrograms(prev =>
-                prev.map(att =>
-                    att.programId === programId && att.email === email
-                        ? { ...att, checkOutAt: { toDate: () => now } }
-                        : att
-                )
-            );
-
-            toast({
-                title: "Check-out Successful",
-                description: "Your check-out time has been recorded.",
-            });
-        } catch (error) {
-            console.error("Error during check-out:", error);
-            toast({
-                variant: "destructive",
-                title: "Check-out Failed",
-                description: "Failed to record your check-out time. Please contact the organizer.",
-            });
-        } finally {
-            setCheckingOutId(null);
-        }
-    };
     
     const renderContent = () => {
         if (isLoading || isUserLoading || isProfileLoading) {
@@ -396,28 +276,11 @@ export default function StudentDashboard() {
                                 </div>
                                  <div>
                                     <p className="font-medium text-muted-foreground">Check-out</p>
-                                    <p>{item.checkOutAt ? format(item.checkOutAt.toDate(), 'p, d MMM') : 'N/A'}</p>
+                                    <p>{item.checkOutAt ? format(item.checkOutAt.toDate(), 'p, d MMM') : '-'}</p>
                                 </div>
                             </CardContent>
                             <CardFooter>
-                               {item.checkOutAt ? (
-                                    <Badge variant="secondary" className="bg-green-100 text-green-800">Checked Out</Badge>
-                                ) : (
-                                    <Button
-                                        onClick={() => handleCheckout(item.programId, item.email)}
-                                        disabled={checkingOutId === item.email}
-                                        size="sm"
-                                    >
-                                        {checkingOutId === item.email ? (
-                                            <>
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                Please wait...
-                                            </>
-                                        ) : (
-                                            'Check-out'
-                                        )}
-                                    </Button>
-                                )}
+                                <CheckoutStatusBadge attendance={item} />
                             </CardFooter>
                         </Card>
                     ))}
@@ -429,22 +292,6 @@ export default function StudentDashboard() {
 
     return (
         <div className="space-y-8">
-            {programsNeedingCheckout.map((program) => (
-                <Alert key={program.id} className="bg-amber-100 border-amber-300 text-amber-900 dark:bg-amber-900/30 dark:border-amber-700/50 dark:text-amber-200">
-                    <AlertCircle className="h-4 w-4 !text-amber-700 dark:!text-amber-200" />
-                    <AlertTitle className="font-bold text-amber-950 dark:text-amber-100">Reminder: You Haven't Checked Out</AlertTitle>
-                    <AlertDescription className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 text-amber-800 dark:text-amber-200/90">
-                        <span>
-                            Please check out for the <strong>{program.programTitle}</strong> program.
-                        </span>
-                        <CheckoutTimer 
-                            program={program}
-                            handleCheckout={handleCheckout}
-                            checkingOutId={checkingOutId}
-                        />
-                    </AlertDescription>
-                </Alert>
-            ))}
             <div>
                 <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
                     My Attendance

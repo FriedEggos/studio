@@ -111,6 +111,28 @@
           "type": "string",
           "description": "Timestamp when the program was created.",
           "format": "date-time"
+        },
+        "checkOutOpenTime": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The time when check-out becomes available."
+        },
+        "checkOutCloseTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time when check-out is no longer available."
+        },
+        "venueLat": {
+            "type": "number",
+            "description": "The latitude of the program venue for geo-validation."
+        },
+        "venueLng": {
+            "type": "number",
+            "description": "The longitude of the program venue for geo-validation."
+        },
+        "allowedRadiusMeters": {
+            "type": "number",
+            "description": "The allowed radius in meters from the venue for a valid check-out."
         }
       },
       "required": [
@@ -207,7 +229,11 @@
         "checkOutStatus": {
             "type": "string",
             "description": "The status of the GPS verification on checkout.",
-            "enum": ["ok", "geo_failed"]
+            "enum": ["ok", "geo_failed", "too_early", "outside_window", "too_short"]
+        },
+        "durationMinutes": {
+            "type": "number",
+            "description": "The duration of attendance in minutes."
         },
         "userAgent": {
             "type": "string",
