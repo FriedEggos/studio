@@ -53,7 +53,7 @@ service cloud.firestore {
       // Rules for DIRECT access to the attendance subcollection
       match /attendances/{attendanceId} {
         // Anyone can create OR update an attendance record.
-        // The client uses the email as the doc ID to enforce one record per email.
+        // This allows for both the initial public check-in and the public check-out.
         allow create, update: if request.resource.data.programId == programId;
 
         // Students can read their own attendance record, admins can read any.
