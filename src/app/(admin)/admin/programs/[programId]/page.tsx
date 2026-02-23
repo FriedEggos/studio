@@ -11,7 +11,7 @@ import {
 import { useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
 import { doc, collection, deleteDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, Copy, Users, Download, Trash2, ChevronDown, FileCsv, FilePdf } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, Copy, Users, Download, Trash2, ChevronDown, FileSpreadsheet, FileText } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -296,11 +296,11 @@ export default function ProgramDetailsPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={handleExport}>
-                  <FileCsv className="mr-2 h-4 w-4" />
+                  <FileSpreadsheet className="mr-2 h-4 w-4" />
                   Export as CSV
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleExportPdf}>
-                  <FilePdf className="mr-2 h-4 w-4" />
+                  <FileText className="mr-2 h-4 w-4" />
                   Export as PDF
                 </DropdownMenuItem>
               </DropdownMenuContent>
