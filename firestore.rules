@@ -27,6 +27,11 @@ service cloud.firestore {
                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'student';
     }
 
+    function isCheckoutUpdate(data) {
+        let sensitiveFields = ['studentName', 'studentId', 'email', 'programId', 'createdAt', 'classGroup', 'customInput1', 'customInput2', 'userAgent'];
+        return !data.keys().hasAny(sensitiveFields);
+    }
+
     // User profiles
     match /users/{userId} {
       // Admins can read any profile, users can only read their own.
@@ -52,9 +57,9 @@ service cloud.firestore {
       
       // Rules for DIRECT access to the attendance subcollection
       match /attendances/{attendanceId} {
-        // Anyone can create OR update an attendance record.
-        // This allows for both the initial public check-in and the public check-out.
-        allow create, update: if request.resource.data.programId == programId;
+        // Allow creating a record if the programId matches.
+        // Allow updating a record if it's a re-check-in (contains programId) OR if it's a checkout update (doesn't contain sensitive fields).
+        allow create, update: if (request.resource.data.programId == programId) || isCheckoutUpdate(request.resource.data);
 
         // Students can read their own attendance record, admins can read any.
         allow get: if isAdmin() || (isSignedIn() && request.auth.token.email == attendanceId);
