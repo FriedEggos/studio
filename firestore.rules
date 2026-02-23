@@ -69,6 +69,15 @@ service cloud.firestore {
       // Only admins can create, update, or delete configs.
       allow create, update, delete: if isAdmin();
     }
+
+    // Public QR slug to Program ID mapping
+    match /qrSlugs/{slug} {
+        // Allow public GET to resolve a slug to a program ID. No list.
+        allow get: if true;
+        allow list: if false;
+        // Only admins can manage slug mappings.
+        allow write: if isAdmin();
+    }
     
     // Catch-all for other collections - deny by default
     match /{path=**} {

@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,18 +48,19 @@ export default function PublicAttendancePage({ params }: { params: { qrSlug: str
     const [programConfig, setProgramConfig] = useState<ProgramConfig | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const formSchema = z.object({
+    // This needs to be a function that returns a schema, because it depends on programConfig state
+    const createFormSchema = (config: ProgramConfig | null) => z.object({
         studentName: z.string().min(1, { message: "Nama diperlukan." }),
-        studentId: programConfig?.fields.requireStudentId ? z.string().min(1, { message: "ID Pelajar diperlukan." }) : z.string().optional(),
-        email: programConfig?.fields.requireEmail ? z.string().email({ message: "Format emel tidak sah." }).min(1, { message: "Emel diperlukan." }) : z.string().optional(),
-        phone: programConfig?.fields.requirePhone ? z.string().min(1, { message: "Nombor telefon diperlukan." }) : z.string().optional(),
-        classGroup: programConfig?.fields.requireClass ? z.string().min(1, { message: "Kelas diperlukan." }) : z.string().optional(),
-        customInput1: programConfig?.fields.customInput1Enabled ? z.string().min(1, { message: `${programConfig.fields.customInput1Label} diperlukan.` }) : z.string().optional(),
-        customInput2: programConfig?.fields.customInput2Enabled ? z.string().min(1, { message: `${programConfig.fields.customInput2Label} diperlukan.` }) : z.string().optional(),
+        studentId: config?.fields.requireStudentId ? z.string().min(1, { message: "ID Pelajar diperlukan." }) : z.string().optional(),
+        email: config?.fields.requireEmail ? z.string().email({ message: "Format emel tidak sah." }).min(1, { message: "Emel diperlukan." }) : z.string().optional(),
+        phone: config?.fields.requirePhone ? z.string().min(1, { message: "Nombor telefon diperlukan." }) : z.string().optional(),
+        classGroup: config?.fields.requireClass ? z.string().min(1, { message: "Kelas diperlukan." }) : z.string().optional(),
+        customInput1: config?.fields.customInput1Enabled ? z.string().min(1, { message: `${config.fields.customInput1Label} diperlukan.` }) : z.string().optional(),
+        customInput2: config?.fields.customInput2Enabled ? z.string().min(1, { message: `${config.fields.customInput2Label} diperlukan.` }) : z.string().optional(),
     });
 
-    const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
+    const form = useForm<z.infer<ReturnType<typeof createFormSchema>>>({
+        resolver: zodResolver(createFormSchema(programConfig)),
         defaultValues: {
             studentName: '',
             studentId: '',
@@ -71,28 +72,49 @@ export default function PublicAttendancePage({ params }: { params: { qrSlug: str
         },
     });
 
+     useEffect(() => {
+        // Re-initialize the form resolver when the config is loaded
+        if (programConfig) {
+            form.reset(undefined, {
+                keepValues: true,
+            });
+        }
+    }, [programConfig, form]);
+
+
     useEffect(() => {
         async function fetchProgramData() {
             if (!firestore || !qrSlug) return;
             try {
-                const programsRef = collection(firestore, 'programs');
-                const q = query(programsRef, where('qrSlug', '==', qrSlug));
-                const querySnapshot = await getDocs(q);
+                // 1. Resolve slug to programId via the qrSlugs collection
+                const slugDocRef = doc(firestore, 'qrSlugs', qrSlug);
+                const slugSnap = await getDoc(slugDocRef);
 
-                if (querySnapshot.empty) {
+                if (!slugSnap.exists()) {
                     setStatus('not_found');
                     return;
                 }
+                const { programId } = slugSnap.data();
 
-                const programDoc = querySnapshot.docs[0];
-                const programData = { id: programDoc.id, ...programDoc.data() } as Program;
+                // 2. Fetch program and its config using the resolved programId
+                const programDocRef = doc(firestore, 'programs', programId);
+                const configDocRef = doc(firestore, 'programConfigs', programId);
+
+                const [programSnap, configSnap] = await Promise.all([
+                    getDoc(programDocRef),
+                    getDoc(configDocRef)
+                ]);
+
+                if (!programSnap.exists()) {
+                    setStatus('not_found');
+                    return;
+                }
+                
+                const programData = { id: programSnap.id, ...programSnap.data() } as Program;
                 setProgram(programData);
 
-                const configDocRef = doc(firestore, 'programConfigs', programData.id);
-                const configSnapshot = await getDocs(query(collection(firestore, 'programConfigs'), where('__name__', '==', configDocRef.id)));
-                
-                if (!configSnapshot.empty) {
-                    const configData = configSnapshot.docs[0].data() as ProgramConfig;
+                if (configSnap.exists()) {
+                    const configData = configSnap.data() as ProgramConfig;
                     setProgramConfig(configData);
                 } else {
                      setProgramConfig({ fields: {} }); // default empty config
@@ -108,7 +130,7 @@ export default function PublicAttendancePage({ params }: { params: { qrSlug: str
         fetchProgramData();
     }, [firestore, qrSlug]);
     
-     const onSubmit = async (values: z.infer<typeof formSchema>) => {
+     const onSubmit = async (values: z.infer<ReturnType<typeof createFormSchema>>) => {
         if (!firestore || !program) return;
         setIsSubmitting(true);
         try {

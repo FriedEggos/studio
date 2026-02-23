@@ -136,9 +136,23 @@ export default function EditProgramPage() {
         setIsSubmitting(true);
         
         try {
+            const programDocRef = doc(firestore, "programs", programId);
+            const originalProgramSnap = await getDoc(programDocRef);
+            const originalSlug = originalProgramSnap.data()?.qrSlug;
+            
             const batch = writeBatch(firestore);
             
-            const programDocRef = doc(firestore, "programs", programId);
+            const newSlug = data.qrSlug || originalSlug || generateSlug();
+
+            // Handle slug mapping changes
+            if (originalSlug && originalSlug !== newSlug) {
+                const oldSlugDocRef = doc(firestore, "qrSlugs", originalSlug);
+                batch.delete(oldSlugDocRef);
+            }
+            const newSlugDocRef = doc(firestore, "qrSlugs", newSlug);
+            batch.set(newSlugDocRef, { programId });
+
+            // Update Program document
             const programData = {
                 title: data.title,
                 description: data.description,
@@ -146,13 +160,13 @@ export default function EditProgramPage() {
                 startDate: data.startDate.toISOString(),
                 endDate: data.endDate.toISOString(),
                 status: data.status,
-                qrSlug: data.qrSlug || generateSlug(),
+                qrSlug: newSlug,
                 redirectUrl: data.redirectUrl || "",
-                createdBy: user.uid,
-                createdAt: serverTimestamp(),
+                // Note: createdBy and createdAt are not updated
             };
             batch.update(programDocRef, programData);
 
+            // Update Program Config document
             const configDocRef = doc(firestore, "programConfigs", programId);
             const configData = {
                 copywriting: data.copywriting || "",
@@ -167,7 +181,7 @@ export default function EditProgramPage() {
                     customInput2Label: data.customInput2Label || "",
                 }
             };
-            batch.update(configDocRef, configData);
+            batch.set(configDocRef, configData); // Use set with merge true or update
             
             await batch.commit();
 

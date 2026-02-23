@@ -86,10 +86,12 @@ export default function CreateProgramPage() {
         setIsSubmitting(true);
         
         const programId = doc(firestore, 'programs', 'temp-id').id;
+        const finalQrSlug = data.qrSlug || generateSlug();
 
         try {
             const batch = writeBatch(firestore);
             
+            // 1. Program Document
             const programDocRef = doc(firestore, "programs", programId);
             const programData = {
                 title: data.title,
@@ -98,13 +100,14 @@ export default function CreateProgramPage() {
                 startDate: data.startDate.toISOString(),
                 endDate: data.endDate.toISOString(),
                 status: data.status,
-                qrSlug: data.qrSlug || generateSlug(),
+                qrSlug: finalQrSlug,
                 redirectUrl: data.redirectUrl || "",
                 createdBy: user.uid,
                 createdAt: serverTimestamp(),
             };
             batch.set(programDocRef, programData);
 
+            // 2. Program Config Document
             const configDocRef = doc(firestore, "programConfigs", programId);
             const configData = {
                 copywriting: data.copywriting || "",
@@ -120,6 +123,10 @@ export default function CreateProgramPage() {
                 }
             };
             batch.set(configDocRef, configData);
+
+            // 3. QR Slug Mapping Document
+            const slugDocRef = doc(firestore, "qrSlugs", finalQrSlug);
+            batch.set(slugDocRef, { programId: programId });
             
             await batch.commit();
 

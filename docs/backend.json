@@ -176,6 +176,18 @@
         }
       },
       "required": ["programId", "studentName", "createdAt"]
+    },
+    "QrSlug": {
+      "title": "QR Slug Mapping",
+      "type": "object",
+      "description": "Maps a public-facing QR slug to an internal program ID.",
+      "properties": {
+        "programId": {
+          "type": "string",
+          "description": "The ID of the program this slug points to."
+        }
+      },
+      "required": ["programId"]
     }
   },
   "auth": {
@@ -223,6 +235,16 @@
                 "$ref": "#/entities/Attendance"
             },
             "description": "Stores individual attendance submissions for a program."
+        }
+      },
+      {
+        "path": "/qrSlugs/{slug}",
+        "definition": {
+            "entityName": "QrSlug",
+            "schema": {
+                "$ref": "#/entities/QrSlug"
+            },
+            "description": "Publicly readable index to map unique URL slugs to program IDs."
         }
       }
     ],
