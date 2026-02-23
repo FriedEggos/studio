@@ -51,13 +51,15 @@ service cloud.firestore {
       
       // Rules for DIRECT access to the attendance subcollection
       match /attendances/{attendanceId} {
-        // Anyone can create an attendance record (public form submission).
-        allow create: if request.resource.data.programId == programId &&
-                         request.resource.data.createdAt == request.time;
-        // Direct reads and deletes only for admins.
+        // Anyone can create OR update an attendance record.
+        // This allows a user to resubmit the form to correct information.
+        // We use the email as the doc ID to enforce one record per email per program.
+        allow create, update: if request.resource.data.programId == programId &&
+                                 request.resource.data.email.lower() == attendanceId &&
+                                 request.resource.data.createdAt == request.time;
+
+        // Admins can read and delete individual attendance records.
         allow read, delete: if isAdmin();
-        // No updates allowed to preserve record integrity.
-        allow update: if false;
       }
     }
     
