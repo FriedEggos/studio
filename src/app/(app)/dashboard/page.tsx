@@ -18,7 +18,6 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Ticket, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { MonthCalendarMobile } from "@/components/ui/month-calendar-mobile";
 
 
 // Interfaces for our data structures
@@ -197,13 +196,6 @@ export default function StudentDashboard() {
         }
     }, [user, firestore, isUserLoading]);
     
-    const sampleEvents = {
-      5: 1,
-      12: 3,
-      13: 1,
-      25: 2,
-    };
-
     const renderContent = () => {
         if (isLoading || isUserLoading || isProfileLoading) {
             return (
@@ -297,21 +289,16 @@ export default function StudentDashboard() {
 
     return (
         <div className="space-y-8">
-            <div className="grid gap-8 md:grid-cols-3">
-                <div className="space-y-2 md:col-span-2">
-                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
-                        My Attendance
-                    </h1>
-                    <p className="text-muted-foreground">
-                        These are your attendance records recorded in the system.
-                    </p>
-                </div>
-                 <div className="row-start-1 md:col-start-3">
-                    <MonthCalendarMobile year={2024} month={6} selectedDay={12} events={sampleEvents} />
-                </div>
+            <div className="space-y-2">
+                <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
+                    My Attendance
+                </h1>
+                <p className="text-muted-foreground">
+                    These are your attendance records recorded in the system.
+                </p>
             </div>
             
-            <div className="md:col-span-3">
+            <div>
                 {renderContent()}
             </div>
         </div>
