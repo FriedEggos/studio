@@ -11,12 +11,14 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
-import { getDocs, collection, doc, getDoc } from "firebase/firestore";
+import { getDocs, collection, doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Ticket } from "lucide-react";
+import { AlertCircle, Ticket, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 // Interfaces for our data structures
 interface Attendance {
@@ -24,7 +26,6 @@ interface Attendance {
     programId: string;
     createdAt: { toDate: () => Date };
     checkOutAt?: { toDate: () => Date };
-    checkOutStatus?: 'ok' | 'geo_failed';
     email: string;
 }
 
@@ -44,23 +45,14 @@ type AttendedProgram = Attendance & {
     programStartDate: string;
 };
 
-const StatusBadge = ({ status }: { status: Attendance['checkOutStatus'] }) => {
-    if (status === 'ok') {
-        return <Badge variant="secondary" className="bg-green-100 text-green-800">GPS Verified</Badge>;
-    }
-    if (status === 'geo_failed') {
-        return <Badge variant="destructive">GPS Failed</Badge>;
-    }
-    return <Badge variant="outline" className="bg-yellow-100 text-yellow-800">No Checkout Yet</Badge>;
-};
-
-
 export default function StudentDashboard() {
     const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
+    const { toast } = useToast();
 
     const [attendedPrograms, setAttendedPrograms] = useState<AttendedProgram[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [checkingOutId, setCheckingOutId] = useState<string | null>(null);
     
     const userDocRef = useMemoFirebase(() => {
         if (!user || !firestore) return null;
@@ -128,6 +120,42 @@ export default function StudentDashboard() {
             setIsLoading(false); // No user, so not loading
         }
     }, [user, firestore, isUserLoading]);
+
+    const handleCheckout = async (programId: string, email: string) => {
+        if (!firestore) return;
+        const attendanceId = email; 
+        setCheckingOutId(attendanceId);
+        try {
+            const attendanceDocRef = doc(firestore, `programs/${programId}/attendances`, attendanceId);
+            await updateDoc(attendanceDocRef, {
+                checkOutAt: serverTimestamp(),
+            });
+
+            // Update local state to reflect the change immediately
+            const now = new Date();
+            setAttendedPrograms(prev =>
+                prev.map(att =>
+                    att.programId === programId && att.email === email
+                        ? { ...att, checkOutAt: { toDate: () => now } }
+                        : att
+                )
+            );
+
+            toast({
+                title: "Check-out Berjaya",
+                description: "Waktu keluar anda telah direkodkan.",
+            });
+        } catch (error) {
+            console.error("Error during check-out:", error);
+            toast({
+                variant: "destructive",
+                title: "Gagal Check-out",
+                description: "Gagal merekodkan waktu keluar anda. Sila hubungi penganjur.",
+            });
+        } finally {
+            setCheckingOutId(null);
+        }
+    };
     
     const renderContent = () => {
         if (isLoading || isUserLoading || isProfileLoading) {
@@ -144,7 +172,7 @@ export default function StudentDashboard() {
                                 <Skeleton className="h-10 w-full" />
                             </CardContent>
                             <CardFooter>
-                                <Skeleton className="h-6 w-24" />
+                                <Skeleton className="h-10 w-28" />
                             </CardFooter>
                         </Card>
                     ))}
@@ -191,7 +219,7 @@ export default function StudentDashboard() {
         return (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {attendedPrograms.map(item => (
-                    <Card key={item.id} className="rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col">
+                    <Card key={`${item.programId}-${item.email}`} className="rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col">
                         <CardHeader>
                             <CardTitle className="font-bold">{item.programTitle}</CardTitle>
                             <CardDescription>{format(parseISO(item.programStartDate), 'd MMMM yyyy')}</CardDescription>
@@ -207,7 +235,24 @@ export default function StudentDashboard() {
                             </div>
                         </CardContent>
                         <CardFooter>
-                            <StatusBadge status={item.checkOutStatus} />
+                           {item.checkOutAt ? (
+                                <Badge variant="secondary" className="bg-green-100 text-green-800">Checked Out</Badge>
+                            ) : (
+                                <Button
+                                    onClick={() => handleCheckout(item.programId, item.email)}
+                                    disabled={checkingOutId === item.email}
+                                    size="sm"
+                                >
+                                    {checkingOutId === item.email ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Sila tunggu...
+                                        </>
+                                    ) : (
+                                        'Check-out'
+                                    )}
+                                </Button>
+                            )}
                         </CardFooter>
                     </Card>
                 ))}
