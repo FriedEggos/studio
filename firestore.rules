@@ -51,11 +51,9 @@ service cloud.firestore {
       
       // Rules for DIRECT access to the attendance subcollection
       match /attendances/{attendanceId} {
-        // Anyone can create OR update an attendance record.
-        // This allows a user to resubmit the form to correct information.
-        // We use the email as the doc ID to enforce one record per email per program.
-        allow create, update: if request.resource.data.programId == programId &&
-                                 request.resource.data.email.lower() == attendanceId;
+        // Anyone can create OR update an attendance record, as long as it's for the correct program.
+        // The client uses the email as the doc ID to enforce one record per email.
+        allow create, update: if request.resource.data.programId == programId;
 
         // Admins can read and delete individual attendance records.
         allow read, delete: if isAdmin();
