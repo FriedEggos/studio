@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, Copy, Users, Download, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
@@ -313,7 +313,7 @@ export default function ProgramDetailsPage() {
             <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setSelectedAttendanceId(null)}>Cancel</AlertDialogCancel>
                 <AlertDialogAction 
-                  className={Button({ variant: "destructive" })}
+                  className={buttonVariants({ variant: "destructive" })}
                   onClick={() => selectedAttendanceId && handleDeleteAttendance(selectedAttendanceId)}
                 >
                     Delete
