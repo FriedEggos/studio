@@ -69,6 +69,7 @@ export default function ProgramDetailsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [qrFormUrl, setQrFormUrl] = useState('');
+  const [checkOutUrl, setCheckOutUrl] = useState('');
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [selectedAttendanceId, setSelectedAttendanceId] = useState<string | null>(null);
 
@@ -89,14 +90,15 @@ export default function ProgramDetailsPage() {
   useEffect(() => {
     if (typeof window !== 'undefined' && program?.qrSlug) {
       setQrFormUrl(`${window.location.origin}/p/${program.qrSlug}`);
+      setCheckOutUrl(`${window.location.origin}/checkout/${programId}`);
     }
-  }, [program]);
+  }, [program, programId]);
 
 
-  const handleCopyLink = () => {
-    if (!qrFormUrl) return;
-    navigator.clipboard.writeText(qrFormUrl);
-    toast({ title: "Link Copied!", description: "The QR form link has been copied to your clipboard." });
+  const handleCopyLink = (url: string) => {
+    if (!url) return;
+    navigator.clipboard.writeText(url);
+    toast({ title: "Link Copied!", description: "The link has been copied to your clipboard." });
   };
   
    const handleExport = () => {
@@ -208,24 +210,35 @@ export default function ProgramDetailsPage() {
       </Card>
       
       <div className="grid md:grid-cols-2 gap-6 items-start">
-        <Card>
-            <CardHeader><CardTitle className="font-headline flex items-center gap-2"><LinkIcon className="h-5 w-5" /> QR Form Link</CardTitle></CardHeader>
-            <CardContent>
-                <div className="flex items-center gap-2 p-2 border rounded-md bg-muted">
-                    <p className="text-sm text-muted-foreground truncate flex-1">{qrFormUrl || 'Generating link...'}</p>
-                    <Button variant="ghost" size="icon" onClick={handleCopyLink} disabled={!qrFormUrl}><Copy className="h-4 w-4" /></Button>
-                </div>
-            </CardContent>
-        </Card>
         {qrFormUrl ? (
-          <QRImageCard qrFormUrl={qrFormUrl} />
+          <QRImageCard 
+            qrUrl={qrFormUrl} 
+            title="QR Check-in"
+            description="Scan this to open the public attendance form."
+          />
         ) : (
            <Card>
             <CardHeader>
               <CardTitle className="font-headline">QR Code</CardTitle>
-              <CardDescription>
-                Generating QR code...
-              </CardDescription>
+              <CardDescription>Generating QR code...</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center gap-4 text-center">
+              <Skeleton className="h-[224px] w-[224px] rounded-lg" />
+              <Skeleton className="h-4 w-48" />
+            </CardContent>
+          </Card>
+        )}
+         {checkOutUrl ? (
+          <QRImageCard 
+            qrUrl={checkOutUrl} 
+            title="QR Check-out"
+            description="Scan this at the end of the program to record check-out."
+          />
+        ) : (
+           <Card>
+            <CardHeader>
+              <CardTitle className="font-headline">QR Check-out</CardTitle>
+              <CardDescription>Generating QR code...</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-4 text-center">
               <Skeleton className="h-[224px] w-[224px] rounded-lg" />

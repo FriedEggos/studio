@@ -175,6 +175,14 @@
             "format": "date-time",
             "description": "The timestamp when the user checked out."
         },
+        "checkOutLat": {
+            "type": "number",
+            "description": "The latitude of the user at checkout."
+        },
+        "checkOutLng": {
+            "type": "number",
+            "description": "The longitude of the user at checkout."
+        },
         "checkOutStatus": {
             "type": "string",
             "description": "The status of the GPS verification on checkout.",

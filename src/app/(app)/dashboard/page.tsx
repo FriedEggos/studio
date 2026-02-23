@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -195,14 +196,14 @@ export default function StudentDashboard() {
                             <CardTitle className="font-bold">{item.programTitle}</CardTitle>
                             <CardDescription>{format(parseISO(item.programStartDate), 'd MMMM yyyy')}</CardDescription>
                         </CardHeader>
-                        <CardContent className="flex-grow space-y-3 text-sm">
+                        <CardContent className="flex-grow grid grid-cols-2 gap-4 text-sm">
                             <div>
                                 <p className="font-medium text-muted-foreground">Check-in</p>
-                                <p>{item.createdAt ? format(item.createdAt.toDate(), 'p, d MMM yyyy') : 'N/A'}</p>
+                                <p>{item.createdAt ? format(item.createdAt.toDate(), 'p, d MMM') : 'N/A'}</p>
                             </div>
                              <div>
                                 <p className="font-medium text-muted-foreground">Check-out</p>
-                                <p>{item.checkOutAt ? format(item.checkOutAt.toDate(), 'p, d MMM yyyy') : 'N/A'}</p>
+                                <p>{item.checkOutAt ? format(item.checkOutAt.toDate(), 'p, d MMM') : 'N/A'}</p>
                             </div>
                         </CardContent>
                         <CardFooter>
