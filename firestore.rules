@@ -55,8 +55,7 @@ service cloud.firestore {
         // This allows a user to resubmit the form to correct information.
         // We use the email as the doc ID to enforce one record per email per program.
         allow create, update: if request.resource.data.programId == programId &&
-                                 request.resource.data.email.lower() == attendanceId &&
-                                 request.resource.data.createdAt == request.time;
+                                 request.resource.data.email.lower() == attendanceId;
 
         // Admins can read and delete individual attendance records.
         allow read, delete: if isAdmin();
