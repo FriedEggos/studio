@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Calendar as CalendarIcon } from "lucide-react";
+import { Loader2, Calendar as CalendarIcon, ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,6 +22,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { generateSlug } from "@/lib/slug-generator";
 import { Switch } from "@/components/ui/switch";
+import Link from "next/link";
 
 const programFormSchema = z.object({
   title: z.string().min(1, "Title is required."),
@@ -145,10 +146,18 @@ export default function CreateProgramPage() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">Create New Program</h1>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save Program
-          </Button>
+           <div className="flex items-center gap-2">
+              <Button variant="outline" asChild>
+                  <Link href="/admin/dashboard">
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Back to Dashboard
+                  </Link>
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save Program
+              </Button>
+          </div>
         </div>
         
         <div className="grid gap-6 lg:grid-cols-2">
