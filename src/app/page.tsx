@@ -103,19 +103,18 @@ export default function Home() {
               </div>
               <div className="grid gap-1 p-4 rounded-lg border bg-card shadow-sm hover:shadow-md transition-shadow">
                 <h3 className="text-lg font-bold font-headline">
-                  Activity Proof
+                  Self Check-in & Check-out
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Upload your proof of participation and get it verified by an admin.
+                  Easily record your attendance with self-service check-in and check-out options.
                 </p>
               </div>
               <div className="grid gap-1 p-4 rounded-lg border bg-card shadow-sm hover:shadow-md transition-shadow">
                 <h3 className="text-lg font-bold font-headline">
-                  Digital Certificates & Badges
+                  Digital Badges
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Collect badges and generate e-certificates automatically after
-                  participation is confirmed.
+                  Collect badges automatically after participation is confirmed.
                 </p>
               </div>
             </div>
