@@ -13,7 +13,7 @@ import * as z from "zod";
 import { useUser, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { doc, writeBatch, serverTimestamp } from "firebase/firestore";
+import { doc, writeBatch, serverTimestamp, collection, addDoc } from "firebase/firestore";
 import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -84,14 +84,11 @@ export default function CreateProgramPage() {
         }
         setIsSubmitting(true);
         
-        const programId = doc(firestore, 'programs', 'temp-id').id;
         const finalQrSlug = data.qrSlug || generateSlug();
 
         try {
-            const batch = writeBatch(firestore);
-            
-            // 1. Program Document
-            const programDocRef = doc(firestore, "programs", programId);
+            // 1. Create the program document first to get its auto-generated ID
+            const programCollectionRef = collection(firestore, "programs");
             const programData = {
                 title: data.title,
                 description: data.description,
@@ -104,9 +101,12 @@ export default function CreateProgramPage() {
                 createdBy: user.uid,
                 createdAt: serverTimestamp(),
             };
-            batch.set(programDocRef, programData);
+            const programDocRef = await addDoc(programCollectionRef, programData);
+            const programId = programDocRef.id;
 
-            // 2. Program Config Document
+            // 2. In a batch, create the associated config and slug documents
+            const batch = writeBatch(firestore);
+
             const configDocRef = doc(firestore, "programConfigs", programId);
             const configData = {
                 copywriting: data.copywriting || "",
@@ -123,9 +123,8 @@ export default function CreateProgramPage() {
             };
             batch.set(configDocRef, configData);
 
-            // 3. QR Slug Mapping Document
             const slugDocRef = doc(firestore, "qrSlugs", finalQrSlug);
-            batch.set(slugDocRef, { programId: programId });
+            batch.set(slugDocRef, { programId });
             
             await batch.commit();
 
