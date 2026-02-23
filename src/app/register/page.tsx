@@ -17,8 +17,8 @@ import { Logo } from "@/components/logo";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useFirestore, setDocumentNonBlocking } from "@/firebase";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc } from "firebase/firestore";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { doc, serverTimestamp } from "firebase/firestore";
 import {
   Select,
   SelectContent,
@@ -78,14 +78,17 @@ export default function RegisterPage() {
       const user = userCredential.user;
 
       if (user) {
+        await updateProfile(user, { displayName: fullName });
+        
         const role = adminEmails.includes(user.email || "") ? "admin" : "student";
         const userDocRef = doc(firestore, "users", user.uid);
         const userData = {
           id: user.uid,
-          fullName: fullName,
+          displayName: fullName,
           email: user.email,
           role: role,
           course: course,
+          createdAt: serverTimestamp(),
         };
         
         setDocumentNonBlocking(userDocRef, userData, { merge: true });

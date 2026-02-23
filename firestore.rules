@@ -3,7 +3,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions for reusable logic
+    // Helper functions
     function isSignedIn() {
       return request.auth != null;
     }
@@ -11,75 +11,68 @@ service cloud.firestore {
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
+    
+    function userIsAdmin(userId) {
+        return exists(/databases/$(database)/documents/users/$(userId)) &&
+               get(/databases/$(database)/documents/users/$(userId)).data.role == 'admin';
+    }
 
     function isAdmin() {
-      // In a real app, this should check a custom claim or a separate 'roles' document
-      // For this app, we check a 'role' field on the user's profile.
-      return isSignedIn() &&
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return isSignedIn() && userIsAdmin(request.auth.uid);
+    }
+    
+    function isStudent() {
+        return isSignedIn() && 
+               exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+               get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'student';
     }
 
     // User profiles
     match /users/{userId} {
+      // Admins can read any profile, users can only read their own.
       allow get: if isOwner(userId) || isAdmin();
+      // Only admins can list all users.
       allow list: if isAdmin();
-      // Allow user creation if the document ID matches the user's UID.
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      // Allow a user to update their own profile, but not change their role.
-      allow update: if isOwner(userId) && request.resource.data.role == resource.data.role;
-      allow delete: if isOwner(userId);
-
-      // A user can manage their own list of joined programs
-      match /joinedPrograms/{programId} {
-        allow read, create, update, delete: if isOwner(userId);
-      }
-
-      // User-specific certificates
-      match /certificates/{certificateId} {
-        // A user can only view their own certificates.
-        allow get, list: if isOwner(userId);
-        // Admins can manage all certificates.
-        allow read, write: if isAdmin();
-      }
-
-      // User-specific activity evidence
-      match /activity_evidence/{evidenceId} {
-        // A user can manage their own evidence submissions.
-        allow get, list, create, update: if isOwner(userId);
-        // Admins can manage all evidence for verification purposes.
-        allow read, write, delete: if isAdmin();
-      }
+      // Any authenticated user can create their own profile document.
+      allow create: if isOwner(userId);
+      // Users can update their own profile, admins can update any.
+      allow update: if isOwner(userId) || isAdmin();
+      // Only admins can delete users.
+      allow delete: if isAdmin();
     }
 
-    // Program information
+    // Program documents
     match /programs/{programId} {
-      // Any signed-in user can view program details.
-      allow read: if isSignedIn();
+      // Allow public GET for the QR form page. No public list.
+      allow get: if true;
+      allow list: if isAdmin();
       // Only admins can create, update, or delete programs.
-      allow write: if isAdmin();
-
-      // Mirrored list of participants for a program
-      match /participants/{userId} {
-        // Any signed-in user can read the participants list
-        allow read: if isSignedIn();
-        // Only the user themselves can add or remove their entry from the list
-        allow create, delete: if isOwner(userId);
-        // Updates are not allowed to prevent tampering
+      allow create, update, delete: if isAdmin();
+      
+      // Attendance subcollection
+      match /attendances/{attendanceId} {
+        // Anyone can create an attendance record (public form submission).
+        allow create: if request.resource.data.programId == programId &&
+                         request.resource.data.createdAt == request.time;
+        // Only admins can read or delete attendance records.
+        allow read, delete: if isAdmin();
+        // No updates allowed to preserve record integrity.
         allow update: if false;
       }
-      
-      // Program-specific attendance records (document ID is the userId)
-      match /attendance/{userId} {
-         // Anyone signed-in can read (e.g. to check if they've attended)
-        allow read: if isSignedIn();
-        // A user can create their own attendance record
-        allow create: if isOwner(userId);
-        // No updates or deletes allowed to preserve attendance history
-        allow update, delete: if false;
-      }
+    }
+    
+    // Program form configurations
+    match /programConfigs/{programId} {
+       // Allow public GET for the QR form page. No public list.
+      allow get: if true;
+      allow list: if isAdmin();
+      // Only admins can create, update, or delete configs.
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // Catch-all for other collections - deny by default
+    match /{path=**} {
+      allow read, write: if false;
     }
   }
 }
-
-    

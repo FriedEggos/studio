@@ -19,54 +19,45 @@
           "type": "string",
           "description": "Display name of the user."
         },
-        "fullName": {
-          "type": "string",
-          "description": "Full name of the user."
-        },
         "role": {
           "type": "string",
-          "description": "Role of the user (e.g., student, admin)."
+          "description": "Role of the user (e.g., student, admin).",
+          "enum": ["student", "admin"]
         },
-        "course": {
-          "type": "string",
-          "description": "The course the student is enrolled in."
-        },
-        "matricId": {
-          "type": "string",
-          "description": "The student's matriculation ID number."
-        },
-        "phoneNumber": {
-          "type": "string",
-          "description": "The user's phone number."
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the user account was created."
         }
       },
       "required": [
         "id",
         "email",
-        "fullName",
-        "role"
+        "displayName",
+        "role",
+        "createdAt"
       ]
     },
     "Program": {
       "title": "Program",
       "type": "object",
-      "description": "Represents a program or event.",
+      "description": "Represents a program or event with a scannable QR code for attendance.",
       "properties": {
         "id": {
           "type": "string",
           "description": "Unique identifier for the program entity."
         },
-        "name": {
+        "title": {
           "type": "string",
-          "description": "Name of the program."
-        },
-        "briefDescription": {
-          "type": "string",
-          "description": "A short, one-sentence description for program previews."
+          "description": "Title of the program."
         },
         "description": {
           "type": "string",
-          "description": "A long, detailed description of the program."
+          "description": "A detailed description of the program."
+        },
+        "location": {
+          "type": "string",
+          "description": "Location where the program will be held."
         },
         "startDate": {
           "type": "string",
@@ -78,229 +69,113 @@
           "description": "End date and time of the program.",
           "format": "date-time"
         },
-        "venue": {
-            "type": "string",
-            "description": "Location where the program will be held."
-        },
-        "organizerUnit": {
-            "type": "string",
-            "description": "The department or unit organizing the program."
-        },
         "status": {
             "type": "string",
             "description": "Current status of the program.",
-            "enum": ["active", "closed", "draft"]
+            "enum": ["upcoming", "ongoing", "completed"]
         },
-        "adminId": {
+        "qrSlug": {
+            "type": "string",
+            "description": "A unique, short, URL-friendly slug for the public QR form link."
+        },
+        "redirectUrl": {
+            "type": "string",
+            "description": "An optional URL to redirect the user to after they submit the attendance form."
+        },
+        "createdBy": {
           "type": "string",
           "description": "Reference to the User (admin) who created the program."
-        },
-        "imageUrl": {
-          "type": "string",
-          "description": "URL of the program's poster image."
         },
         "createdAt": {
           "type": "string",
           "description": "Timestamp when the program was created.",
           "format": "date-time"
-        },
-        "attendanceOpen": {
-          "type": "boolean",
-          "description": "Whether attendance check-in is currently open."
-        },
-        "qrValue": {
-          "type": "string",
-          "description": "The relative path for the QR code scan link."
         }
       },
       "required": [
         "id",
-        "name",
-        "briefDescription",
+        "title",
         "description",
         "startDate",
         "endDate",
-        "adminId",
         "status",
+        "qrSlug",
+        "createdBy",
         "createdAt"
       ]
     },
-    "JoinedProgram": {
-      "title": "Joined Program",
-      "type": "object",
-      "description": "A record indicating a user has joined a program.",
-      "properties": {
-        "programId": {
-          "type": "string",
-          "description": "Reference to the Program."
-        },
-        "joinedAt": {
-          "type": "string",
-          "description": "Timestamp when the user joined.",
-          "format": "date-time"
-        },
-        "status": {
-            "type": "string",
-            "description": "The status of the join.",
-            "enum": ["joined"]
+    "ProgramConfig": {
+        "title": "Program Configuration",
+        "type": "object",
+        "description": "Defines the settings and fields for a program's public attendance form.",
+        "properties": {
+            "copywriting": {
+                "type": "string",
+                "description": "Custom text or instructions to display at the top of the attendance form."
+            },
+            "fields": {
+                "type": "object",
+                "properties": {
+                    "requireStudentId": { "type": "boolean" },
+                    "requirePhone": { "type": "boolean" },
+                    "requireEmail": { "type": "boolean" },
+                    "requireClass": { "type": "boolean" },
+                    "customInput1Enabled": { "type": "boolean" },
+                    "customInput1Label": { "type": "string" },
+                    "customInput2Enabled": { "type": "boolean" },
+                    "customInput2Label": { "type": "string" }
+                }
+            }
         }
-      },
-      "required": ["programId", "joinedAt", "status"]
-    },
-    "Participant": {
-      "title": "Participant",
-      "type": "object",
-      "description": "A mirror record of a user who joined a program, for easier querying.",
-      "properties": {
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User."
-        },
-        "displayName": {
-          "type": "string",
-          "description": "The user's display name at the time of joining."
-        },
-        "email": {
-          "type": "string",
-          "description": "The user's email at the time of joining."
-        },
-        "joinedAt": {
-          "type": "string",
-          "description": "Timestamp when the user joined.",
-          "format": "date-time"
-        }
-      },
-      "required": ["userId", "joinedAt"]
     },
     "Attendance": {
       "title": "Attendance",
       "type": "object",
-      "description": "Represents a user's attendance record for a program.",
+      "description": "Represents a single attendance submission from the public QR form.",
       "properties": {
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User."
-        },
         "programId": {
           "type": "string",
           "description": "Reference to the Program."
-        },
-        "checkedInAt": {
-          "type": "string",
-          "description": "The timestamp when the user checked in.",
-          "format": "date-time"
-        },
-        "method": {
-            "type": "string",
-            "description": "The method used for check-in.",
-            "enum": ["self_scan", "manual"]
-        },
-        "displayName": {
-          "type": "string",
-          "description": "The user's display name at the time of check-in."
-        },
-        "email": {
-          "type": "string",
-          "description": "The user's email at the time of check-in."
-        }
-      },
-      "required": ["userId", "programId", "checkedInAt", "method"]
-    },
-    "Certificate": {
-      "title": "Certificate",
-      "type": "object",
-      "description": "Represents a digital certificate issued to a user for a program.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the certificate."
-        },
-        "programId": {
-            "type": "string",
-            "description": "Reference to the Program for which the certificate was issued."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who received the certificate."
-        },
-        "certificateNumber": {
-            "type": "string",
-            "description": "A unique number or code for the certificate."
-        },
-        "issuedAt": {
-          "type": "string",
-          "description": "The date the certificate was issued.",
-          "format": "date-time"
-        },
-        "status": {
-            "type": "string",
-            "description": "The status of the certificate.",
-            "enum": ["generated", "downloaded"]
-        }
-      },
-      "required": [
-        "id",
-        "programId",
-        "userId",
-        "certificateNumber",
-        "issuedAt",
-        "status"
-      ]
-    },
-    "ActivityEvidence": {
-      "title": "ActivityEvidence",
-      "type": "object",
-      "description": "Represents the evidence of participation submitted by a student for a program.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the evidence record."
-        },
-        "user_id": {
-          "type": "string",
-          "description": "Reference to the User who submitted the evidence."
         },
         "studentName": {
-          "type": "string",
-          "description": "Full name of the student for easy reference."
+            "type": "string",
+            "description": "Full name of the attending student."
         },
-        "program_id": {
-          "type": "string",
-          "description": "Reference to the Program."
+        "studentId": {
+            "type": "string",
+            "description": "Matriculation ID of the student."
         },
-        "programname": {
-          "type": "string",
-          "description": "Name of the program for easy reference."
+        "phone": {
+            "type": "string",
+            "description": "Phone number of the student."
         },
-        "submissionDate": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Timestamp when the evidence was submitted."
+        "email": {
+            "type": "string",
+            "description": "Email address of the student."
         },
-        "image_url": {
-          "type": "string",
-          "description": "URL of the uploaded evidence image."
+        "classGroup": {
+            "type": "string",
+            "description": "The student's class or group."
         },
-        "status": {
+        "customInput1": {
+            "type": "string",
+            "description": "Value for the first custom field."
+        },
+        "customInput2": {
+            "type": "string",
+            "description": "Value for the second custom field."
+        },
+        "createdAt": {
           "type": "string",
-          "description": "Verification status of the evidence.",
-          "enum": [
-            "pending",
-            "approved",
-            "rejected"
-          ]
+          "description": "The timestamp when the attendance was recorded.",
+          "format": "date-time"
+        },
+        "userAgent": {
+            "type": "string",
+            "description": "The browser/device user agent of the person submitting the form."
         }
       },
-      "required": [
-        "id",
-        "user_id",
-        "studentName",
-        "program_id",
-        "programname",
-        "submissionDate",
-        "image_url",
-        "status"
-      ]
+      "required": ["programId", "studentName", "createdAt"]
     }
   },
   "auth": {
@@ -317,37 +192,7 @@
           "schema": {
             "$ref": "#/entities/User"
           },
-          "description": "Stores individual user profile data."
-        }
-      },
-      {
-        "path": "/users/{userId}/joinedPrograms/{programId}",
-        "definition": {
-            "entityName": "JoinedProgram",
-            "schema": {
-                "$ref": "#/entities/JoinedProgram"
-            },
-            "description": "Stores a record of programs a user has joined."
-        }
-      },
-      {
-        "path": "/users/{userId}/certificates/{certificateId}",
-        "definition": {
-          "entityName": "Certificate",
-          "schema": {
-            "$ref": "#/entities/Certificate"
-          },
-          "description": "Stores certificates issued to a specific user."
-        }
-      },
-      {
-        "path": "/users/{userId}/activity_evidence/{evidenceId}",
-        "definition": {
-          "entityName": "ActivityEvidence",
-          "schema": {
-            "$ref": "#/entities/ActivityEvidence"
-          },
-          "description": "Stores evidence of participation submitted by a user."
+          "description": "Stores individual user profile data (students and admins)."
         }
       },
       {
@@ -361,28 +206,26 @@
         }
       },
       {
-        "path": "/programs/{programId}/participants/{userId}",
+        "path": "/programConfigs/{programId}",
         "definition": {
-            "entityName": "Participant",
+            "entityName": "ProgramConfig",
             "schema": {
-                "$ref": "#/entities/Participant"
+                "$ref": "#/entities/ProgramConfig"
             },
-            "description": "A mirror of users who joined a program for easier querying by admins."
+            "description": "Stores the form configuration for a specific program."
         }
       },
       {
-        "path": "/programs/{programId}/attendance/{userId}",
+        "path": "/programs/{programId}/attendances/{attendanceId}",
         "definition": {
             "entityName": "Attendance",
             "schema": {
                 "$ref": "#/entities/Attendance"
             },
-            "description": "Stores attendance check-in records for a program. Document ID is the user ID to prevent duplicates."
+            "description": "Stores individual attendance submissions for a program."
         }
       }
     ],
-    "reasoning": "This Firestore structure is designed for scalability and security. Publicly accessible data like 'programs' resides in a top-level collection. User-specific data that requires privacy, such as 'certificates' and 'activity_evidence', is nested within that user's document path to simplify ownership-based security rules. Program-specific subcollections like 'registrations' and 'attendance' are nested under each program, which allows for efficient querying of all participants for a given event, a common requirement for administrators. This model balances query efficiency with a strong, user-centric security posture."
+    "reasoning": "This Firestore structure separates core program data from its form configuration and its attendance records. Public data (`programs`, `programConfigs`) is structured to be readable by unauthenticated users on a per-document basis for the QR form page, while sensitive data like attendance lists is nested and protected. This provides a secure and scalable way to handle public attendance submissions while giving administrators full control and visibility."
   }
 }
-
-    

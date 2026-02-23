@@ -8,13 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
@@ -25,25 +19,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { updateProfile } from 'firebase/auth';
 import { Camera } from 'lucide-react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from "@/components/ui/form"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form"
 import { compressAndResizeImage } from '@/lib/image-utils';
 
 const profileFormSchema = z.object({
-  fullName: z.string().min(1, 'Full name is required.'),
+  displayName: z.string().min(1, 'Full name is required.'),
   email: z.string().email('Invalid email format.'),
   course: z.string().optional(),
   matricId: z.string().optional(),
@@ -83,7 +64,7 @@ export default function EditProfilePage() {
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      fullName: '',
+      displayName: '',
       email: '',
       course: '',
       matricId: '',
@@ -97,7 +78,7 @@ export default function EditProfilePage() {
     }
     if (userProfile) {
       form.reset({
-        fullName: userProfile.fullName || '',
+        displayName: userProfile.displayName || '',
         email: userProfile.email || '',
         course: userProfile.course || '',
         matricId: userProfile.matricId || '',
@@ -141,11 +122,13 @@ export default function EditProfilePage() {
       }
 
       if (newPhotoURL && newPhotoURL !== user.photoURL) {
-        await updateProfile(auth.currentUser, { photoURL: newPhotoURL });
+        await updateProfile(auth.currentUser, { photoURL: newPhotoURL, displayName: data.displayName });
+      } else {
+        await updateProfile(auth.currentUser, { displayName: data.displayName });
       }
       
       const updatedData = {
-        fullName: data.fullName,
+        displayName: data.displayName,
         email: data.email,
         course: data.course,
         matricId: data.matricId,
@@ -225,7 +208,7 @@ export default function EditProfilePage() {
                 <div className="relative group w-28 h-28 mx-auto">
                   <Avatar className="w-28 h-28">
                     <AvatarImage src={avatarPreview || `https://picsum.photos/seed/${user.uid}/200/200`} alt="Profile Picture" />
-                    <AvatarFallback>{userProfile?.fullName?.[0].toUpperCase() || user.email?.[0].toUpperCase()}</AvatarFallback>
+                    <AvatarFallback>{userProfile?.displayName?.[0].toUpperCase() || user.email?.[0].toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <label htmlFor="avatar-upload" className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                     <Camera className="h-8 w-8 text-white" />
@@ -261,7 +244,7 @@ export default function EditProfilePage() {
               
               <FormField
                 control={form.control}
-                name="fullName"
+                name="displayName"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Full Name</FormLabel>
