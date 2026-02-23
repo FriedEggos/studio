@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -60,6 +59,8 @@ export default function StudentDashboard() {
     }, [user, firestore]);
     
     const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userDocRef);
+
+    const programsNeedingCheckout = attendedPrograms.filter(att => !att.checkOutAt);
 
     useEffect(() => {
         const fetchAttendanceHistory = async () => {
@@ -263,6 +264,32 @@ export default function StudentDashboard() {
 
     return (
         <div className="space-y-8">
+            {programsNeedingCheckout.map((program) => (
+                <Alert key={program.id} className="bg-amber-100 border-amber-300 text-amber-900 dark:bg-amber-900/30 dark:border-amber-700/50 dark:text-amber-200">
+                    <AlertCircle className="h-4 w-4 !text-amber-700 dark:!text-amber-200" />
+                    <AlertTitle className="font-bold text-amber-950 dark:text-amber-100">Peringatan: Anda Belum Check-out</AlertTitle>
+                    <AlertDescription className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 text-amber-800 dark:text-amber-200/90">
+                        <span>
+                            Sila lakukan check-out untuk acara <strong>{program.programTitle}</strong>.
+                        </span>
+                        <Button
+                            onClick={() => handleCheckout(program.programId, program.email)}
+                            disabled={checkingOutId === program.email}
+                            size="sm"
+                            className="bg-amber-600 text-white hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-amber-950 w-full sm:w-auto shrink-0"
+                        >
+                            {checkingOutId === program.email ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Sila tunggu...
+                                </>
+                            ) : (
+                                'Check Out Sekarang'
+                            )}
+                        </Button>
+                    </AlertDescription>
+                </Alert>
+            ))}
             <div>
                 <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
                     My Attendance
