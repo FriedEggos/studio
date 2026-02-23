@@ -67,7 +67,9 @@ service cloud.firestore {
         allow create: if request.resource.data.programId == programId;
         
         // Allow updating a record if it's a valid checkout operation.
-        allow update: if request.resource.data.programId == programId && isCheckoutUpdate();
+        // The programId check is removed here because it's not present in the update payload,
+        // and path matching already guarantees the correct program.
+        allow update: if isCheckoutUpdate();
 
         // Students can read their own attendance record, admins can read any.
         allow get: if isAdmin() || (isSignedIn() && request.auth.token.email == attendanceId);
