@@ -270,7 +270,7 @@ export default function StudentDashboard() {
                     <AlertTitle className="font-bold text-amber-950 dark:text-amber-100">Peringatan: Anda Belum Check-out</AlertTitle>
                     <AlertDescription className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 text-amber-800 dark:text-amber-200/90">
                         <span>
-                            Sila lakukan check-out untuk acara <strong>{program.programTitle}</strong>.
+                            Sila lakukan check-out untuk program <strong>{program.programTitle}</strong>.
                         </span>
                         <Button
                             onClick={() => handleCheckout(program.programId, program.email)}
