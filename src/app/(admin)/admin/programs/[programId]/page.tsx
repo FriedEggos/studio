@@ -185,19 +185,18 @@ export default function ProgramDetailsPage() {
             </CardContent>
         </Card>
         {qrFormUrl ? (
-          <QRImageCard qrFormUrl={qrFormUrl} programTitle={program.title} />
+          <QRImageCard qrFormUrl={qrFormUrl} />
         ) : (
            <Card>
             <CardHeader>
-              <CardTitle className="font-headline flex items-center justify-between">
-                <span>QR Code</span>
-              </CardTitle>
+              <CardTitle className="font-headline">QR Code</CardTitle>
               <CardDescription>
                 Generating QR code...
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-4 text-center">
-              <Skeleton className="h-[232px] w-[232px]" />
+              <Skeleton className="h-[224px] w-[224px] rounded-lg" />
+              <Skeleton className="h-4 w-48" />
             </CardContent>
           </Card>
         )}
