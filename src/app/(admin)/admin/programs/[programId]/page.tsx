@@ -60,6 +60,9 @@ interface Attendance {
     createdAt: {
         toDate: () => Date;
     } | null;
+    checkOutAt?: {
+        toDate: () => Date;
+    } | null;
 }
 
 
@@ -112,7 +115,8 @@ export default function ProgramDetailsPage() {
       'Student Name': att.studentName,
       'Student ID': att.studentId,
       'Class': att.classGroup,
-      'Timestamp': att.createdAt ? format(att.createdAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A',
+      'Check-in Time': att.createdAt ? format(att.createdAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A',
+      'Check-out Time': att.checkOutAt ? format(att.checkOutAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A',
     }));
     
     exportToCsv(`attendance_${program?.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`, dataToExport);
@@ -246,6 +250,7 @@ export default function ProgramDetailsPage() {
                     <TableHead>Student ID</TableHead>
                     <TableHead>Class</TableHead>
                     <TableHead>Check-in Time</TableHead>
+                    <TableHead>Check-out Time</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -257,6 +262,7 @@ export default function ProgramDetailsPage() {
                         <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                         <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                         <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-28" /></TableCell>
                         <TableCell><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                       </TableRow>
                     ))
@@ -267,6 +273,7 @@ export default function ProgramDetailsPage() {
                         <TableCell>{att.studentId || '-'}</TableCell>
                         <TableCell>{att.classGroup || '-'}</TableCell>
                         <TableCell>{att.createdAt ? format(att.createdAt.toDate(), 'Pp') : <span className="text-muted-foreground">Syncing...</span>}</TableCell>
+                        <TableCell>{att.checkOutAt ? format(att.checkOutAt.toDate(), 'Pp') : '-'}</TableCell>
                         <TableCell className="text-right">
                           <Button
                             variant="ghost"
@@ -285,7 +292,7 @@ export default function ProgramDetailsPage() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center">
+                      <TableCell colSpan={6} className="h-24 text-center">
                         No attendances recorded yet.
                       </TableCell>
                     </TableRow>
