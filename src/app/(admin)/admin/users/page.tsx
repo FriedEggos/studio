@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query } from 'firebase/firestore';
 import {
   Card,
@@ -35,12 +36,13 @@ interface User {
 
 export default function UsersPage() {
   const firestore = useFirestore();
+  const { user } = useUser();
 
   const usersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !user) return null;
     // Query all users
     return query(collection(firestore, 'users'));
-  }, [firestore]);
+  }, [firestore, user]);
 
   const { data: users, isLoading } = useCollection<User>(usersQuery);
 
