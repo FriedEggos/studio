@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Button } from "@/components/ui/button";
@@ -142,8 +141,16 @@ export default function EditProgramPage() {
                 const programData = programSnap.data();
                 const configData = configSnap.exists() ? configSnap.data() : {};
 
-                const startDateTime = (programData.startDateTime as Timestamp).toDate();
-                const endDateTime = (programData.endDateTime as Timestamp).toDate();
+                if (!programData.startDateTime || !programData.endDateTime) {
+                  toast({
+                    variant: 'destructive',
+                    title: 'Outdated Program Data',
+                    description: 'This program has an old data format. Please review and re-save the dates.',
+                  });
+                }
+
+                const startDateTime = programData.startDateTime ? (programData.startDateTime as Timestamp).toDate() : new Date();
+                const endDateTime = programData.endDateTime ? (programData.endDateTime as Timestamp).toDate() : new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000); // Default 2 hours
 
                 const openTime = programData.checkOutOpenTime ? (programData.checkOutOpenTime as Timestamp).toDate() : null;
                 const closeTime = programData.checkOutCloseTime ? (programData.checkOutCloseTime as Timestamp).toDate() : null;
@@ -160,7 +167,7 @@ export default function EditProgramPage() {
                     qrSlug: programData.qrSlug,
                     redirectUrl: programData.redirectUrl,
                     copywriting: configData.copywriting,
-                    ...configData.fields,
+                    ...(configData.fields || {}),
                     checkOutOpenDate: openTime,
                     checkOutOpenStartTime: openTime ? format(openTime, 'HH:mm') : '',
                     checkOutCloseDate: closeTime,

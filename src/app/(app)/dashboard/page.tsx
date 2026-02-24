@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -113,7 +112,7 @@ export default function StudentDashboard() {
                 if (docSnap.exists()) {
                     const attendance = { id: docSnap.id, ...docSnap.data() } as Attendance;
                     const program = programsMap.get(attendance.programId);
-                    if (program) {
+                    if (program && program.startDateTime && program.endDateTime) {
                         populatedAttendances.push({
                             ...attendance,
                             programTitle: program.title,

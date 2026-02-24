@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -345,8 +344,8 @@ export default function ProgramDetailsPage() {
                  <Card>
                     <CardHeader> <CardTitle className="text-lg flex items-center gap-2"><Calendar className="h-5 w-5" /> Dates & Times</CardTitle> </CardHeader>
                     <CardContent>
-                        <p><strong>Start:</strong> {format(program.startDateTime.toDate(), 'PPP, p')}</p>
-                        <p><strong>End:</strong> {format(program.endDateTime.toDate(), 'PPP, p')}</p>
+                        <p><strong>Start:</strong> {program.startDateTime ? format(program.startDateTime.toDate(), 'PPP, p') : 'Invalid Date'}</p>
+                        <p><strong>End:</strong> {program.endDateTime ? format(program.endDateTime.toDate(), 'PPP, p') : 'Invalid Date'}</p>
                     </CardContent>
                 </Card>
                  <Card>

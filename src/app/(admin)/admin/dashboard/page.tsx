@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -189,7 +188,7 @@ export default function AdminDashboard() {
                                 <TableCell>
                                 <div className="font-medium">{program.title}</div>
                                 <div className="text-sm text-muted-foreground hidden md:inline">
-                                    {format(program.startDateTime.toDate(), "d MMM yyyy @ HH:mm")}
+                                    {program.startDateTime ? format(program.startDateTime.toDate(), "d MMM yyyy @ HH:mm") : 'Invalid Date'}
                                 </div>
                                 </TableCell>
                                 <TableCell>
