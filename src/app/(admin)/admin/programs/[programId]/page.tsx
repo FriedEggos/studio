@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -75,6 +76,7 @@ interface Attendance {
     checkOutAt?: {
         toDate: () => Date;
     } | null;
+    checkOutStatus?: 'ok' | 'too_early' | 'outside_window' | 'too_short' | 'admin_override';
 }
 
 interface User {
@@ -244,6 +246,21 @@ export default function ProgramDetailsPage() {
     setSelectedAttendanceForCheckout(null);
   };
 
+  const getCheckoutTimeClass = (att: Attendance) => {
+    if (att.checkOutStatus === 'ok') {
+        return 'text-green-600 font-semibold';
+    }
+    if (
+        !att.checkOutAt ||
+        att.checkOutStatus === 'too_early' ||
+        att.checkOutStatus === 'outside_window' ||
+        att.checkOutStatus === 'too_short'
+    ) {
+        return 'text-red-600 font-semibold';
+    }
+    return ''; // Default for other statuses like 'admin_override'
+  };
+
 
   if (isLoading) {
     return (
@@ -401,7 +418,9 @@ export default function ProgramDetailsPage() {
                         <TableCell>{att.studentId || '-'}</TableCell>
                         <TableCell>{att.classGroup || '-'}</TableCell>
                         <TableCell>{att.createdAt ? format(att.createdAt.toDate(), 'Pp') : <span className="text-muted-foreground">Syncing...</span>}</TableCell>
-                        <TableCell>{att.checkOutAt ? format(att.checkOutAt.toDate(), 'Pp') : '-'}</TableCell>
+                        <TableCell className={cn(getCheckoutTimeClass(att))}>
+                            {att.checkOutAt ? format(att.checkOutAt.toDate(), 'Pp') : '-'}
+                        </TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
