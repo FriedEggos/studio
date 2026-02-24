@@ -47,8 +47,10 @@ const programFormSchema = z.object({
   customInput2Label: z.string().optional(),
   
   // Validation fields
-  checkOutOpenTime: z.date().optional(),
-  checkOutCloseTime: z.date().optional(),
+  checkOutOpenDate: z.date().optional(),
+  checkOutOpenStartTime: z.string().optional(),
+  checkOutCloseDate: z.date().optional(),
+  checkOutCloseEndTime: z.string().optional(),
 
 }).refine(data => data.endDate >= data.startDate, {
     message: "End date must be on or after start date.",
@@ -61,9 +63,26 @@ const programFormSchema = z.object({
 }, {
     message: "End time must be after start time on the same day.",
     path: ['endTime'],
-}).refine(data => !data.checkOutCloseTime || !data.checkOutOpenTime || data.checkOutCloseTime >= data.checkOutOpenTime, {
+}).refine(data => {
+    const combine = (date?: Date, time?: string): Date | undefined => {
+      if (!date || !time) return undefined;
+      const timeParts = time.split(':');
+      if (timeParts.length !== 2) return undefined;
+      const [h, m] = timeParts.map(Number);
+      if (isNaN(h) || isNaN(m)) return undefined;
+      const d = new Date(date);
+      d.setHours(h, m, 0, 0);
+      return d;
+    };
+    const open = combine(data.checkOutOpenDate, data.checkOutOpenStartTime);
+    const close = combine(data.checkOutCloseDate, data.checkOutCloseEndTime);
+    if (open && close) {
+      return close >= open;
+    }
+    return true;
+}, {
     message: "Check-out close time must be after open time.",
-    path: ['checkOutCloseTime'],
+    path: ['checkOutCloseDate'],
 });
 
 type ProgramFormValues = z.infer<typeof programFormSchema>;
@@ -94,6 +113,8 @@ export default function CreateProgramPage() {
             customInput1Label: "",
             customInput2Enabled: false,
             customInput2Label: "",
+            checkOutOpenStartTime: "",
+            checkOutCloseEndTime: "",
         },
     });
 
@@ -108,6 +129,15 @@ export default function CreateProgramPage() {
 
         try {
             const programCollectionRef = collection(firestore, "programs");
+
+            const combineDateAndTime = (date?: Date, time?: string): string | null => {
+                if (!date || !time) return null;
+                const d = new Date(date);
+                const [h, m] = time.split(':').map(Number);
+                d.setHours(h, m, 0, 0);
+                return d.toISOString();
+            }
+
             const programData = {
                 title: data.title,
                 description: data.description,
@@ -121,8 +151,8 @@ export default function CreateProgramPage() {
                 redirectUrl: data.redirectUrl || "",
                 createdBy: user.uid,
                 createdAt: serverTimestamp(),
-                checkOutOpenTime: data.checkOutOpenTime?.toISOString() || null,
-                checkOutCloseTime: data.checkOutCloseTime?.toISOString() || null,
+                checkOutOpenTime: combineDateAndTime(data.checkOutOpenDate, data.checkOutOpenStartTime),
+                checkOutCloseTime: combineDateAndTime(data.checkOutCloseDate, data.checkOutCloseEndTime),
             };
             const programDocRef = await addDoc(programCollectionRef, programData);
             const programId = programDocRef.id;
@@ -204,9 +234,19 @@ export default function CreateProgramPage() {
                         <CardDescription>Configure check-out times.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                         <div className="grid grid-cols-2 gap-4">
-                            <FormField name="checkOutOpenTime" render={({ field }) => (<FormItem><FormLabel>Check-out Opens</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "Pp") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
-                            <FormField name="checkOutCloseTime" render={({ field }) => (<FormItem><FormLabel>Check-out Closes</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "Pp") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < (form.getValues("checkOutOpenTime") || new Date())} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                        <div className="space-y-2">
+                            <FormLabel>Check-out Opens</FormLabel>
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField name="checkOutOpenDate" render={({ field }) => (<FormItem><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                                <FormField name="checkOutOpenStartTime" render={({ field }) => ( <FormItem><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <FormLabel>Check-out Closes</FormLabel>
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField name="checkOutCloseDate" render={({ field }) => (<FormItem><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < (form.getValues("checkOutOpenDate") || new Date())} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                                <FormField name="checkOutCloseEndTime" render={({ field }) => ( <FormItem><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            </div>
                         </div>
                     </CardContent>
                 </Card>

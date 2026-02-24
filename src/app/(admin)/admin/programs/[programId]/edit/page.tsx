@@ -48,8 +48,10 @@ const programFormSchema = z.object({
   customInput2Label: z.string().optional(),
 
   // Validation fields
-  checkOutOpenTime: z.date().optional().nullable(),
-  checkOutCloseTime: z.date().optional().nullable(),
+  checkOutOpenDate: z.date().optional(),
+  checkOutOpenStartTime: z.string().optional(),
+  checkOutCloseDate: z.date().optional(),
+  checkOutCloseEndTime: z.string().optional(),
 
 }).refine(data => data.endDate >= data.startDate, {
     message: "End date must be on or after start date.",
@@ -62,9 +64,26 @@ const programFormSchema = z.object({
 }, {
     message: "End time must be after start time on the same day.",
     path: ['endTime'],
-}).refine(data => !data.checkOutCloseTime || !data.checkOutOpenTime || data.checkOutCloseTime >= data.checkOutOpenTime, {
+}).refine(data => {
+    const combine = (date?: Date, time?: string): Date | undefined => {
+      if (!date || !time) return undefined;
+      const timeParts = time.split(':');
+      if (timeParts.length !== 2) return undefined;
+      const [h, m] = timeParts.map(Number);
+      if (isNaN(h) || isNaN(m)) return undefined;
+      const d = new Date(date);
+      d.setHours(h, m, 0, 0);
+      return d;
+    };
+    const open = combine(data.checkOutOpenDate, data.checkOutOpenStartTime);
+    const close = combine(data.checkOutCloseDate, data.checkOutCloseEndTime);
+    if (open && close) {
+      return close >= open;
+    }
+    return true;
+}, {
     message: "Check-out close time must be after open time.",
-    path: ['checkOutCloseTime'],
+    path: ['checkOutCloseDate'],
 });
 
 type ProgramFormValues = z.infer<typeof programFormSchema>;
@@ -98,6 +117,8 @@ export default function EditProgramPage() {
             customInput1Label: "",
             customInput2Enabled: false,
             customInput2Label: "",
+            checkOutOpenStartTime: "",
+            checkOutCloseEndTime: "",
         },
     });
 
@@ -123,6 +144,9 @@ export default function EditProgramPage() {
                 const programData = programSnap.data();
                 const configData = configSnap.exists() ? configSnap.data() : {};
 
+                const openTime = programData.checkOutOpenTime ? parseISO(programData.checkOutOpenTime) : null;
+                const closeTime = programData.checkOutCloseTime ? parseISO(programData.checkOutCloseTime) : null;
+
                 form.reset({
                     title: programData.title,
                     description: programData.description,
@@ -136,8 +160,10 @@ export default function EditProgramPage() {
                     redirectUrl: programData.redirectUrl,
                     copywriting: configData.copywriting,
                     ...configData.fields,
-                    checkOutOpenTime: programData.checkOutOpenTime ? parseISO(programData.checkOutOpenTime) : null,
-                    checkOutCloseTime: programData.checkOutCloseTime ? parseISO(programData.checkOutCloseTime) : null,
+                    checkOutOpenDate: openTime,
+                    checkOutOpenStartTime: openTime ? format(openTime, 'HH:mm') : '',
+                    checkOutCloseDate: closeTime,
+                    checkOutCloseEndTime: closeTime ? format(closeTime, 'HH:mm') : '',
                 });
 
             } catch (error) {
@@ -173,6 +199,14 @@ export default function EditProgramPage() {
             const newSlugDocRef = doc(firestore, "qrSlugs", newSlug);
             batch.set(newSlugDocRef, { programId });
 
+            const combineDateAndTime = (date?: Date, time?: string): string | null => {
+                if (!date || !time) return null;
+                const d = new Date(date);
+                const [h, m] = time.split(':').map(Number);
+                d.setHours(h, m, 0, 0);
+                return d.toISOString();
+            }
+
             const programData = {
                 title: data.title,
                 description: data.description,
@@ -184,8 +218,8 @@ export default function EditProgramPage() {
                 status: data.status,
                 qrSlug: newSlug,
                 redirectUrl: data.redirectUrl || "",
-                checkOutOpenTime: data.checkOutOpenTime?.toISOString() || null,
-                checkOutCloseTime: data.checkOutCloseTime?.toISOString() || null,
+                checkOutOpenTime: combineDateAndTime(data.checkOutOpenDate, data.checkOutOpenStartTime),
+                checkOutCloseTime: combineDateAndTime(data.checkOutCloseDate, data.checkOutCloseEndTime),
             };
             batch.update(programDocRef, programData);
 
@@ -266,9 +300,19 @@ export default function EditProgramPage() {
                         <CardDescription>Configure check-out times.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                         <div className="grid grid-cols-2 gap-4">
-                            <FormField name="checkOutOpenTime" render={({ field }) => (<FormItem><FormLabel>Check-out Opens</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "Pp") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
-                            <FormField name="checkOutCloseTime" render={({ field }) => (<FormItem><FormLabel>Check-out Closes</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "Pp") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < (form.getValues("checkOutOpenTime") || new Date())} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                         <div className="space-y-2">
+                            <FormLabel>Check-out Opens</FormLabel>
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField name="checkOutOpenDate" render={({ field }) => (<FormItem><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                                <FormField name="checkOutOpenStartTime" render={({ field }) => ( <FormItem><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <FormLabel>Check-out Closes</FormLabel>
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField name="checkOutCloseDate" render={({ field }) => (<FormItem><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < (form.getValues("checkOutOpenDate") || new Date())} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                                <FormField name="checkOutCloseEndTime" render={({ field }) => ( <FormItem><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
