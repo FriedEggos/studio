@@ -1,3 +1,4 @@
+
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
@@ -72,7 +73,7 @@ export const onAttendanceCheckIn = onDocumentCreated("/programs/{programId}/atte
 
 
 /**
- * Sends a thank you email when a student checks out.
+ * Sends a thank you or warning email when a student checks out.
  */
 export const onAttendanceCheckOut = onDocumentUpdated("/programs/{programId}/attendances/{attendanceId}", async (event) => {
     const beforeData = event.data?.before.data();
@@ -92,21 +93,47 @@ export const onAttendanceCheckOut = onDocumentUpdated("/programs/{programId}/att
         return;
     }
     
-    logger.log("Sending check-out email to", studentEmail);
+    // Fetch program details to include in the email
+    const programDoc = await getFirestore().doc(`programs/${event.params.programId}`).get();
+    const programTitle = programDoc.exists ? programDoc.data()?.title : "program tersebut";
+    
+    logger.log(`Sending check-out email to ${studentEmail} for program ${programTitle}`);
+    
+    const checkOutStatus = afterData.checkOutStatus;
+    let mailOptions;
 
-    const mailOptions = {
-        from: `"JTMK+ System" <${gmailEmail}>`,
-        to: studentEmail,
-        subject: "Terima Kasih Kerana Menyertai Program DigiSpark Fiesta",
-        html: `
-            <p>Hai ${studentName},</p>
-            <p>Terima kasih kerana telah menyertai program <strong>DigiSpark Fiesta 2.0</strong>.</p>
-            <p>Waktu daftar keluar anda pada ${afterData.checkOutAt.toDate().toLocaleString("ms-MY")} telah berjaya direkodkan.</p>
-            <br>
-            <p>Terima kasih,</p>
-            <p>Sistem Kehadiran JTMK+</p>
-        `,
-    };
+    if (checkOutStatus === 'ok' || checkOutStatus === 'admin_override') {
+        // Send a "Thank You" email for successful checkouts
+        mailOptions = {
+            from: `"JTMK+ System" <${gmailEmail}>`,
+            to: studentEmail,
+            subject: `Terima Kasih Kerana Menyertai - ${programTitle}`,
+            html: `
+                <p>Hai ${studentName},</p>
+                <p>Terima kasih kerana telah menyertai program <strong>${programTitle}</strong>.</p>
+                <p>Waktu daftar keluar anda pada ${afterData.checkOutAt.toDate().toLocaleString("ms-MY")} telah berjaya direkodkan dan disahkan.</p>
+                <br>
+                <p>Terima kasih,</p>
+                <p>Sistem Kehadiran JTMK+</p>
+            `,
+        };
+    } else {
+        // Send a warning email for invalid checkouts
+        mailOptions = {
+            from: `"JTMK+ System" <${gmailEmail}>`,
+            to: studentEmail,
+            subject: `Amaran Status Daftar Keluar - ${programTitle}`,
+            html: `
+                <p>Hai ${studentName},</p>
+                <p>Waktu daftar keluar anda untuk program <strong>${programTitle}</strong> pada ${afterData.checkOutAt.toDate().toLocaleString("ms-MY")} telah direkodkan, tetapi ia ditandakan sebagai tidak sah.</p>
+                <p>Status: <strong>${checkOutStatus || 'Tidak diketahui'}</strong>. Ini mungkin kerana anda mendaftar keluar terlalu awal, di luar tetingkap masa yang dibenarkan, atau tempoh kehadiran tidak mencukupi.</p>
+                <p>Sila hubungi penganjur program jika anda merasakan ini adalah satu kesilapan.</p>
+                <br>
+                <p>Terima kasih,</p>
+                <p>Sistem Kehadiran JTMK+</p>
+            `,
+        };
+    }
     
     try {
         await transporter.sendMail(mailOptions);
