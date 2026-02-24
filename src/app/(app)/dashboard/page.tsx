@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -20,6 +19,7 @@ import { AlertCircle, Ticket, Star, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 
 // Interfaces for our data structures
@@ -53,18 +53,18 @@ type AttendedProgram = Attendance & {
 
 const CheckoutStatusBadge = ({ attendance }: { attendance: AttendedProgram }) => {
     if (!attendance.checkOutAt) {
-        return <Badge variant="outline">No Checkout Yet</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-100">No Checkout Yet</Badge>;
     }
     
     switch (attendance.checkOutStatus) {
         case 'ok':
-            return <Badge className="bg-green-100 text-green-800 border-green-200">Verified</Badge>;
+            return <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100">Verified</Badge>;
         case 'admin_override':
-            return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Admin Verified</Badge>;
+            return <Badge className="bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100">Admin Verified</Badge>;
         case 'too_early':
         case 'outside_window':
         case 'too_short':
-            return <Badge className="bg-red-100 text-red-800 border-red-200">Invalid Checkout</Badge>;
+            return <Badge className="bg-red-100 text-red-800 border-red-200 hover:bg-red-100">Invalid Checkout</Badge>;
         default:
             return <Badge variant="secondary">Checked Out</Badge>;
     }
@@ -74,6 +74,7 @@ const CheckoutStatusBadge = ({ attendance }: { attendance: AttendedProgram }) =>
 export default function StudentDashboard() {
     const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
+    const router = useRouter();
 
     const [attendedPrograms, setAttendedPrograms] = useState<AttendedProgram[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -102,7 +103,7 @@ export default function StudentDashboard() {
                 }
 
                 const attendancePromises = programs.map(p => 
-                    getDoc(doc(firestore, `programs/${p.id}/attendances`, user.email!))
+                    getDoc(doc(firestore, `programs/${p.id}/attendances`, user.email!.toLowerCase()))
                 );
                 
                 const attendanceSnapshots = await Promise.all(attendancePromises);
@@ -147,6 +148,10 @@ export default function StudentDashboard() {
             setIsLoading(false);
         }
     }, [user, firestore, isUserLoading]);
+
+    const handleCheckout = (programId: string) => {
+        router.push(`/checkout/${programId}`);
+    };
     
     const renderContent = () => {
         if (isLoading || isUserLoading || isProfileLoading) {
@@ -225,8 +230,16 @@ export default function StudentDashboard() {
                                 <p>{item.checkOutAt ? format(item.checkOutAt.toDate(), 'p, d MMM') : '-'}</p>
                             </div>
                         </CardContent>
-                        <CardFooter>
+                        <CardFooter className="flex-col items-start gap-2">
                             <CheckoutStatusBadge attendance={item} />
+                            {!item.checkOutAt && (
+                                <button
+                                    onClick={() => handleCheckout(item.programId)}
+                                    className="mt-2 rounded-md bg-yellow-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-yellow-700"
+                                >
+                                    Check-out Now
+                                </button>
+                            )}
                         </CardFooter>
                     </Card>
                 ))}
