@@ -1,8 +1,7 @@
-
 'use client';
 
 import { doc, updateDoc, Firestore, serverTimestamp, getDoc, setDoc, Timestamp } from 'firebase/firestore';
-import { differenceInMinutes, parseISO, subMinutes } from 'date-fns';
+import { differenceInMinutes, parseISO, subMinutes, addMinutes } from 'date-fns';
 
 // Helper to combine ISO date string and HH:mm time string into a Date object
 function _combineDateAndTime(isoDate: string, time: string): Date {
@@ -36,15 +35,15 @@ export async function createCheckIn(
     
     // Correctly combine date and time for validation
     const programStartDateTime = _combineDateAndTime(program.startDate, program.startTime);
-    const programEndDateTime = _combineDateAndTime(program.endDate, program.endTime);
     
-    const checkInOpen = subMinutes(programStartDateTime, 15); // Check-in opens 15 mins before start time
+    const checkInOpen = subMinutes(programStartDateTime, 30); // Check-in opens 30 mins before start
+    const checkInClose = addMinutes(programStartDateTime, 30); // Check-in closes 30 mins after start
 
     // Validate check-in time
     if (now < checkInOpen) {
         return { status: 'too_early', message: 'Check-in has not opened yet.' };
     }
-    if (now > programEndDateTime) {
+    if (now > checkInClose) {
         return { status: 'too_late', message: 'Check-in has already closed.' };
     }
     
