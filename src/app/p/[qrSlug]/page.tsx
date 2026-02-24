@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -12,16 +11,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, Loader2, Clock } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { createCheckIn } from '@/lib/attendance';
+import { addMinutes, subMinutes } from 'date-fns';
 
 interface Program {
     id: string;
     title: string;
     description: string;
     redirectUrl?: string;
+    startDate: string;
+    startTime: string;
 }
 
 interface ProgramConfig {
@@ -38,7 +40,7 @@ interface ProgramConfig {
     };
 }
 
-type PageStatus = 'loading' | 'not_found' | 'form' | 'submitting' | 'success' | 'error';
+type PageStatus = 'loading' | 'not_found' | 'form' | 'submitting' | 'success' | 'error' | 'too_early' | 'too_late';
 type ErrorState = {
     title: string;
     message: string;
@@ -116,6 +118,27 @@ export default function PublicAttendancePage() {
                 }
                 
                 const programData = { id: programSnap.id, ...programSnap.data() } as Program;
+                
+                const now = new Date();
+                const _combineDateAndTime = (isoDate: string, time: string): Date => {
+                    const datePart = isoDate.split('T')[0];
+                    return new Date(`${datePart}T${time}`);
+                };
+
+                const programStartDateTime = _combineDateAndTime(programData.startDate, programData.startTime);
+                const checkInOpen = subMinutes(programStartDateTime, 30);
+                const checkInClose = addMinutes(programStartDateTime, 30);
+
+                if (now < checkInOpen) {
+                    setStatus('too_early');
+                    return;
+                }
+
+                if (now > checkInClose) {
+                    setStatus('too_late');
+                    return;
+                }
+
                 setProgram(programData);
 
                 if (configSnap.exists()) {
@@ -178,6 +201,24 @@ export default function PublicAttendancePage() {
                         <Card className="w-full max-w-lg text-center">
                             <CardHeader><AlertCircle className="h-16 w-16 text-destructive mx-auto" /><CardTitle className="mt-4">Borang Tidak Dijumpai</CardTitle></CardHeader>
                             <CardContent><p>Kod QR ini tidak sah atau program telah tamat. Sila dapatkan kod QR yang sah daripada penganjur.</p></CardContent>
+                        </Card>
+                    </div>
+                );
+            case 'too_early':
+                return (
+                    <div className="flex items-center justify-center min-h-screen bg-muted/40 p-4">
+                        <Card className="w-full max-w-lg text-center">
+                            <CardHeader><Clock className="h-16 w-16 text-primary mx-auto" /><CardTitle className="mt-4">Check-in Belum Dibuka</CardTitle></CardHeader>
+                            <CardContent><p>Pendaftaran masuk untuk program ini belum dibuka lagi. Sila cuba sebentar lagi.</p></CardContent>
+                        </Card>
+                    </div>
+                );
+            case 'too_late':
+                return (
+                    <div className="flex items-center justify-center min-h-screen bg-muted/40 p-4">
+                        <Card className="w-full max-w-lg text-center">
+                            <CardHeader><AlertCircle className="h-16 w-16 text-destructive mx-auto" /><CardTitle className="mt-4">Check-in Telah Ditutup</CardTitle></CardHeader>
+                            <CardContent><p>Pendaftaran masuk untuk program ini telah ditutup.</p></CardContent>
                         </Card>
                     </div>
                 );
