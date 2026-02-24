@@ -17,7 +17,7 @@ import { Logo } from "@/components/logo";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useFirestore, useUser } from "@/firebase";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { Eye, EyeOff } from "lucide-react";
 
@@ -32,46 +32,65 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  // This effect handles users who are already logged in when they visit the page.
   useEffect(() => {
-    // If user is logged in, fetch role and redirect
-    if (user && firestore) {
-      setIsSubmitting(true);
-      getDoc(doc(firestore, "users", user.uid)).then(userDoc => {
+    if (user && !isUserLoading && firestore && !isSubmitting) {
+      const userDocRef = doc(firestore, "users", user.uid);
+      getDoc(userDocRef).then(userDoc => {
         if (userDoc.exists()) {
-          const userData = userDoc.data();
-          const role = userData.role;
-          toast({ title: "Login Successful", description: "Welcome back!" });
+          const role = userDoc.data().role;
           router.push(role === 'admin' ? '/admin/dashboard' : '/dashboard');
         } else {
-          toast({ variant: "destructive", title: "Profile not found", description: "Please register again." });
-          router.push('/register');
+          // Inconsistent state: user is authed but has no profile.
+          // Safest action is to sign them out.
+          signOut(auth);
         }
-      }).catch(error => {
-          console.error("Error fetching user role:", error);
-          toast({ variant: "destructive", title: "Error", description: "Failed to get user role." });
-          setIsSubmitting(false);
-      })
+      });
     }
-  }, [user, firestore, router, toast]);
+  }, [user, isUserLoading, firestore, auth, router, isSubmitting]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!email || !password) {
+    if (!email || !password || !auth || !firestore) {
       toast({ variant: "destructive", title: "Please fill all fields" });
       return;
     }
     setIsSubmitting(true);
+    
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      // The useEffect will handle redirection
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const loggedInUser = userCredential.user;
+      
+      const userDocRef = doc(firestore, "users", loggedInUser.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const role = userData.role;
+        toast({ title: "Login Successful", description: "Welcome back!" });
+        router.push(role === 'admin' ? '/admin/dashboard' : '/dashboard');
+      } else {
+        // This handles successful auth but a missing profile, which can happen in a race condition.
+        toast({ 
+            variant: "destructive", 
+            title: "Profile not found", 
+            description: "Your user profile does not exist. Please register again." 
+        });
+        await signOut(auth); // Sign out to clear the broken auth state.
+        router.push('/register');
+      }
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Login Failed", description: "Invalid email or password." });
-      setIsSubmitting(false);
+      toast({ 
+          variant: "destructive", 
+          title: "Login Failed", 
+          description: "Invalid email or password." 
+      });
+      setIsSubmitting(false); // Only set to false on failure, otherwise wait for redirect.
     }
   };
 
-  // Show loading indicator while checking auth state or during login process
-  if (isUserLoading || (isSubmitting && !user)) {
+  // Show a full page loading indicator while checking initial auth state or during login submission.
+  if (isUserLoading || isSubmitting) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center">
@@ -82,8 +101,8 @@ export default function LoginPage() {
     );
   }
 
-  // If user is already logged in (and useEffect is running), don't show the form
-  if(user) {
+  // If the user object exists but we are not in a submission flow, it means they were already logged in.
+  if (user) {
       return (
          <div className="flex items-center justify-center min-h-screen bg-background">
             <div className="text-center">
@@ -91,7 +110,7 @@ export default function LoginPage() {
               <p className="text-muted-foreground">Redirecting you to your dashboard...</p>
             </div>
         </div>
-      )
+      );
   }
 
   return (
@@ -142,7 +161,7 @@ export default function LoginPage() {
               </div>
             </div>
             <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Please wait..." : "Login"}
+              Login
             </Button>
           </form>
           <div className="mt-4 text-center text-sm">
