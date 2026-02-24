@@ -16,9 +16,9 @@ import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/logo";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth, useFirestore, setDocumentNonBlocking } from "@/firebase";
+import { useAuth, useFirestore } from "@/firebase";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { doc, serverTimestamp } from "firebase/firestore";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import {
   Select,
   SelectContent,
@@ -91,7 +91,7 @@ export default function RegisterPage() {
           createdAt: serverTimestamp(),
         };
         
-        setDocumentNonBlocking(userDocRef, userData, { merge: true });
+        await setDoc(userDocRef, userData, { merge: true });
 
         toast({
           title: "Registration Successful",
