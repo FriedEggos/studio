@@ -49,6 +49,16 @@ service cloud.firestore {
       allow update: if isOwner(userId) || isAdmin();
       // Only admins can delete users.
       allow delete: if isAdmin();
+
+      // Achievements sub-collection
+      match /achievements/{achievementId} {
+        // Admins can read any user's achievements.
+        // Students can read their own achievements.
+        allow get, list: if isOwner(userId) || isAdmin();
+        
+        // Only backend/admin processes should write achievements.
+        allow write: if isAdmin(); 
+      }
     }
 
     // Program documents
