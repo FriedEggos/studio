@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -11,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
-import { getDocs, collection, doc, getDoc, query, where, collectionGroup } from "firebase/firestore";
+import { getDocs, collection, doc, getDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { format, parseISO, isToday } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -101,24 +100,28 @@ export default function StudentDashboard() {
                     programsMap.set(doc.id, { id: doc.id, ...doc.data() } as Program);
                 });
 
-                // Step 2: Use a collectionGroup query to get all attendance records for the user
-                const attendanceQuery = query(
-                    collectionGroup(firestore, 'attendances'),
-                    where('email', '==', user.email.toLowerCase())
+                // Step 2: For each program, attempt to fetch the user's specific attendance document.
+                // This avoids the collectionGroup query that requires a special index.
+                const userEmail = user.email.toLowerCase();
+                const attendancePromises = programsSnapshot.docs.map(programDoc => 
+                    getDoc(doc(firestore, 'programs', programDoc.id, 'attendances', userEmail))
                 );
-                const attendanceSnapshots = await getDocs(attendanceQuery);
+                
+                const attendanceSnapshots = await Promise.all(attendancePromises);
 
-                // Step 3: Join attendance records with program data
+                // Step 3: Filter for existing attendances and join with program data
                 const populatedAttendances: AttendedProgram[] = [];
-                attendanceSnapshots.docs.forEach(docSnap => {
-                    const attendance = { id: docSnap.id, ...docSnap.data() } as Attendance;
-                    const program = programsMap.get(attendance.programId);
-                    if (program) {
-                        populatedAttendances.push({
-                            ...attendance,
-                            programTitle: program.title,
-                            programStartDate: program.startDate,
-                        });
+                attendanceSnapshots.forEach(docSnap => {
+                    if (docSnap.exists()) {
+                        const attendance = { id: docSnap.id, ...docSnap.data() } as Attendance;
+                        const program = programsMap.get(attendance.programId);
+                        if (program) {
+                            populatedAttendances.push({
+                                ...attendance,
+                                programTitle: program.title,
+                                programStartDate: program.startDate,
+                            });
+                        }
                     }
                 });
 
