@@ -13,11 +13,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { getDocs, collection, doc, getDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isToday } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Ticket, Star } from "lucide-react";
+import { AlertCircle, Ticket, Star, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 
 // Interfaces for our data structures
@@ -75,6 +77,7 @@ export default function StudentDashboard() {
 
     const [attendedPrograms, setAttendedPrograms] = useState<AttendedProgram[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [programToCheckout, setProgramToCheckout] = useState<AttendedProgram | null>(null);
     
     const userDocRef = useMemoFirebase(() => {
         if (!user || !firestore) return null;
@@ -124,6 +127,12 @@ export default function StudentDashboard() {
                 });
                 
                 setAttendedPrograms(populatedAttendances);
+
+                // Logic to find program needing checkout reminder
+                const reminderProgram = populatedAttendances.find(p => 
+                    !p.checkOutAt && isToday(parseISO(p.programStartDate))
+                );
+                setProgramToCheckout(reminderProgram || null);
 
             } catch (error) {
                 console.error("Error fetching attendance history:", error);
@@ -228,6 +237,19 @@ export default function StudentDashboard() {
 
     return (
         <div className="space-y-8">
+            {programToCheckout && (
+                <Alert className="bg-yellow-100 border-yellow-300 text-yellow-900 [&>svg]:text-yellow-800">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle className="font-bold">Peringatan</AlertTitle>
+                    <AlertDescription className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+                        <span>Anda belum melakukan Check-out untuk acara <strong>{programToCheckout.programTitle}</strong>. Sila lakukan segera!</span>
+                        <Button asChild size="sm" className="bg-yellow-800 text-white hover:bg-yellow-900 mt-2 md:mt-0">
+                            <Link href={`/checkout/${programToCheckout.programId}`}>Check Out Sekarang</Link>
+                        </Button>
+                    </AlertDescription>
+                </Alert>
+            )}
+
             <div className="space-y-2">
                 <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
                     My Attendance
