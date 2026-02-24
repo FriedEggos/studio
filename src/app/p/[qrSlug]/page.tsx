@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -48,7 +47,7 @@ type ErrorState = {
 
 const classOptions = [
     "DIT1A", "DIT1C", "DIT2A", "DIT2B", "DIT2C", "DIT2D", "DIT3A", "DIT3C",
-    "DIT4A", "DIT4B", "DIT4C", "DIT4D", "DIT5A", "DIT5B", "LAIN-LAIN"
+    "DIT4A", "DIT4B", "DIT4C", "DIT4D", "DIT5A", "DIT5C", "LAIN-LAIN"
 ];
 
 export default function PublicAttendancePage() {
