@@ -4,6 +4,14 @@
 import { doc, updateDoc, Firestore, serverTimestamp, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { differenceInMinutes, parseISO, subMinutes } from 'date-fns';
 
+// Helper to combine ISO date string and HH:mm time string into a Date object
+function _combineDateAndTime(isoDate: string, time: string): Date {
+    // Zod validation on the form ensures time is in "HH:mm" format.
+    const datePart = isoDate.split('T')[0];
+    return new Date(`${datePart}T${time}`);
+}
+
+
 /**
  * Creates a new attendance record (check-in) after performing validation.
  * @param db Firestore instance.
@@ -25,15 +33,18 @@ export async function createCheckIn(
     }
 
     const program = programSnap.data();
-    const programStart = parseISO(program.startDate);
-    const programEnd = parseISO(program.endDate);
-    const checkInOpen = subMinutes(programStart, 15);
+    
+    // Correctly combine date and time for validation
+    const programStartDateTime = _combineDateAndTime(program.startDate, program.startTime);
+    const programEndDateTime = _combineDateAndTime(program.endDate, program.endTime);
+    
+    const checkInOpen = subMinutes(programStartDateTime, 15); // Check-in opens 15 mins before start time
 
     // Validate check-in time
     if (now < checkInOpen) {
         return { status: 'too_early', message: 'Check-in has not opened yet.' };
     }
-    if (now > programEnd) {
+    if (now > programEndDateTime) {
         return { status: 'too_late', message: 'Check-in has already closed.' };
     }
     
