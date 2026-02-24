@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
-import { getDocs, collection, doc, getDoc } from "firebase/firestore";
+import { getDocs, collection, doc, getDoc, query, where, collectionGroup } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { format, parseISO, isToday } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -94,26 +94,26 @@ export default function StudentDashboard() {
 
             setIsLoading(true);
             try {
+                // Step 1: Fetch all programs and create a Map for quick lookup
                 const programsSnapshot = await getDocs(collection(firestore, 'programs'));
-                const programs = programsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Program[];
+                const programsMap = new Map<string, Program>();
+                programsSnapshot.docs.forEach(doc => {
+                    programsMap.set(doc.id, { id: doc.id, ...doc.data() } as Program);
+                });
 
-                if (programs.length === 0) {
-                    setAttendedPrograms([]);
-                    setIsLoading(false);
-                    return;
-                }
-
-                const attendancePromises = programs.map(p => 
-                    getDoc(doc(firestore, `programs/${p.id}/attendances`, user.email!.toLowerCase()))
+                // Step 2: Use a collectionGroup query to get all attendance records for the user
+                const attendanceQuery = query(
+                    collectionGroup(firestore, 'attendances'),
+                    where('email', '==', user.email.toLowerCase())
                 );
-                
-                const attendanceSnapshots = await Promise.all(attendancePromises);
+                const attendanceSnapshots = await getDocs(attendanceQuery);
 
+                // Step 3: Join attendance records with program data
                 const populatedAttendances: AttendedProgram[] = [];
-                attendanceSnapshots.forEach((attendanceSnap, index) => {
-                    if (attendanceSnap.exists()) {
-                        const program = programs[index];
-                        const attendance = { id: attendanceSnap.id, ...attendanceSnap.data() } as Attendance;
+                attendanceSnapshots.docs.forEach(docSnap => {
+                    const attendance = { id: docSnap.id, ...docSnap.data() } as Attendance;
+                    const program = programsMap.get(attendance.programId);
+                    if (program) {
                         populatedAttendances.push({
                             ...attendance,
                             programTitle: program.title,
@@ -122,6 +122,7 @@ export default function StudentDashboard() {
                     }
                 });
 
+                // Step 4: Sort and set state
                 populatedAttendances.sort((a, b) => {
                     const dateA = a.createdAt?.toDate()?.getTime() || 0;
                     const dateB = b.createdAt?.toDate()?.getTime() || 0;
@@ -130,7 +131,7 @@ export default function StudentDashboard() {
                 
                 setAttendedPrograms(populatedAttendances);
 
-                // Logic to find program needing checkout reminder
+                // Step 5: Find program needing checkout reminder
                 const reminderProgram = populatedAttendances.find(p => 
                     !p.checkOutAt && isToday(parseISO(p.programStartDate))
                 );
@@ -149,7 +150,7 @@ export default function StudentDashboard() {
             setIsLoading(false);
         }
     }, [user, firestore, isUserLoading]);
-
+    
     const handleCheckout = (programId: string) => {
         router.push(`/checkout/${programId}`);
     };
@@ -256,8 +257,8 @@ export default function StudentDashboard() {
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle className="font-bold">Peringatan</AlertTitle>
                     <AlertDescription className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-                        <span>Peringatan: Anda belum melakukan Check-out untuk acara <strong>{programToCheckout.programTitle}</strong>. Sila lakukan segera!</span>
-                        <Button asChild size="sm" className="bg-yellow-800 text-white hover:bg-yellow-900 mt-2 md:mt-0">
+                        <span>Peringatan: Anda belum melakukan Check-out untuk program <strong>{programToCheckout.programTitle}</strong>. Sila lakukan segera!</span>
+                        <Button asChild size="sm" className="bg-[#966b2d] text-white hover:bg-[#966b2d]/90 mt-2 md:mt-0">
                             <Link href={`/checkout/${programToCheckout.programId}`}>Check Out Sekarang</Link>
                         </Button>
                     </AlertDescription>
