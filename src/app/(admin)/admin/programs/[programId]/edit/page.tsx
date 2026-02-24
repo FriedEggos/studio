@@ -13,8 +13,8 @@ import * as z from "zod";
 import { useUser, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter, useParams } from "next/navigation";
-import { doc, writeBatch, serverTimestamp, getDoc } from "firebase/firestore";
-import { format, parseISO } from "date-fns";
+import { doc, writeBatch, getDoc, Timestamp } from "firebase/firestore";
+import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
@@ -67,9 +67,7 @@ const programFormSchema = z.object({
 }).refine(data => {
     const combine = (date?: Date, time?: string): Date | undefined => {
       if (!date || !time) return undefined;
-      const timeParts = time.split(':');
-      if (timeParts.length !== 2) return undefined;
-      const [h, m] = timeParts.map(Number);
+      const [h, m] = time.split(':').map(Number);
       if (isNaN(h) || isNaN(m)) return undefined;
       const d = new Date(date);
       d.setHours(h, m, 0, 0);
@@ -144,17 +142,20 @@ export default function EditProgramPage() {
                 const programData = programSnap.data();
                 const configData = configSnap.exists() ? configSnap.data() : {};
 
-                const openTime = programData.checkOutOpenTime ? parseISO(programData.checkOutOpenTime) : null;
-                const closeTime = programData.checkOutCloseTime ? parseISO(programData.checkOutCloseTime) : null;
+                const startDateTime = (programData.startDateTime as Timestamp).toDate();
+                const endDateTime = (programData.endDateTime as Timestamp).toDate();
+
+                const openTime = programData.checkOutOpenTime ? (programData.checkOutOpenTime as Timestamp).toDate() : null;
+                const closeTime = programData.checkOutCloseTime ? (programData.checkOutCloseTime as Timestamp).toDate() : null;
 
                 form.reset({
                     title: programData.title,
                     description: programData.description,
                     location: programData.location,
-                    startDate: parseISO(programData.startDate),
-                    startTime: programData.startTime,
-                    endDate: parseISO(programData.endDate),
-                    endTime: programData.endTime,
+                    startDate: startDateTime,
+                    startTime: format(startDateTime, 'HH:mm'),
+                    endDate: endDateTime,
+                    endTime: format(endDateTime, 'HH:mm'),
                     status: programData.status,
                     qrSlug: programData.qrSlug,
                     redirectUrl: programData.redirectUrl,
@@ -199,27 +200,39 @@ export default function EditProgramPage() {
             const newSlugDocRef = doc(firestore, "qrSlugs", newSlug);
             batch.set(newSlugDocRef, { programId });
 
-            const combineDateAndTime = (date?: Date, time?: string): string | null => {
-                if (!date || !time) return null;
-                const d = new Date(date);
-                const [h, m] = time.split(':').map(Number);
-                d.setHours(h, m, 0, 0);
-                return d.toISOString();
-            }
+            const combineDateAndTime = (date: Date, time: string): Date => {
+                const [hours, minutes] = time.split(':').map(Number);
+                const newDate = new Date(date);
+                newDate.setHours(hours, minutes, 0, 0);
+                return newDate;
+            };
+
+            const startDateTime = combineDateAndTime(data.startDate, data.startTime);
+            const endDateTime = combineDateAndTime(data.endDate, data.endTime);
+            const checkInOpenTime = new Date(startDateTime.getTime() - 30 * 60 * 1000);
+            const checkInCloseTime = new Date(startDateTime.getTime() + 30 * 60 * 1000);
+            
+            const checkOutOpenDateTime = data.checkOutOpenDate && data.checkOutOpenStartTime
+                ? combineDateAndTime(data.checkOutOpenDate, data.checkOutOpenStartTime)
+                : null;
+            const checkOutCloseDateTime = data.checkOutCloseDate && data.checkOutCloseEndTime
+                ? combineDateAndTime(data.checkOutCloseDate, data.checkOutCloseEndTime)
+                : null;
+
 
             const programData = {
                 title: data.title,
                 description: data.description,
                 location: data.location,
-                startDate: data.startDate.toISOString(),
-                startTime: data.startTime,
-                endDate: data.endDate.toISOString(),
-                endTime: data.endTime,
+                startDateTime: startDateTime,
+                endDateTime: endDateTime,
+                checkInOpenTime: checkInOpenTime,
+                checkInCloseTime: checkInCloseTime,
                 status: data.status,
                 qrSlug: newSlug,
                 redirectUrl: data.redirectUrl || "",
-                checkOutOpenTime: combineDateAndTime(data.checkOutOpenDate, data.checkOutOpenStartTime),
-                checkOutCloseTime: combineDateAndTime(data.checkOutCloseDate, data.checkOutCloseEndTime),
+                checkOutOpenTime: checkOutOpenDateTime,
+                checkOutCloseTime: checkOutCloseDateTime,
             };
             batch.update(programDocRef, programData);
 

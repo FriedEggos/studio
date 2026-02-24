@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, Timestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,15 +16,14 @@ import { AlertCircle, CheckCircle, Loader2, Clock } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { createCheckIn } from '@/lib/attendance';
-import { addMinutes, subMinutes } from 'date-fns';
 
 interface Program {
     id: string;
     title: string;
     description: string;
     redirectUrl?: string;
-    startDate: string;
-    startTime: string;
+    checkInOpenTime: Timestamp;
+    checkInCloseTime: Timestamp;
 }
 
 interface ProgramConfig {
@@ -120,14 +120,9 @@ export default function PublicAttendancePage() {
                 const programData = { id: programSnap.id, ...programSnap.data() } as Program;
                 
                 const now = new Date();
-                const _combineDateAndTime = (isoDate: string, time: string): Date => {
-                    const datePart = isoDate.split('T')[0];
-                    return new Date(`${datePart}T${time}`);
-                };
+                const checkInOpen = programData.checkInOpenTime.toDate();
+                const checkInClose = programData.checkInCloseTime.toDate();
 
-                const programStartDateTime = _combineDateAndTime(programData.startDate, programData.startTime);
-                const checkInOpen = subMinutes(programStartDateTime, 30);
-                const checkInClose = addMinutes(programStartDateTime, 30);
 
                 if (now < checkInOpen) {
                     setStatus('too_early');

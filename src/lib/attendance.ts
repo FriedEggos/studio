@@ -1,15 +1,8 @@
+
 'use client';
 
 import { doc, updateDoc, Firestore, serverTimestamp, getDoc, setDoc, Timestamp } from 'firebase/firestore';
-import { differenceInMinutes, parseISO, subMinutes, addMinutes } from 'date-fns';
-
-// Helper to combine ISO date string and HH:mm time string into a Date object
-function _combineDateAndTime(isoDate: string, time: string): Date {
-    // Zod validation on the form ensures time is in "HH:mm" format.
-    const datePart = isoDate.split('T')[0];
-    return new Date(`${datePart}T${time}`);
-}
-
+import { differenceInMinutes, parseISO } from 'date-fns';
 
 /**
  * Creates a new attendance record (check-in) after performing validation.
@@ -33,11 +26,8 @@ export async function createCheckIn(
 
     const program = programSnap.data();
     
-    // Correctly combine date and time for validation
-    const programStartDateTime = _combineDateAndTime(program.startDate, program.startTime);
-    
-    const checkInOpen = subMinutes(programStartDateTime, 30); // Check-in opens 30 mins before start
-    const checkInClose = addMinutes(programStartDateTime, 30); // Check-in closes 30 mins after start
+    const checkInOpen = (program.checkInOpenTime as Timestamp).toDate();
+    const checkInClose = (program.checkInCloseTime as Timestamp).toDate();
 
     // Validate check-in time
     if (now < checkInOpen) {
@@ -99,8 +89,8 @@ export async function submitCheckout(
     }
 
     const checkInAt = (attendanceData.createdAt as Timestamp).toDate();
-    const checkOutOpenTime = programData?.checkOutOpenTime ? parseISO(programData.checkOutOpenTime) : null;
-    const checkOutCloseTime = programData?.checkOutCloseTime ? parseISO(programData.checkOutCloseTime) : null;
+    const checkOutOpenTime = programData?.checkOutOpenTime ? (programData.checkOutOpenTime as Timestamp).toDate() : null;
+    const checkOutCloseTime = programData?.checkOutCloseTime ? (programData.checkOutCloseTime as Timestamp).toDate() : null;
     const durationMinutes = differenceInMinutes(now, checkInAt);
     
     let checkOutStatus: string = "ok";

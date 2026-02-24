@@ -9,14 +9,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, collection, deleteDoc } from "firebase/firestore";
+import { doc, collection, deleteDoc, Timestamp } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, Users, Download, Trash2, ChevronDown, FileSpreadsheet, FileText, MoreHorizontal, Clock } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 import { exportToCsv } from "@/lib/csv-exporter";
 import {
@@ -56,10 +56,8 @@ interface Program {
   title: string;
   description: string;
   location: string;
-  startDate: string;
-  startTime: string;
-  endDate: string;
-  endTime: string;
+  startDateTime: Timestamp;
+  endDateTime: Timestamp;
   status: 'upcoming' | 'ongoing' | 'completed';
   qrSlug: string;
   redirectUrl?: string;
@@ -347,8 +345,8 @@ export default function ProgramDetailsPage() {
                  <Card>
                     <CardHeader> <CardTitle className="text-lg flex items-center gap-2"><Calendar className="h-5 w-5" /> Dates & Times</CardTitle> </CardHeader>
                     <CardContent>
-                        <p><strong>Start:</strong> {format(parseISO(program.startDate), 'PPP')} at {program.startTime}</p>
-                        <p><strong>End:</strong> {format(parseISO(program.endDate), 'PPP')} at {program.endTime}</p>
+                        <p><strong>Start:</strong> {format(program.startDateTime.toDate(), 'PPP, p')}</p>
+                        <p><strong>End:</strong> {format(program.endDateTime.toDate(), 'PPP, p')}</p>
                     </CardContent>
                 </Card>
                  <Card>

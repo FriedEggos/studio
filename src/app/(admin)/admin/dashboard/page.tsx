@@ -40,18 +40,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, query, orderBy, writeBatch, getDocs, doc } from "firebase/firestore";
+import { collection, query, orderBy, writeBatch, getDocs, doc, Timestamp } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 
 type Program = {
     id: string;
     title: string;
-    startDate: string;
-    startTime: string;
-    endDate: string;
-    endTime: string;
+    startDateTime: Timestamp;
+    endDateTime: Timestamp;
     status: 'upcoming' | 'ongoing' | 'completed';
     qrSlug: string;
 };
@@ -191,7 +189,7 @@ export default function AdminDashboard() {
                                 <TableCell>
                                 <div className="font-medium">{program.title}</div>
                                 <div className="text-sm text-muted-foreground hidden md:inline">
-                                    {format(parseISO(program.startDate), "d MMM yyyy")} @ {program.startTime}
+                                    {format(program.startDateTime.toDate(), "d MMM yyyy @ HH:mm")}
                                 </div>
                                 </TableCell>
                                 <TableCell>

@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { getDocs, collection, doc, getDoc, Timestamp, updateDoc } from "firebase/firestore";
 import { useEffect, useState, useCallback } from "react";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Ticket, AlertTriangle, Loader2 } from "lucide-react";
@@ -36,19 +36,17 @@ interface Attendance {
 interface Program {
     id: string;
     title: string;
-    startDate: string; // ISO string
-    endDate: string; // ISO string
-    endTime: string; // HH:mm string
-    checkOutOpenTime?: string; // ISO string
-    checkOutCloseTime?: string; // ISO string
+    startDateTime: Timestamp;
+    endDateTime: Timestamp;
+    checkOutOpenTime?: Timestamp;
+    checkOutCloseTime?: Timestamp;
 }
 
 // Combined type for easy rendering
 type AttendedProgram = Attendance & {
     programTitle: string;
-    programStartDate: string;
-    programEndDate: string;
-    programEndTime: string;
+    programStartDateTime: Timestamp;
+    programEndDateTime: Timestamp;
 };
 
 const CheckoutStatusBadge = ({ attendance }: { attendance: AttendedProgram }) => {
@@ -119,9 +117,8 @@ export default function StudentDashboard() {
                         populatedAttendances.push({
                             ...attendance,
                             programTitle: program.title,
-                            programStartDate: program.startDate,
-                            programEndDate: program.endDate,
-                            programEndTime: program.endTime,
+                            programStartDateTime: program.startDateTime,
+                            programEndDateTime: program.endDateTime,
                         });
                     }
                 }
@@ -130,15 +127,10 @@ export default function StudentDashboard() {
             populatedAttendances.sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
             setAttendedPrograms(populatedAttendances);
             
-            const _combineDateAndTime = (isoDate: string, time: string): Date => {
-                const datePart = isoDate.split('T')[0];
-                return new Date(`${datePart}T${time}`);
-            };
-
             const now = new Date();
             const reminderProgram = populatedAttendances.find(p => {
-                if (p.checkOutAt || !p.programEndDate || !p.programEndTime) return false;
-                const programEndDateTime = _combineDateAndTime(p.programEndDate, p.programEndTime);
+                if (p.checkOutAt || !p.programEndDateTime) return false;
+                const programEndDateTime = p.programEndDateTime.toDate();
                 const cutoff3Hours = new Date(programEndDateTime.getTime() + 3 * 60 * 60 * 1000);
                 return now <= cutoff3Hours;
             });
@@ -165,11 +157,6 @@ export default function StudentDashboard() {
         const studentEmail = user.email.toLowerCase();
         const programDocRef = doc(firestore, 'programs', programId);
         const attendanceDocRef = doc(firestore, 'programs', programId, 'attendances', studentEmail);
-
-        const _combineDateAndTime = (isoDate: string, time: string): Date => {
-            const datePart = isoDate.split('T')[0];
-            return new Date(`${datePart}T${time}`);
-        };
 
         try {
             const [programSnap, attendanceSnap] = await Promise.all([
@@ -203,8 +190,8 @@ export default function StudentDashboard() {
             }
             
             // Rule D — Hard cut-off
-            if (!checkOutStatus && program.endDate && program.endTime) {
-                const endDateTime = _combineDateAndTime(program.endDate, program.endTime);
+            if (!checkOutStatus && program.endDateTime) {
+                const endDateTime = program.endDateTime.toDate();
                 const cutoff3Hours = new Date(endDateTime.getTime() + 3 * 60 * 60 * 1000);
                 if (now > cutoff3Hours) {
                     checkOutStatus = "outside_window";
@@ -213,8 +200,8 @@ export default function StudentDashboard() {
 
             // Rule B — Must be inside admin check-out window
             if (!checkOutStatus) {
-                const checkOutOpenTime = program.checkOutOpenTime ? parseISO(program.checkOutOpenTime) : null;
-                const checkOutCloseTime = program.checkOutCloseTime ? parseISO(program.checkOutCloseTime) : null;
+                const checkOutOpenTime = program.checkOutOpenTime ? program.checkOutOpenTime.toDate() : null;
+                const checkOutCloseTime = program.checkOutCloseTime ? program.checkOutCloseTime.toDate() : null;
                 if ((checkOutOpenTime && now < checkOutOpenTime) || (checkOutCloseTime && now > checkOutCloseTime)) {
                     checkOutStatus = "outside_window";
                 }
@@ -295,7 +282,7 @@ export default function StudentDashboard() {
                     <Card key={`${item.programId}-${item.id}`} className="rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col">
                         <CardHeader>
                             <CardTitle className="font-bold">{item.programTitle}</CardTitle>
-                            <CardDescription>{format(parseISO(item.programStartDate), 'd MMMM yyyy')}</CardDescription>
+                            <CardDescription>{format(item.programStartDateTime.toDate(), 'd MMMM yyyy')}</CardDescription>
                         </CardHeader>
                         <CardContent className="flex-grow grid grid-cols-2 gap-4 text-sm">
                             <div> <p className="font-medium text-muted-foreground">Check-in</p> <p>{item.createdAt ? format(item.createdAt.toDate(), 'p, d MMM') : 'N/A'}</p> </div>

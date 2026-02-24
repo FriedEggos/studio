@@ -66,9 +66,7 @@ const programFormSchema = z.object({
 }).refine(data => {
     const combine = (date?: Date, time?: string): Date | undefined => {
       if (!date || !time) return undefined;
-      const timeParts = time.split(':');
-      if (timeParts.length !== 2) return undefined;
-      const [h, m] = timeParts.map(Number);
+      const [h, m] = time.split(':').map(Number);
       if (isNaN(h) || isNaN(m)) return undefined;
       const d = new Date(date);
       d.setHours(h, m, 0, 0);
@@ -130,29 +128,40 @@ export default function CreateProgramPage() {
         try {
             const programCollectionRef = collection(firestore, "programs");
 
-            const combineDateAndTime = (date?: Date, time?: string): string | null => {
-                if (!date || !time) return null;
-                const d = new Date(date);
-                const [h, m] = time.split(':').map(Number);
-                d.setHours(h, m, 0, 0);
-                return d.toISOString();
-            }
+            const combineDateAndTime = (date: Date, time: string): Date => {
+                const [hours, minutes] = time.split(':').map(Number);
+                const newDate = new Date(date);
+                newDate.setHours(hours, minutes, 0, 0);
+                return newDate;
+            };
+
+            const startDateTime = combineDateAndTime(data.startDate, data.startTime);
+            const endDateTime = combineDateAndTime(data.endDate, data.endTime);
+            const checkInOpenTime = new Date(startDateTime.getTime() - 30 * 60 * 1000);
+            const checkInCloseTime = new Date(startDateTime.getTime() + 30 * 60 * 1000);
+
+            const checkOutOpenDateTime = data.checkOutOpenDate && data.checkOutOpenStartTime
+                ? combineDateAndTime(data.checkOutOpenDate, data.checkOutOpenStartTime)
+                : null;
+            const checkOutCloseDateTime = data.checkOutCloseDate && data.checkOutCloseEndTime
+                ? combineDateAndTime(data.checkOutCloseDate, data.checkOutCloseEndTime)
+                : null;
 
             const programData = {
                 title: data.title,
                 description: data.description,
                 location: data.location,
-                startDate: data.startDate.toISOString(),
-                startTime: data.startTime,
-                endDate: data.endDate.toISOString(),
-                endTime: data.endTime,
+                startDateTime: startDateTime,
+                endDateTime: endDateTime,
+                checkInOpenTime: checkInOpenTime,
+                checkInCloseTime: checkInCloseTime,
                 status: data.status,
                 qrSlug: finalQrSlug,
                 redirectUrl: data.redirectUrl || "",
                 createdBy: user.uid,
                 createdAt: serverTimestamp(),
-                checkOutOpenTime: combineDateAndTime(data.checkOutOpenDate, data.checkOutOpenStartTime),
-                checkOutCloseTime: combineDateAndTime(data.checkOutCloseDate, data.checkOutCloseEndTime),
+                checkOutOpenTime: checkOutOpenDateTime,
+                checkOutCloseTime: checkOutCloseDateTime,
             };
             const programDocRef = await addDoc(programCollectionRef, programData);
             const programId = programDocRef.id;
