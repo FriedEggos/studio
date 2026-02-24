@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -18,20 +18,32 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { List, MoreHorizontal } from "lucide-react";
+import { List, MoreHorizontal, Trash2, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, query, orderBy } from "firebase/firestore";
+import { collection, query, orderBy, writeBatch, getDocs, doc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
-import { isFuture, isPast, parseISO, format } from 'date-fns';
+import { useToast } from "@/hooks/use-toast";
+import { format, parseISO } from 'date-fns';
 
 type Program = {
     id: string;
@@ -46,6 +58,11 @@ type Program = {
 
 export default function AdminDashboard() {
   const firestore = useFirestore();
+  const { toast } = useToast();
+  
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [programToDelete, setProgramToDelete] = useState<Program | null>(null);
 
   const programsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -53,6 +70,54 @@ export default function AdminDashboard() {
   }, [firestore]);
   
   const { data: programs, isLoading: isLoadingPrograms } = useCollection<Program>(programsQuery);
+
+  const handleDeleteProgram = async () => {
+    if (!firestore || !programToDelete) return;
+    setIsDeleting(true);
+
+    try {
+      const batch = writeBatch(firestore);
+
+      // Delete attendances subcollection
+      const attendancesColRef = collection(firestore, 'programs', programToDelete.id, 'attendances');
+      const attendancesSnapshot = await getDocs(attendancesColRef);
+      attendancesSnapshot.forEach((doc) => batch.delete(doc.ref));
+
+      // Delete program config
+      const configDocRef = doc(firestore, 'programConfigs', programToDelete.id);
+      batch.delete(configDocRef);
+
+      // Delete QR slug mapping
+      if (programToDelete.qrSlug) {
+        const slugDocRef = doc(firestore, 'qrSlugs', programToDelete.qrSlug);
+        batch.delete(slugDocRef);
+      }
+      
+      // Delete the main program document
+      const programDocRef = doc(firestore, 'programs', programToDelete.id);
+      batch.delete(programDocRef);
+
+      await batch.commit();
+
+      toast({
+        title: "Program Deleted",
+        description: `"${programToDelete.title}" and all its data have been removed.`,
+      });
+
+    } catch (error) {
+      console.error("Error deleting program:", error);
+      toast({
+        variant: "destructive",
+        title: "Deletion Failed",
+        description: "An error occurred while deleting the program.",
+      });
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
+      setProgramToDelete(null);
+    }
+  };
+
 
   const StatCard = ({ title, icon: Icon, value, isLoading, description }: { title: string, icon: React.ElementType, value: number, isLoading: boolean, description: string }) => (
     <Card>
@@ -137,7 +202,7 @@ export default function AdminDashboard() {
                                     <DropdownMenuTrigger asChild>
                                     <Button size="icon" variant="ghost">
                                         <MoreHorizontal className="h-4 w-4" />
-                                        <span className="sr-only">Actions</span>
+                                        <span className="sr-only">Actions for {program.title}</span>
                                     </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
@@ -150,6 +215,18 @@ export default function AdminDashboard() {
                                     </DropdownMenuItem>
                                     <DropdownMenuItem asChild>
                                         <Link href={`/admin/programs/${program.id}/edit`}>Edit Program</Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                        onSelect={(e) => {
+                                          e.preventDefault();
+                                          setProgramToDelete(program);
+                                          setIsDeleteDialogOpen(true);
+                                        }}
+                                        className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                                      >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Delete Program
                                     </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
@@ -168,6 +245,32 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
       </div>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Program</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the program "{programToDelete?.title}"? This will permanently delete the program, its QR code link, its configuration, and all associated attendance records.
+              <br/><br/>
+              <strong className="text-destructive">This action cannot be undone.</strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setProgramToDelete(null)} disabled={isDeleting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className={buttonVariants({ variant: "destructive" })}
+              onClick={handleDeleteProgram}
+              disabled={isDeleting}
+            >
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
