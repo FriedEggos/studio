@@ -18,7 +18,6 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Ticket, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { MinimalCalendar } from '@/components/ui/minimal-calendar';
 
 
 // Interfaces for our data structures
@@ -143,7 +142,7 @@ export default function StudentDashboard() {
     const renderContent = () => {
         if (isLoading || isUserLoading || isProfileLoading) {
             return (
-                <div className="grid gap-6">
+                <div className="grid gap-6 md:grid-cols-2">
                     {[...Array(2)].map((_, i) => (
                         <Card key={i} className="rounded-xl">
                             <CardHeader>
@@ -200,38 +199,28 @@ export default function StudentDashboard() {
         }
 
         return (
-            <div className="grid md:grid-cols-2 gap-8 items-start">
-                <div className="space-y-6">
-                    {attendedPrograms.map(item => (
-                        <Card key={`${item.programId}-${item.email}`} className="rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col">
-                            <CardHeader>
-                                <CardTitle className="font-bold">{item.programTitle}</CardTitle>
-                                <CardDescription>{format(parseISO(item.programStartDate), 'd MMMM yyyy')}</CardDescription>
-                            </CardHeader>
-                            <CardContent className="flex-grow grid grid-cols-2 gap-4 text-sm">
-                                <div>
-                                    <p className="font-medium text-muted-foreground">Check-in</p>
-                                    <p>{item.createdAt ? format(item.createdAt.toDate(), 'p, d MMM') : 'N/A'}</p>
-                                </div>
-                                 <div>
-                                    <p className="font-medium text-muted-foreground">Check-out</p>
-                                    <p>{item.checkOutAt ? format(item.checkOutAt.toDate(), 'p, d MMM') : '-'}</p>
-                                </div>
-                            </CardContent>
-                            <CardFooter>
-                                <CheckoutStatusBadge attendance={item} />
-                            </CardFooter>
-                        </Card>
-                    ))}
-                </div>
-                <div className="sticky top-24">
-                     <MinimalCalendar
-                        year={new Date().getFullYear()}
-                        month={new Date().getMonth()}
-                        selectedDay={20}
-                        secondaryDay={29}
-                    />
-                </div>
+            <div className="grid gap-6 md:grid-cols-2">
+                {attendedPrograms.map(item => (
+                    <Card key={`${item.programId}-${item.email}`} className="rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col">
+                        <CardHeader>
+                            <CardTitle className="font-bold">{item.programTitle}</CardTitle>
+                            <CardDescription>{format(parseISO(item.programStartDate), 'd MMMM yyyy')}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex-grow grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <p className="font-medium text-muted-foreground">Check-in</p>
+                                <p>{item.createdAt ? format(item.createdAt.toDate(), 'p, d MMM') : 'N/A'}</p>
+                            </div>
+                             <div>
+                                <p className="font-medium text-muted-foreground">Check-out</p>
+                                <p>{item.checkOutAt ? format(item.checkOutAt.toDate(), 'p, d MMM') : '-'}</p>
+                            </div>
+                        </CardContent>
+                        <CardFooter>
+                            <CheckoutStatusBadge attendance={item} />
+                        </CardFooter>
+                    </Card>
+                ))}
             </div>
         );
     };
