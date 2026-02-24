@@ -200,6 +200,36 @@ export default function ProgramDetailsPage() {
       },
     });
 
+    const finalY = (doc as any).lastAutoTable.finalY || 100; // Get Y position after table
+
+    // Signature block logic
+    const addSignatureBlock = (startY: number) => {
+        doc.setFontSize(12);
+        doc.text('Pengesahan Kehadiran Program', 14, startY);
+        
+        doc.setFontSize(10);
+
+        // Signature 1: Pengarah Program
+        const signatureY = startY + 20;
+        doc.text('_______________________________', 14, signatureY);
+        doc.text('Pengarah Program', 14, signatureY + 5);
+        doc.text('Nama:', 14, signatureY + 10);
+        doc.text('Tarikh:', 14, signatureY + 15);
+
+        // Signature 2: Penyelaras Kelab ICT JTMK
+        doc.text('_______________________________', 115, signatureY);
+        doc.text('Penyelaras Kelab ICT JTMK', 115, signatureY + 5);
+        doc.text('Nama:', 115, signatureY + 10);
+        doc.text('Tarikh:', 115, signatureY + 15);
+    };
+
+    if (finalY > 220) { // If table is too long, add a new page for signatures
+        doc.addPage();
+        addSignatureBlock(20); // Add block at the top of the new page
+    } else {
+        addSignatureBlock(finalY + 15); // Add block after the table on the same page
+    }
+
     doc.save(`attendance_${program?.title.replace(/\s+/g, '_') ?? 'export'}.pdf`);
   };
 
