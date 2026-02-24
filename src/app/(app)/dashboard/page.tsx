@@ -242,7 +242,7 @@ export default function StudentDashboard() {
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle className="font-bold">Peringatan</AlertTitle>
                     <AlertDescription className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-                        <span>Anda belum melakukan Check-out untuk acara <strong>{programToCheckout.programTitle}</strong>. Sila lakukan segera!</span>
+                        <span>Peringatan: Anda belum melakukan Check-out untuk program <strong>{programToCheckout.programTitle}</strong>. Sila lakukan segera!</span>
                         <Button asChild size="sm" className="bg-yellow-800 text-white hover:bg-yellow-900 mt-2 md:mt-0">
                             <Link href={`/checkout/${programToCheckout.programId}`}>Check Out Sekarang</Link>
                         </Button>
