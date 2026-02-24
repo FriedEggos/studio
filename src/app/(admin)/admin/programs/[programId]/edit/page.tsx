@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from "@/components/ui/button";
@@ -39,8 +40,6 @@ const programFormSchema = z.object({
   // Config fields
   copywriting: z.string().optional(),
   requireStudentId: z.boolean().default(false),
-  requirePhone: z.boolean().default(false),
-  requireClass: z.boolean().default(false),
   customInput1Enabled: z.boolean().default(false),
   customInput1Label: z.string().optional(),
   customInput2Enabled: z.boolean().default(false),
@@ -108,8 +107,6 @@ export default function EditProgramPage() {
             redirectUrl: "",
             copywriting: "",
             requireStudentId: true,
-            requirePhone: false,
-            requireClass: false,
             customInput1Enabled: false,
             customInput1Label: "",
             customInput2Enabled: false,
@@ -248,9 +245,7 @@ export default function EditProgramPage() {
                 copywriting: data.copywriting || "",
                 fields: {
                     requireStudentId: data.requireStudentId,
-                    requirePhone: data.requirePhone,
                     requireEmail: true,
-                    requireClass: data.requireClass,
                     customInput1Enabled: data.customInput1Enabled,
                     customInput1Label: data.customInput1Label || "",
                     customInput2Enabled: data.customInput2Enabled,
@@ -360,8 +355,24 @@ export default function EditProgramPage() {
                                </div>
                                <FormControl><Switch checked={true} disabled /></FormControl>
                            </FormItem>
-                           <FormField name="requirePhone" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3"><div className="space-y-0.5"><FormLabel>Require Phone Number</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
-                           <FormField name="requireClass" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3"><div className="space-y-0.5"><FormLabel>Require Class</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
+                           <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 bg-muted/50">
+                               <div className="space-y-0.5">
+                                   <FormLabel>Require Phone Number</FormLabel>
+                                   <FormDescription className="text-xs">
+                                       Now required for all programs.
+                                   </FormDescription>
+                               </div>
+                               <FormControl><Switch checked={true} disabled /></FormControl>
+                           </FormItem>
+                           <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 bg-muted/50">
+                               <div className="space-y-0.5">
+                                   <FormLabel>Require Class</FormLabel>
+                                    <FormDescription className="text-xs">
+                                       Now required for all programs.
+                                   </FormDescription>
+                               </div>
+                               <FormControl><Switch checked={true} disabled /></FormControl>
+                           </FormItem>
                         </div>
                         
                         <CardTitle className="text-base pt-4">Custom Fields</CardTitle>

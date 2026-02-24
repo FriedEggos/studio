@@ -30,9 +30,9 @@ interface ProgramConfig {
     copywriting?: string;
     fields: {
         requireStudentId?: boolean;
-        requirePhone?: boolean;
+        // requirePhone?: boolean; // Obsolete
+        // requireClass?: boolean; // Obsolete
         requireEmail?: boolean;
-        requireClass?: boolean;
         customInput1Enabled?: boolean;
         customInput1Label?: string;
         customInput2Enabled?: boolean;
@@ -48,7 +48,7 @@ type ErrorState = {
 
 const classOptions = [
     "DIT1A", "DIT1C", "DIT2A", "DIT2B", "DIT2C", "DIT2D", "DIT3A", "DIT3C",
-    "DIT4A", "DIT4B", "DIT4C", "DIT4D", "DIT5A", "DIT5C", "LAIN-LAIN"
+    "DIT4A", "DIT4B", "DIT4C", "DIT4D", "DIT5A", "DIT5B", "LAIN-LAIN"
 ];
 
 export default function PublicAttendancePage() {
@@ -66,8 +66,8 @@ export default function PublicAttendancePage() {
         studentName: z.string().min(1, { message: "Nama diperlukan." }),
         studentId: config?.fields.requireStudentId ? z.string().min(1, { message: "ID Pelajar diperlukan." }) : z.string().optional(),
         email: z.string().email({ message: "Format emel tidak sah." }).min(1, { message: "Emel diperlukan." }),
-        phone: config?.fields.requirePhone ? z.string().min(1, { message: "Nombor telefon diperlukan." }) : z.string().optional(),
-        classGroup: config?.fields.requireClass ? z.string().min(1, { message: "Kelas diperlukan." }) : z.string().optional(),
+        phone: z.string().min(1, { message: "Nombor telefon diperlukan." }),
+        classGroup: z.string().min(1, { message: "Kelas diperlukan." }),
         customInput1: config?.fields.customInput1Enabled ? z.string().min(1, { message: `${config.fields.customInput1Label} diperlukan.` }) : z.string().optional(),
         customInput2: config?.fields.customInput2Enabled ? z.string().min(1, { message: `${config.fields.customInput2Label} diperlukan.` }) : z.string().optional(),
     });
@@ -256,8 +256,8 @@ export default function PublicAttendancePage() {
                                         <FormField control={form.control} name="studentName" render={({ field }) => (<FormItem><FormLabel>Nama Penuh</FormLabel><FormControl><Input placeholder="Nama Penuh Anda" {...field} /></FormControl><FormMessage /></FormItem>)}/>
                                         {programConfig?.fields.requireStudentId && (<FormField control={form.control} name="studentId" render={({ field }) => (<FormItem><FormLabel>ID Pelajar (No. Matrik)</FormLabel><FormControl><Input placeholder="ID Pelajar" {...field} /></FormControl><FormMessage /></FormItem>)}/>)}
                                         <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>Emel</FormLabel><FormControl><Input type="email" placeholder="alamat@emel.com" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                                        {programConfig?.fields.requirePhone && (<FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Nombor Telefon</FormLabel><FormControl><Input type="tel" placeholder="012-3456789" {...field} /></FormControl><FormMessage /></FormItem>)}/>)}
-                                        {programConfig?.fields.requireClass && (<FormField control={form.control} name="classGroup" render={({ field }) => (<FormItem><FormLabel>Kelas</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Pilih kelas anda" /></SelectTrigger></FormControl><SelectContent>{classOptions.map((option) => (<SelectItem key={option} value={option}>{option}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)}/>)}
+                                        <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Nombor Telefon</FormLabel><FormControl><Input type="tel" placeholder="012-3456789" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                                        <FormField control={form.control} name="classGroup" render={({ field }) => (<FormItem><FormLabel>Kelas</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Pilih kelas anda" /></SelectTrigger></FormControl><SelectContent>{classOptions.map((option) => (<SelectItem key={option} value={option}>{option}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)}/>
                                         {programConfig?.fields.customInput1Enabled && (<FormField control={form.control} name="customInput1" render={({ field }) => (<FormItem><FormLabel>{programConfig.fields.customInput1Label || 'Custom Field 1'}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)}/>)}
                                         {programConfig?.fields.customInput2Enabled && (<FormField control={form.control} name="customInput2" render={({ field }) => (<FormItem><FormLabel>{programConfig.fields.customInput2Label || 'Custom Field 2'}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)}/>)}
                                         <Button type="submit" className="w-full" disabled={status === 'submitting'}>{status === 'submitting' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Hantar</Button>

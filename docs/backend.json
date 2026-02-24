@@ -158,9 +158,7 @@
                 "type": "object",
                 "properties": {
                     "requireStudentId": { "type": "boolean" },
-                    "requirePhone": { "type": "boolean" },
                     "requireEmail": { "type": "boolean" },
-                    "requireClass": { "type": "boolean" },
                     "customInput1Enabled": { "type": "boolean" },
                     "customInput1Label": { "type": "string" },
                     "customInput2Enabled": { "type": "boolean" },
@@ -230,7 +228,7 @@
             "description": "The browser/device user agent of the person submitting the form."
         }
       },
-      "required": ["programId", "studentName", "createdAt"]
+      "required": ["programId", "studentName", "email", "phone", "classGroup", "createdAt"]
     },
     "QrSlug": {
       "title": "QR Slug Mapping",

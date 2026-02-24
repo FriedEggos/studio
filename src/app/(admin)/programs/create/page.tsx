@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from "@/components/ui/button";
@@ -38,8 +39,6 @@ const programFormSchema = z.object({
   // Config fields
   copywriting: z.string().optional(),
   requireStudentId: z.boolean().default(true),
-  requirePhone: z.boolean().default(false),
-  requireClass: z.boolean().default(false),
   customInput1Enabled: z.boolean().default(false),
   customInput1Label: z.string().optional(),
   customInput2Enabled: z.boolean().default(false),
@@ -65,8 +64,9 @@ const programFormSchema = z.object({
 }).refine(data => {
     const combine = (date?: Date, time?: string): Date | undefined => {
       if (!date || !time) return undefined;
-      const d = new Date(date);
       const [h, m] = time.split(':').map(Number);
+      if (isNaN(h) || isNaN(m)) return undefined;
+      const d = new Date(date);
       d.setHours(h, m, 0, 0);
       return d;
     };
@@ -103,8 +103,6 @@ export default function CreateProgramPage() {
             redirectUrl: "",
             copywriting: "",
             requireStudentId: true,
-            requirePhone: false,
-            requireClass: false,
             customInput1Enabled: false,
             customInput1Label: "",
             customInput2Enabled: false,
@@ -126,29 +124,40 @@ export default function CreateProgramPage() {
         try {
             const programCollectionRef = collection(firestore, "programs");
 
-            const combineDateAndTime = (date?: Date, time?: string): string | null => {
-                if (!date || !time) return null;
-                const d = new Date(date);
-                const [h, m] = time.split(':').map(Number);
-                d.setHours(h, m, 0, 0);
-                return d.toISOString();
-            }
+            const combineDateAndTime = (date: Date, time: string): Date => {
+                const [hours, minutes] = time.split(':').map(Number);
+                const newDate = new Date(date);
+                newDate.setHours(hours, minutes, 0, 0);
+                return newDate;
+            };
+
+            const startDateTime = combineDateAndTime(data.startDate, data.startTime);
+            const endDateTime = combineDateAndTime(data.endDate, data.endTime);
+            const checkInOpenTime = new Date(startDateTime.getTime() - 30 * 60 * 1000);
+            const checkInCloseTime = new Date(startDateTime.getTime() + 30 * 60 * 1000);
+
+            const checkOutOpenDateTime = data.checkOutOpenDate && data.checkOutOpenStartTime
+                ? combineDateAndTime(data.checkOutOpenDate, data.checkOutOpenStartTime)
+                : null;
+            const checkOutCloseDateTime = data.checkOutCloseDate && data.checkOutCloseEndTime
+                ? combineDateAndTime(data.checkOutCloseDate, data.checkOutCloseEndTime)
+                : null;
 
             const programData = {
                 title: data.title,
                 description: data.description,
                 location: data.location,
-                startDate: data.startDate.toISOString(),
-                startTime: data.startTime,
-                endDate: data.endDate.toISOString(),
-                endTime: data.endTime,
+                startDateTime: startDateTime,
+                endDateTime: endDateTime,
+                checkInOpenTime: checkInOpenTime,
+                checkInCloseTime: checkInCloseTime,
                 status: data.status,
                 qrSlug: finalQrSlug,
                 redirectUrl: data.redirectUrl || "",
                 createdBy: user.uid,
                 createdAt: serverTimestamp(),
-                checkOutOpenTime: combineDateAndTime(data.checkOutOpenDate, data.checkOutOpenStartTime),
-                checkOutCloseTime: combineDateAndTime(data.checkOutCloseDate, data.checkOutCloseEndTime),
+                checkOutOpenTime: checkOutOpenDateTime,
+                checkOutCloseTime: checkOutCloseDateTime,
             };
             const programDocRef = await addDoc(programCollectionRef, programData);
             const programId = programDocRef.id;
@@ -160,9 +169,7 @@ export default function CreateProgramPage() {
                 copywriting: data.copywriting || "",
                 fields: {
                     requireStudentId: data.requireStudentId,
-                    requirePhone: data.requirePhone,
                     requireEmail: true,
-                    requireClass: data.requireClass,
                     customInput1Enabled: data.customInput1Enabled,
                     customInput1Label: data.customInput1Label || "",
                     customInput2Enabled: data.customInput2Enabled,
@@ -270,8 +277,24 @@ export default function CreateProgramPage() {
                                </div>
                                <FormControl><Switch checked={true} disabled /></FormControl>
                            </FormItem>
-                           <FormField name="requirePhone" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3"><div className="space-y-0.5"><FormLabel>Require Phone Number</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
-                           <FormField name="requireClass" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3"><div className="space-y-0.5"><FormLabel>Require Class</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
+                           <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 bg-muted/50">
+                               <div className="space-y-0.5">
+                                   <FormLabel>Require Phone Number</FormLabel>
+                                   <FormDescription className="text-xs">
+                                       Now required for all programs.
+                                   </FormDescription>
+                               </div>
+                               <FormControl><Switch checked={true} disabled /></FormControl>
+                           </FormItem>
+                           <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 bg-muted/50">
+                               <div className="space-y-0.5">
+                                   <FormLabel>Require Class</FormLabel>
+                                    <FormDescription className="text-xs">
+                                       Now required for all programs.
+                                   </FormDescription>
+                               </div>
+                               <FormControl><Switch checked={true} disabled /></FormControl>
+                           </FormItem>
                         </div>
                         
                         <CardTitle className="text-base pt-4">Custom Fields</CardTitle>
