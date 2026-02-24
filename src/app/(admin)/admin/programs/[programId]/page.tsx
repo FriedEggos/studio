@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -91,7 +90,6 @@ export default function ProgramDetailsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [qrFormUrl, setQrFormUrl] = useState('');
-  const [checkOutUrl, setCheckOutUrl] = useState('');
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [selectedAttendanceIdForDelete, setSelectedAttendanceIdForDelete] = useState<string | null>(null);
   const [isCheckoutAlertOpen, setIsCheckoutAlertOpen] = useState(false);
@@ -128,11 +126,8 @@ export default function ProgramDetailsPage() {
         if(program?.qrSlug) {
             setQrFormUrl(`${window.location.origin}/p/${program.qrSlug}`);
         }
-        if(programId) {
-            setCheckOutUrl(`${window.location.origin}/checkout/${programId}`);
-        }
     }
-  }, [program, programId]);
+  }, [program]);
 
   const getBadgeColor = (badgeName?: string) => {
     switch (badgeName?.toLowerCase()) {
@@ -317,7 +312,7 @@ export default function ProgramDetailsPage() {
         </CardContent>
       </Card>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+      <div className="max-w-md mx-auto">
         {qrFormUrl ? (
           <QRImageCard 
             qrUrl={qrFormUrl} 
@@ -336,21 +331,6 @@ export default function ProgramDetailsPage() {
             </CardContent>
           </Card>
         )}
-        <Card>
-            <CardHeader>
-                <CardTitle className="font-headline flex items-center gap-2">
-                    <LinkIcon className="h-5 w-5" />
-                    Check-out Link
-                </CardTitle>
-                <CardDescription>Share this link with participants for check-out.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <Button asChild className="w-full">
-                    <a href={checkOutUrl} target="_blank" rel="noopener noreferrer">Open Check-out Page</a>
-                </Button>
-                <p className="text-sm text-muted-foreground text-center break-all">{checkOutUrl}</p>
-            </CardContent>
-        </Card>
       </div>
 
       <Card>
