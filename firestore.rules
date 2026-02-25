@@ -1,5 +1,6 @@
 
 rules_version = '2';
+// Triggering index creation for collection group query on 'attendances' by email.
 service cloud.firestore {
   match /databases/{database}/documents {
 
