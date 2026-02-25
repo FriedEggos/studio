@@ -1,5 +1,5 @@
 
-import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
@@ -219,4 +219,41 @@ export const onAttendanceCheckOut = onDocumentUpdated("/programs/{programId}/att
     
     // Run both tasks in parallel
     await Promise.all([sendEmailTask(), updateStatsTask()]);
+});
+
+/**
+ * Cleans up a user's attendance data when their user account is deleted.
+ */
+export const onUserDeleted = onDocumentDeleted("/users/{userId}", async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) {
+        logger.log("No data associated with the event, skipping cleanup.");
+        return;
+    }
+    
+    const deletedUser = snapshot.data();
+    const userEmail = deletedUser.email;
+
+    if (!userEmail) {
+        logger.warn(`User document ${event.params.userId} deleted without an email. Cannot clean up attendance.`);
+        return;
+    }
+
+    logger.log(`User ${userEmail} deleted. Searching for attendance records to clean up.`);
+
+    const attendancesSnapshot = await db.collectionGroup('attendances').where('email', '==', userEmail).get();
+
+    if (attendancesSnapshot.empty) {
+        logger.log(`No attendance records found for ${userEmail}. Cleanup not needed.`);
+        return;
+    }
+    
+    const batch = db.batch();
+    attendancesSnapshot.docs.forEach(doc => {
+        logger.log(`Queueing deletion for attendance record at: ${doc.ref.path}`);
+        batch.delete(doc.ref);
+    });
+    
+    await batch.commit();
+    logger.log(`Successfully deleted ${attendancesSnapshot.size} attendance records for user ${userEmail}.`);
 });
