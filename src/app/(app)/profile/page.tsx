@@ -1,8 +1,9 @@
+
 'use client';
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,9 +13,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Camera, Star, Trophy, Award, Shield, CheckCircle } from "lucide-react";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { doc } from "firebase/firestore";
+import { doc, collectionGroup, getDocs, query, where, collection } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from 'lucide-react';
@@ -25,6 +34,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 interface UserProfile {
     id: string;
@@ -40,6 +51,13 @@ interface UserProfile {
     photoURL?: string;
 }
 
+interface ParticipationHistoryItem {
+    id: string;
+    programTitle: string;
+    createdAt: { toDate: () => Date };
+    checkOutAt?: { toDate: () => Date };
+}
+
 const allBadges = [
     { name: 'Legend', icon: Trophy, criteria: 'Achieve a rating of 5 stars by high participation.', color: 'text-yellow-500' },
     { name: 'Elite Participant', icon: Award, criteria: 'Accumulate over 1000 minutes of participation.', color: 'text-indigo-500' },
@@ -52,6 +70,7 @@ export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
+  const { toast } = useToast();
 
   const userDocRef = useMemoFirebase(() => {
     if (!user || !firestore) return null;
@@ -60,11 +79,58 @@ export default function ProfilePage() {
   
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userDocRef);
 
+  const [history, setHistory] = useState<ParticipationHistoryItem[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.push('/login');
     }
   }, [isUserLoading, user, router]);
+
+  useEffect(() => {
+    if (!user?.email || !firestore) return;
+
+    const fetchHistory = async () => {
+        setIsLoadingHistory(true);
+        try {
+            // 1. Fetch all programs and map them by ID
+            const programsSnap = await getDocs(collection(firestore, 'programs'));
+            const programsMap = new Map(programsSnap.docs.map(doc => [doc.id, doc.data().title]));
+
+            // 2. Query the 'attendances' collection group for the user's email
+            const attendancesQuery = query(
+                collectionGroup(firestore, 'attendances'),
+                where('email', '==', user.email)
+            );
+            const attendancesSnap = await getDocs(attendancesQuery);
+
+            // 3. Combine the data
+            const participationHistory = attendancesSnap.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    programTitle: programsMap.get(data.programId) || 'Unknown Program',
+                    createdAt: data.createdAt,
+                    checkOutAt: data.checkOutAt,
+                };
+            }).sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
+
+            setHistory(participationHistory as ParticipationHistoryItem[]);
+        } catch (error) {
+            console.error("Error fetching participation history:", error);
+            toast({
+                variant: "destructive",
+                title: "Could not load history",
+                description: "There was an error fetching your participation history.",
+            });
+        } finally {
+            setIsLoadingHistory(false);
+        }
+    };
+
+    fetchHistory();
+  }, [user, firestore, toast]);
 
   const renderStars = (rating?: number) => {
     const stars = [];
@@ -95,6 +161,7 @@ export default function ProfilePage() {
           </CardHeader>
           <CardContent className="space-y-4">
              <Skeleton className="h-10 w-full" />
+             <Skeleton className="h-40 w-full" />
              <Skeleton className="h-40 w-full" />
           </CardContent>
         </Card>
@@ -213,7 +280,53 @@ export default function ProfilePage() {
                 </TooltipProvider>
               </div>
           </CardContent>
-      </Card>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle>Program Participation History</CardTitle>
+                <CardDescription>A record of all the programs you have attended.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>#</TableHead>
+                            <TableHead>Program Name</TableHead>
+                            <TableHead>Date Joined</TableHead>
+                            <TableHead>Check-out Time</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {isLoadingHistory ? (
+                             [...Array(3)].map((_, i) => (
+                                <TableRow key={i}>
+                                    <TableCell><Skeleton className="h-5 w-5" /></TableCell>
+                                    <TableCell><Skeleton className="h-5 w-48" /></TableCell>
+                                    <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                                    <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                                </TableRow>
+                            ))
+                        ) : history.length > 0 ? (
+                            history.map((item, index) => (
+                                <TableRow key={item.id}>
+                                    <TableCell>{index + 1}</TableCell>
+                                    <TableCell className="font-medium">{item.programTitle}</TableCell>
+                                    <TableCell>{item.createdAt ? format(item.createdAt.toDate(), 'Pp') : '-'}</TableCell>
+                                    <TableCell>{item.checkOutAt ? format(item.checkOutAt.toDate(), 'Pp') : '-'}</TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={4} className="h-24 text-center">
+                                    No programs joined yet. Start participating to earn badges!
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
       </div>
     </>
   );
