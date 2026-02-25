@@ -17,9 +17,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { List, MoreHorizontal, Trash2, Loader2 } from "lucide-react";
+import { List, MoreHorizontal, Trash2, Loader2, Award, Clock, UserPlus, Users } from "lucide-react";
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, query, orderBy, writeBatch, getDocs, doc, Timestamp } from "firebase/firestore";
+import { collection, query, orderBy, writeBatch, getDocs, doc, Timestamp, collectionGroup, where } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
@@ -67,6 +67,86 @@ export default function AdminDashboard() {
   }, [firestore]);
   
   const { data: programs, isLoading: isLoadingPrograms } = useCollection<Program>(programsQuery);
+
+  const [stats, setStats] = useState({
+    monthlyActive: 0,
+    avgDuration: 0,
+    newStudents: 0,
+    legendCount: 0,
+    rookieCount: 0,
+  });
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+
+  useEffect(() => {
+    if (!firestore) return;
+
+    const fetchStats = async () => {
+        setIsLoadingStats(true);
+        try {
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            const thirtyDaysAgoTimestamp = Timestamp.fromDate(thirtyDaysAgo);
+
+            // Use Promise.all to fetch attendances and users in parallel
+            const [attendancesSnapshot, usersSnapshot] = await Promise.all([
+                getDocs(collectionGroup(firestore, 'attendances')),
+                getDocs(query(collection(firestore, 'users'), where('role', '==', 'student')))
+            ]);
+
+            // Calculate stats from snapshots
+            const activeEmails = new Set<string>();
+            let totalMinutes = 0;
+            let okCheckouts = 0;
+
+            attendancesSnapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.createdAt && (data.createdAt as Timestamp).toDate() >= thirtyDaysAgo) {
+                    activeEmails.add(data.email);
+                }
+                if (data.checkOutStatus === 'ok' && typeof data.durationMinutes === 'number') {
+                    totalMinutes += data.durationMinutes;
+                    okCheckouts++;
+                }
+            });
+
+            let newStudents = 0;
+            let legendCount = 0;
+            let rookieCount = 0;
+
+            usersSnapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.createdAt && (data.createdAt as Timestamp).toDate() >= thirtyDaysAgo) {
+                    newStudents++;
+                }
+                if (data.badge === 'Legend') legendCount++;
+                if (data.badge === 'Rookie') rookieCount++;
+            });
+
+            const avgDuration = okCheckouts > 0 ? Math.round(totalMinutes / okCheckouts) : 0;
+
+            setStats({
+                monthlyActive: activeEmails.size,
+                avgDuration,
+                newStudents,
+                legendCount,
+                rookieCount,
+            });
+
+        } catch (error) {
+            console.error("Error fetching dashboard stats:", error);
+            toast({
+                variant: "destructive",
+                title: "Failed to load stats",
+                description: "Could not load dashboard statistics."
+            });
+        } finally {
+            setIsLoadingStats(false);
+        }
+    };
+
+    fetchStats();
+  }, [firestore, toast]);
+
 
   const handleDeleteProgram = async () => {
     if (!firestore || !programToDelete) return;
@@ -116,7 +196,7 @@ export default function AdminDashboard() {
   };
 
 
-  const StatCard = ({ title, icon: Icon, value, isLoading, description }: { title: string, icon: React.ElementType, value: number, isLoading: boolean, description: string }) => (
+  const StatCard = ({ title, icon: Icon, value, isLoading, description }: { title: string, icon: React.ElementType, value: React.ReactNode, isLoading: boolean, description: string }) => (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
@@ -124,7 +204,7 @@ export default function AdminDashboard() {
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <Skeleton className="h-8 w-16" />
+          <Skeleton className="h-8 w-24" />
         ) : (
           <div className="text-2xl font-bold">{value}</div>
         )}
@@ -147,13 +227,47 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <StatCard
             title="Total Programs"
             icon={List}
             value={programs?.length ?? 0}
             isLoading={isLoadingPrograms}
             description="Total programs created."
+          />
+          <StatCard
+            title="Monthly Active Students"
+            icon={Users}
+            value={stats.monthlyActive}
+            isLoading={isLoadingStats}
+            description="Unique students in the last 30 days."
+          />
+          <StatCard
+            title="Average Session Duration"
+            icon={Clock}
+            value={`${stats.avgDuration} min`}
+            isLoading={isLoadingStats}
+            description="Average duration for 'ok' checkouts."
+          />
+          <StatCard
+            title="New Student Growth"
+            icon={UserPlus}
+            value={stats.newStudents}
+            isLoading={isLoadingStats}
+            description="New students in the last 30 days."
+          />
+          <StatCard
+            title="Badge Distribution"
+            icon={Award}
+            value={
+              <>
+                {stats.legendCount}{' '}
+                <span className="text-base font-medium text-muted-foreground">vs</span>{' '}
+                {stats.rookieCount}
+              </>
+            }
+            isLoading={isLoadingStats}
+            description="Legend vs. Rookie badge holders."
           />
         </div>
 
