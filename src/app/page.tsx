@@ -18,9 +18,18 @@ export default function Home() {
     if (isUserLoading) {
       return (
         <div className="flex gap-4">
-          <Skeleton className="h-10 w-24" />
-          <Skeleton className="h-10 w-24" />
+          <Skeleton className="h-10 w-28" />
         </div>
+      );
+    }
+
+    if (user) {
+      return (
+        <Button asChild>
+          <Link href="/login">
+            Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+        </Button>
       );
     }
 
@@ -60,7 +69,7 @@ export default function Home() {
                 </p>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
                   <Button size="lg" asChild>
-                    <Link href="/login">Get Started</Link>
+                    <Link href="/login">{user ? "Go to Dashboard" : "Get Started"}</Link>
                   </Button>
                 </div>
               </div>
