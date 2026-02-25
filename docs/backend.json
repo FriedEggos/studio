@@ -43,8 +43,8 @@
         },
         "badge": {
           "type": "string",
-          "description": "Activity badge earned by the student (e.g., Legend, Active, Rookie).",
-          "enum": ["Legend", "Active", "Rookie"]
+          "description": "Activity badge earned by the student.",
+          "enum": ["Legend", "Elite Participant", "Commitment Pro", "Active", "Rookie"]
         },
         "rating": {
           "type": "number",
