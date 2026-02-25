@@ -49,6 +49,14 @@
         "rating": {
           "type": "number",
           "description": "Student's activity rating from 1 to 5."
+        },
+        "rank": {
+          "type": "number",
+          "description": "The user's global leaderboard rank."
+        },
+        "totalScore": {
+          "type": "number",
+          "description": "The user's calculated total engagement score."
         }
       },
       "required": [

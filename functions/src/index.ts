@@ -5,6 +5,7 @@ import { initializeApp } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import * as nodemailer from "nodemailer";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 
 // Initialize Firebase Admin SDK
 initializeApp();
@@ -256,4 +257,93 @@ export const onUserDeleted = onDocumentDeleted("/users/{userId}", async (event) 
     
     await batch.commit();
     logger.log(`Successfully deleted ${attendancesSnapshot.size} attendance records for user ${userEmail}.`);
+});
+
+const BADGE_POINTS: { [key: string]: number } = {
+    'Legend': 500,
+    'Elite Participant': 300,
+    'Commitment Pro': 200,
+    'Active': 100,
+    'Rookie': 50,
+};
+
+export const updateGlobalRanking = onSchedule("every 30 minutes", async (event) => {
+    logger.log("Starting scheduled job: updateGlobalRanking");
+
+    try {
+        const usersSnapshot = await db.collection('users').where('role', '==', 'student').get();
+        if (usersSnapshot.empty) {
+            logger.log("No student users found. Exiting job.");
+            return;
+        }
+
+        const programsSnapshot = await db.collection('programs').get();
+        const programsMap = new Map(programsSnapshot.docs.map(doc => [doc.id, doc.data()]));
+
+        const attendancesSnapshot = await db.collectionGroup('attendances').where('checkOutStatus', '==', 'ok').get();
+        const userAttendances = new Map<string, any[]>();
+
+        attendancesSnapshot.forEach(doc => {
+            const data = doc.data();
+            if (!userAttendances.has(data.email)) {
+                userAttendances.set(data.email, []);
+            }
+            userAttendances.get(data.email)!.push(data);
+        });
+
+        logger.log(`Processing ${usersSnapshot.size} users.`);
+
+        const userScores = usersSnapshot.docs.map(userDoc => {
+            const user = userDoc.data();
+            let totalScore = 0;
+
+            // 1. Badge Score
+            if (user.badge && BADGE_POINTS[user.badge]) {
+                totalScore += BADGE_POINTS[user.badge];
+            }
+
+            // 2. Rating Score
+            if (typeof user.rating === 'number') {
+                totalScore += user.rating * 100;
+            }
+
+            const studentAttendances = userAttendances.get(user.email) || [];
+
+            // 3. Attendance Score
+            totalScore += studentAttendances.length * 50;
+
+            // 4. Speed-to-Exit (Early Bird) Bonus
+            studentAttendances.forEach((att: any) => {
+                const program = programsMap.get(att.programId);
+                if (program && program.checkOutOpenTime && att.checkOutAt) {
+                    const checkOutOpen = (program.checkOutOpenTime as Timestamp).toDate();
+                    const checkOutAt = (att.checkOutAt as Timestamp).toDate();
+                    const diffMinutes = (checkOutAt.getTime() - checkOutOpen.getTime()) / 60000;
+                    if (diffMinutes >= 0 && diffMinutes <= 5) {
+                        totalScore += 30; // Early Bird bonus
+                    }
+                }
+            });
+
+            return { id: userDoc.id, totalScore };
+        });
+
+        // Sort users by score descending
+        userScores.sort((a, b) => b.totalScore - a.totalScore);
+
+        const batch = db.batch();
+        userScores.forEach((scoredUser, index) => {
+            const userRef = db.collection('users').doc(scoredUser.id);
+            batch.update(userRef, {
+                totalScore: scoredUser.totalScore,
+                rank: index + 1,
+            });
+        });
+
+        await batch.commit();
+        logger.log(`Successfully updated ranks for ${userScores.length} users.`);
+
+    } catch (error) {
+        logger.error("Error in updateGlobalRanking job:", error);
+    }
 });

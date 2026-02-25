@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -16,8 +17,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { List, MoreHorizontal, Trash2, Loader2, Award, Clock, UserPlus, Users } from "lucide-react";
+import { List, MoreHorizontal, Trash2, Loader2, Award, Clock, UserPlus, Users, Trophy } from "lucide-react";
 import Link from "next/link";
 import { useState, useMemo, useEffect } from "react";
 import {
@@ -39,10 +41,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, query, orderBy, writeBatch, getDocs, doc, Timestamp, collectionGroup, where } from "firebase/firestore";
+import { collection, query, orderBy, writeBatch, getDocs, doc, Timestamp, collectionGroup, where, limit } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
+import { cn } from "@/lib/utils";
 
 type Program = {
     id: string;
@@ -76,6 +79,9 @@ export default function AdminDashboard() {
     rookieCount: 0,
   });
   const [isLoadingStats, setIsLoadingStats] = useState(true);
+
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(true);
 
   useEffect(() => {
     if (!firestore) return;
@@ -144,7 +150,29 @@ export default function AdminDashboard() {
         }
     };
 
+    const fetchLeaderboard = async () => {
+        setIsLoadingLeaderboard(true);
+        try {
+            const q = query(
+                collection(firestore, 'users'), 
+                where('role', '==', 'student'), 
+                where('rank', '>', 0), // Only get ranked users
+                orderBy('rank', 'asc'), 
+                limit(10)
+            );
+            const querySnapshot = await getDocs(q);
+            const topUsers = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setLeaderboard(topUsers);
+        } catch (error) {
+            console.error("Error fetching leaderboard:", error);
+            // Non-critical, so maybe a silent fail is okay. Or a subtle toast.
+        } finally {
+            setIsLoadingLeaderboard(false);
+        }
+    };
+
     fetchStats();
+    fetchLeaderboard();
   }, [firestore, toast]);
 
 
@@ -271,90 +299,130 @@ export default function AdminDashboard() {
           />
         </div>
 
-        <Card>
-            <CardHeader>
-              <CardTitle className="font-headline">Program List</CardTitle>
-              <CardDescription>
-                A summary of all created programs.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                        <TableHead>Program</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead><span className="sr-only">Actions</span></TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {isLoadingPrograms ? (
-                        [...Array(5)].map((_, i) => (
-                            <TableRow key={i}>
-                            <TableCell><Skeleton className="h-5 w-40" /></TableCell>
-                            <TableCell><Skeleton className="h-6 w-24" /></TableCell>
-                            <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
-                            </TableRow>
-                        ))
-                        ) : programs && programs.length > 0 ? (
-                        programs.map((program) => (
-                            <TableRow key={program.id}>
-                                <TableCell>
-                                <div className="font-medium">{program.title}</div>
-                                <div className="text-sm text-muted-foreground hidden md:inline">
-                                    {program.startDateTime ? format(program.startDateTime.toDate(), "d MMM yyyy @ HH:mm") : 'Invalid Date'}
-                                </div>
-                                </TableCell>
-                                <TableCell>
-                                <Badge variant={program.status === 'completed' ? 'outline' : program.status === 'ongoing' ? 'default' : 'secondary'} className="capitalize">{program.status}</Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                    <Button size="icon" variant="ghost">
-                                        <MoreHorizontal className="h-4 w-4" />
-                                        <span className="sr-only">Actions for {program.title}</span>
-                                    </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                    <DropdownMenuItem asChild>
-                                        <Link href={`/p/${program.qrSlug}`} target="_blank">View QR Form</Link>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem asChild>
-                                        <Link href={`/admin/programs/${program.id}`}>View Details</Link>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem asChild>
-                                        <Link href={`/admin/programs/${program.id}/edit`}>Edit Program</Link>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                        onSelect={(e) => {
-                                          e.preventDefault();
-                                          setProgramToDelete(program);
-                                          setIsDeleteDialogOpen(true);
-                                        }}
-                                        className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-                                      >
-                                      <Trash2 className="mr-2 h-4 w-4" />
-                                      Delete Program
-                                    </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                                </TableCell>
-                            </TableRow>
-                        ))
-                        ) : (
-                        <TableRow>
-                            <TableCell colSpan={3} className="h-24 text-center">
-                            No programs found.
-                            </TableCell>
-                        </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="font-headline">Program List</CardTitle>
+                <CardDescription>
+                  A summary of all created programs.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <Table>
+                      <TableHeader>
+                          <TableRow>
+                          <TableHead>Program</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead><span className="sr-only">Actions</span></TableHead>
+                          </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                          {isLoadingPrograms ? (
+                          [...Array(5)].map((_, i) => (
+                              <TableRow key={i}>
+                              <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+                              <TableCell><Skeleton className="h-6 w-24" /></TableCell>
+                              <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
+                              </TableRow>
+                          ))
+                          ) : programs && programs.length > 0 ? (
+                          programs.map((program) => (
+                              <TableRow key={program.id}>
+                                  <TableCell>
+                                  <div className="font-medium">{program.title}</div>
+                                  <div className="text-sm text-muted-foreground hidden md:inline">
+                                      {program.startDateTime ? format(program.startDateTime.toDate(), "d MMM yyyy @ HH:mm") : 'Invalid Date'}
+                                  </div>
+                                  </TableCell>
+                                  <TableCell>
+                                  <Badge variant={program.status === 'completed' ? 'outline' : program.status === 'ongoing' ? 'default' : 'secondary'} className="capitalize">{program.status}</Badge>
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                  <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                      <Button size="icon" variant="ghost">
+                                          <MoreHorizontal className="h-4 w-4" />
+                                          <span className="sr-only">Actions for {program.title}</span>
+                                      </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end">
+                                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                      <DropdownMenuItem asChild>
+                                          <Link href={`/p/${program.qrSlug}`} target="_blank">View QR Form</Link>
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem asChild>
+                                          <Link href={`/admin/programs/${program.id}`}>View Details</Link>
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem asChild>
+                                          <Link href={`/admin/programs/${program.id}/edit`}>Edit Program</Link>
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                          onSelect={(e) => {
+                                            e.preventDefault();
+                                            setProgramToDelete(program);
+                                            setIsDeleteDialogOpen(true);
+                                          }}
+                                          className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                                        >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Delete Program
+                                      </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                  </DropdownMenu>
+                                  </TableCell>
+                              </TableRow>
+                          ))
+                          ) : (
+                          <TableRow>
+                              <TableCell colSpan={3} className="h-24 text-center">
+                              No programs found.
+                              </TableCell>
+                          </TableRow>
+                          )}
+                      </TableBody>
+                  </Table>
+              </CardContent>
+            </Card>
+            
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline flex items-center gap-2"><Trophy className="h-5 w-5 text-yellow-500" /> Leaderboard</CardTitle>
+                    <CardDescription>Top 10 most engaged students.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {isLoadingLeaderboard ? (
+                        <div className="space-y-4">
+                            {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+                        </div>
+                    ) : leaderboard.length > 0 ? (
+                        <ul className="space-y-4">
+                            {leaderboard.map((student, index) => (
+                                <li key={student.id} className="flex items-center gap-4">
+                                    <span className={cn(
+                                        "font-bold text-lg w-6 text-center",
+                                        index < 3 ? "text-yellow-500" : "text-muted-foreground"
+                                    )}>{student.rank}</span>
+                                    <Avatar className="h-9 w-9">
+                                        <AvatarImage src={student.photoURL} />
+                                        <AvatarFallback>{student.displayName?.[0]}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1 overflow-hidden">
+                                        <p className="text-sm font-medium truncate">{student.displayName}</p>
+                                        <p className="text-xs text-muted-foreground">{student.totalScore} pts</p>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <div className="text-center py-8">
+                            <p className="text-sm text-muted-foreground">No ranked students yet.</p>
+                             <p className="text-xs text-muted-foreground mt-1">Ranking is updated automatically.</p>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        </div>
       </div>
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
