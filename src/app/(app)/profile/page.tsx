@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -13,12 +12,41 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Camera, Star } from "lucide-react";
+import { Camera, Star, Trophy, Award, Shield, CheckCircle } from "lucide-react";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+interface UserProfile {
+    id: string;
+    displayName: string;
+    email: string;
+    role: 'student' | 'admin';
+    matricId?: string;
+    phoneNumber?: string;
+    course?: string;
+    badge?: string;
+    rating?: number;
+    rank?: number;
+    photoURL?: string;
+}
+
+const allBadges = [
+    { name: 'Legend', icon: Trophy, criteria: 'Achieve a rating of 5 stars by high participation.', color: 'text-yellow-500' },
+    { name: 'Elite Participant', icon: Award, criteria: 'Accumulate over 1000 minutes of participation.', color: 'text-indigo-500' },
+    { name: 'Commitment Pro', icon: CheckCircle, criteria: 'Attend 10 or more programs.', color: 'text-purple-500' },
+    { name: 'Active', icon: Shield, criteria: 'Attend 5 or more programs.', color: 'text-blue-500' },
+    { name: 'Rookie', icon: Shield, criteria: 'Attend your first program.', color: 'text-green-500' },
+];
 
 export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
@@ -30,7 +58,7 @@ export default function ProfilePage() {
     return doc(firestore, 'users', user.uid);
   }, [user, firestore]);
   
-  const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userDocRef);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -46,24 +74,11 @@ export default function ProfilePage() {
         stars.push(
             <Star
                 key={i}
-                className={`h-5 w-5 ${i <= filledStars ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground/30'}`}
+                className={cn('h-5 w-5', i <= filledStars ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground/30')}
             />
         );
     }
     return stars;
-  };
-
-  const getBadgeColor = (badgeName?: string) => {
-      switch (badgeName?.toLowerCase()) {
-          case 'legend':
-              return 'bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90';
-          case 'active':
-              return 'bg-blue-500 text-white hover:bg-blue-500/90';
-          case 'rookie':
-              return 'bg-gray-400 text-gray-900 hover:bg-gray-400/90';
-          default:
-              return 'bg-secondary text-secondary-foreground';
-      }
   };
 
   if (isUserLoading || isProfileLoading || !user || !userProfile) {
@@ -77,14 +92,28 @@ export default function ProfilePage() {
             <Skeleton className="w-24 h-24 rounded-full mb-4" />
             <Skeleton className="h-6 w-3/4" />
             <Skeleton className="h-4 w-1/2 mt-1" />
-            <Skeleton className="h-4 w-2/3 mt-1" />
           </CardHeader>
-          <CardContent>
-            <Skeleton className="h-10 w-full" />
+          <CardContent className="space-y-4">
+             <Skeleton className="h-10 w-full" />
+             <Skeleton className="h-40 w-full" />
           </CardContent>
         </Card>
       </div>
     );
+  }
+
+  // This prevents admins from seeing a student-formatted profile
+  if (userProfile.role === 'admin') {
+      return (
+         <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Access Denied</AlertTitle>
+            <AlertDescription>
+                This profile page is for students. Please go to the{' '}
+                <Link href="/admin/dashboard" className="font-bold underline">Admin Dashboard</Link>.
+            </AlertDescription>
+        </Alert>
+      )
   }
 
   return (
@@ -108,22 +137,6 @@ export default function ProfilePage() {
             <CardDescription>{userProfile?.email}</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4 my-4">
-                <div className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg bg-muted/50">
-                    <p className="text-sm font-medium text-muted-foreground">Rank</p>
-                    {userProfile?.badge ? (
-                         <Badge className={cn('text-sm', getBadgeColor(userProfile.badge))}>{userProfile.badge}</Badge>
-                    ) : (
-                        <span className="text-sm font-semibold">Not Ranked</span>
-                    )}
-                </div>
-                 <div className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg bg-muted/50">
-                    <p className="text-sm font-medium text-muted-foreground">Rating</p>
-                    <div className="flex items-center">
-                        {renderStars(userProfile?.rating)}
-                    </div>
-                </div>
-            </div>
             <div className="grid grid-cols-1 gap-4 my-4 text-sm border-t pt-4">
               <div className="flex justify-between items-center">
                   <span className="font-semibold text-muted-foreground">Matric ID</span>
@@ -143,6 +156,64 @@ export default function ProfilePage() {
             </Button>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+              <CardTitle>Achievement Gallery</CardTitle>
+              <CardDescription>Your engagement progress and badges.</CardDescription>
+          </CardHeader>
+          <CardContent>
+               <div className="grid grid-cols-2 gap-4 my-4">
+                  <div className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg bg-muted/50">
+                      <p className="text-sm font-medium text-muted-foreground">Global Rank</p>
+                       <p className="text-3xl font-bold">#{userProfile.rank || 'N/A'}</p>
+                  </div>
+                   <div className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg bg-muted/50">
+                      <p className="text-sm font-medium text-muted-foreground">Rating</p>
+                      <div className="flex items-center">
+                          {renderStars(userProfile?.rating)}
+                      </div>
+                  </div>
+              </div>
+
+              <div className="mt-6">
+                <p className="text-sm font-medium text-muted-foreground mb-3 text-center">Badges</p>
+                <TooltipProvider>
+                  <div className="grid grid-cols-3 md:grid-cols-5 gap-4 text-center">
+                    {allBadges.map((badge) => {
+                      const hasBadge = userProfile.badge === badge.name;
+                       return (
+                        <Tooltip key={badge.name}>
+                          <TooltipTrigger>
+                             <div className="flex flex-col items-center gap-2">
+                                <div className={cn(
+                                    "h-16 w-16 rounded-full flex items-center justify-center bg-muted",
+                                    hasBadge && "bg-primary/10 border-2 border-primary"
+                                )}>
+                                    <badge.icon className={cn(
+                                        "h-8 w-8",
+                                        hasBadge ? badge.color : "text-muted-foreground/40"
+                                    )} />
+                                </div>
+                                <p className={cn(
+                                    "text-xs font-medium",
+                                    hasBadge ? "text-foreground" : "text-muted-foreground"
+                                )}>{badge.name}</p>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="font-semibold">{badge.name}</p>
+                            <p className="text-xs text-muted-foreground">{badge.criteria}</p>
+                            {!hasBadge && <p className="text-xs text-destructive mt-1">(Locked)</p>}
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })}
+                  </div>
+                </TooltipProvider>
+              </div>
+          </CardContent>
+      </Card>
       </div>
     </>
   );
