@@ -7,7 +7,13 @@ import {
   User,
   Users,
 } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { UserNav } from "@/components/user-nav";
@@ -55,6 +61,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="flex flex-col">
+              <SheetHeader className="sr-only">
+                <SheetTitle>Navigation Menu</SheetTitle>
+              </SheetHeader>
               <nav className="grid gap-2 text-lg font-medium">
                 <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6 mb-4">
                     <Logo href="/admin/dashboard" />
