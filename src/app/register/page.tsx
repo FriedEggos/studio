@@ -37,6 +37,7 @@ const courses = [
   "Jabatan Kejuruteraan Elektrik",
   "Jabatan Teknologi Maklumat & Komunikasi",
   "Jabatan Perdagangan",
+  "Jabatan Pengajian Am",
 ];
 
 export default function RegisterPage() {
