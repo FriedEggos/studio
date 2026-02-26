@@ -74,7 +74,8 @@ export const onAttendanceCheckIn = onDocumentCreated("/programs/{programId}/atte
 
 
 /**
- * Sends a thank you/warning email AND updates user engagement stats when a student checks out.
+ * Sends a thank you/warning email when a student checks out.
+ * Point and rating calculations are now handled by the 'updateGlobalRanking' scheduled function.
  */
 export const onAttendanceCheckOut = onDocumentUpdated("/programs/{programId}/attendances/{attendanceId}", async (event) => {
     const beforeData = event.data?.before.data();
@@ -92,134 +93,52 @@ export const onAttendanceCheckOut = onDocumentUpdated("/programs/{programId}/att
         return;
     }
     
-    // --- Task 1: Send Email (existing logic) ---
-    const sendEmailTask = async () => {
-        const studentName = afterData.studentName || "Pelajar";
-        const programDoc = await db.doc(`programs/${event.params.programId}`).get();
-        const programTitle = programDoc.exists ? programDoc.data()?.title : "program tersebut";
-        
-        logger.log(`Sending check-out email to ${studentEmail} for program ${programTitle}`);
-        
-        const checkOutStatus = afterData.checkOutStatus;
-        let mailOptions;
-
-        if (checkOutStatus === 'ok' || checkOutStatus === 'admin_override') {
-            mailOptions = {
-                from: `"JTMK+ System" <${gmailEmail}>`,
-                to: studentEmail,
-                subject: `Terima Kasih Kerana Menyertai - ${programTitle}`,
-                html: `
-                    <p>Hai ${studentName},</p>
-                    <p>Terima kasih kerana telah menyertai program <strong>${programTitle}</strong>.</p>
-                    <p>Waktu daftar keluar anda pada ${afterData.checkOutAt.toDate().toLocaleString("ms-MY")} telah berjaya direkodkan dan disahkan.</p>
-                    <br>
-                    <p>Terima kasih,</p>
-                    <p>Sistem Kehadiran JTMK+</p>
-                `,
-            };
-        } else {
-            mailOptions = {
-                from: `"JTMK+ System" <${gmailEmail}>`,
-                to: studentEmail,
-                subject: `Amaran Status Daftar Keluar - ${programTitle}`,
-                html: `
-                    <p>Hai ${studentName},</p>
-                    <p>Waktu daftar keluar anda untuk program <strong>${programTitle}</strong> pada ${afterData.checkOutAt.toDate().toLocaleString("ms-MY")} telah direkodkan, tetapi ia ditandakan sebagai tidak sah.</p>
-                    <p>Status: <strong>${checkOutStatus || 'Tidak diketahui'}</strong>. Ini mungkin kerana anda mendaftar keluar terlalu awal, di luar tetingkap masa yang dibenarkan, atau tempoh kehadiran tidak mencukupi.</p>
-                    <p>Sila hubungi penganjur program jika anda merasakan ini adalah satu kesilapan.</p>
-                    <br>
-                    <p>Terima kasih,</p>
-                    <p>Sistem Kehadiran JTMK+</p>
-                `,
-            };
-        }
-        
-        try {
-            await transporter.sendMail(mailOptions);
-            logger.log("Check-out email sent successfully to", studentEmail);
-        } catch (error) {
-            logger.error("Error sending check-out email:", error);
-        }
-    };
+    const studentName = afterData.studentName || "Pelajar";
+    const programDoc = await db.doc(`programs/${event.params.programId}`).get();
+    const programTitle = programDoc.exists ? programDoc.data()?.title : "program tersebut";
     
-    // --- Task 2: Update Engagement Stats (new logic) ---
-    const updateStatsTask = async () => {
-        // Only run stats update for successful checkouts
-        if (afterData.checkOutStatus !== 'ok') {
-            logger.log("Checkout status is not 'ok'. Skipping engagement update.", { status: afterData.checkOutStatus });
-            return;
-        }
-
-        logger.log(`Processing engagement stats for student: ${studentEmail}`);
-
-        try {
-            // 1. Get all 'ok' attendances for the user
-            const attendancesSnapshot = await db.collectionGroup('attendances')
-                .where('email', '==', studentEmail)
-                .where('checkOutStatus', '==', 'ok')
-                .get();
-
-            const totalOkAttendances = attendancesSnapshot.size;
-            const totalOkMinutes = attendancesSnapshot.docs.reduce((sum, doc) => {
-                const data = doc.data();
-                return sum + (typeof data.durationMinutes === 'number' ? data.durationMinutes : 0);
-            }, 0);
-
-            logger.log(`Stats for ${studentEmail}: ${totalOkAttendances} attendances, ${totalOkMinutes} minutes.`);
-
-            // 2. Determine the new badge and rating
-            let newBadge: string;
-            let newRating: number;
-
-            if (totalOkAttendances >= 25) {
-                newBadge = 'Legend';
-                newRating = 5;
-            } else if (totalOkMinutes >= 1000) {
-                newBadge = 'Elite Participant';
-                newRating = 4;
-            } else if (totalOkAttendances >= 10) {
-                newBadge = 'Commitment Pro';
-                newRating = 3;
-            } else if (totalOkAttendances >= 5) {
-                newBadge = 'Active';
-                newRating = 2;
-            } else if (totalOkAttendances >= 1) {
-                newBadge = 'Rookie';
-                newRating = 1;
-            } else {
-                newBadge = '';
-                newRating = 0;
-            }
-
-            // 3. Find the user document by email
-            const userQuery = await db.collection('users').where('email', '==', studentEmail).limit(1).get();
-
-            if (userQuery.empty) {
-                logger.warn(`Could not find user document for email: ${studentEmail}`);
-                return;
-            }
-
-            const userDocRef = userQuery.docs[0].ref;
-            const userData = userQuery.docs[0].data();
-
-            // 4. Update the user document only if there's a change
-            if (userData.badge !== newBadge || userData.rating !== newRating) {
-                await userDocRef.update({
-                    badge: newBadge,
-                    rating: newRating,
-                });
-                logger.log(`Successfully updated user ${studentEmail} to Badge: ${newBadge}, Rating: ${newRating}`);
-            } else {
-                logger.log(`User ${studentEmail} stats are already up-to-date. No update needed.`);
-            }
-
-        } catch (error) {
-            logger.error(`Error updating engagement stats for ${studentEmail}:`, error);
-        }
-    };
+    logger.log(`Sending check-out email to ${studentEmail} for program ${programTitle}`);
     
-    // Run both tasks in parallel
-    await Promise.all([sendEmailTask(), updateStatsTask()]);
+    const checkOutStatus = afterData.checkOutStatus;
+    let mailOptions;
+
+    if (checkOutStatus === 'ok' || checkOutStatus === 'admin_override') {
+        mailOptions = {
+            from: `"JTMK+ System" <${gmailEmail}>`,
+            to: studentEmail,
+            subject: `Terima Kasih Kerana Menyertai - ${programTitle}`,
+            html: `
+                <p>Hai ${studentName},</p>
+                <p>Terima kasih kerana telah menyertai program <strong>${programTitle}</strong>.</p>
+                <p>Waktu daftar keluar anda pada ${afterData.checkOutAt.toDate().toLocaleString("ms-MY")} telah berjaya direkodkan dan disahkan.</p>
+                <br>
+                <p>Terima kasih,</p>
+                <p>Sistem Kehadiran JTMK+</p>
+            `,
+        };
+    } else {
+        mailOptions = {
+            from: `"JTMK+ System" <${gmailEmail}>`,
+            to: studentEmail,
+            subject: `Amaran Status Daftar Keluar - ${programTitle}`,
+            html: `
+                <p>Hai ${studentName},</p>
+                <p>Waktu daftar keluar anda untuk program <strong>${programTitle}</strong> pada ${afterData.checkOutAt.toDate().toLocaleString("ms-MY")} telah direkodkan, tetapi ia ditandakan sebagai tidak sah.</p>
+                <p>Status: <strong>${checkOutStatus || 'Tidak diketahui'}</strong>. Ini mungkin kerana anda mendaftar keluar terlalu awal, di luar tetingkap masa yang dibenarkan, atau tempoh kehadiran tidak mencukupi.</p>
+                <p>Sila hubungi penganjur program jika anda merasakan ini adalah satu kesilapan.</p>
+                <br>
+                <p>Terima kasih,</p>
+                <p>Sistem Kehadiran JTMK+</p>
+            `,
+        };
+    }
+    
+    try {
+        await transporter.sendMail(mailOptions);
+        logger.log("Check-out email sent successfully to", studentEmail);
+    } catch (error) {
+        logger.error("Error sending check-out email:", error);
+    }
 });
 
 /**
@@ -259,18 +178,14 @@ export const onUserDeleted = onDocumentDeleted("/users/{userId}", async (event) 
     logger.log(`Successfully deleted ${attendancesSnapshot.size} attendance records for user ${userEmail}.`);
 });
 
-const BADGE_POINTS: { [key: string]: number } = {
-    'Legend': 500,
-    'Elite Participant': 300,
-    'Commitment Pro': 200,
-    'Active': 100,
-    'Rookie': 50,
-};
-
+/**
+ * Scheduled function that runs every 30 minutes to calculate and update student scores, ratings, and ranks.
+ */
 export const updateGlobalRanking = onSchedule("every 30 minutes", async (event) => {
     logger.log("Starting scheduled job: updateGlobalRanking");
 
     try {
+        // 1. Fetch all necessary data
         const usersSnapshot = await db.collection('users').where('role', '==', 'student').get();
         if (usersSnapshot.empty) {
             logger.log("No student users found. Exiting job.");
@@ -282,7 +197,6 @@ export const updateGlobalRanking = onSchedule("every 30 minutes", async (event) 
 
         const attendancesSnapshot = await db.collectionGroup('attendances').where('checkOutStatus', '==', 'ok').get();
         const userAttendances = new Map<string, any[]>();
-
         attendancesSnapshot.forEach(doc => {
             const data = doc.data();
             if (!userAttendances.has(data.email)) {
@@ -291,57 +205,71 @@ export const updateGlobalRanking = onSchedule("every 30 minutes", async (event) 
             userAttendances.get(data.email)!.push(data);
         });
 
+        const userAchievements = new Map<string, number>();
+        const achievementPromises = usersSnapshot.docs.map(async userDoc => {
+            const achievementsSnapshot = await db.collection('users').doc(userDoc.id).collection('achievements').get();
+            userAchievements.set(userDoc.id, achievementsSnapshot.size);
+        });
+        await Promise.all(achievementPromises);
+
         logger.log(`Processing ${usersSnapshot.size} users.`);
 
+        // 2. Calculate scores for each user
         const userScores = usersSnapshot.docs.map(userDoc => {
             const user = userDoc.data();
-            let totalScore = 0;
-
-            // 1. Badge Score
-            if (user.badge && BADGE_POINTS[user.badge]) {
-                totalScore += BADGE_POINTS[user.badge];
-            }
-
-            // 2. Rating Score
-            if (typeof user.rating === 'number') {
-                totalScore += user.rating * 100;
-            }
+            let totalPoints = 0;
 
             const studentAttendances = userAttendances.get(user.email) || [];
-
-            // 3. Attendance Score
-            totalScore += studentAttendances.length * 50;
-
-            // 4. Speed-to-Exit (Early Bird) Bonus
+            
+            // a. Base Attendance Points (+10 for each 'ok' attendance)
+            totalPoints += studentAttendances.length * 10;
+            
+            // b. Early Bird Bonus (+30 points)
             studentAttendances.forEach((att: any) => {
                 const program = programsMap.get(att.programId);
-                if (program && program.checkOutOpenTime && att.checkOutAt) {
-                    const checkOutOpen = (program.checkOutOpenTime as Timestamp).toDate();
-                    const checkOutAt = (att.checkOutAt as Timestamp).toDate();
-                    const diffMinutes = (checkOutAt.getTime() - checkOutOpen.getTime()) / 60000;
-                    if (diffMinutes >= 0 && diffMinutes <= 5) {
-                        totalScore += 30; // Early Bird bonus
+                if (program && program.startDateTime && att.createdAt) {
+                    const programStart = (program.startDateTime as Timestamp).toDate();
+                    const checkInTime = (att.createdAt as Timestamp).toDate();
+                    
+                    const thirtyMinutesBeforeStart = new Date(programStart.getTime() - 30 * 60 * 1000);
+
+                    if (checkInTime >= thirtyMinutesBeforeStart && checkInTime < programStart) {
+                        totalPoints += 30;
                     }
                 }
             });
+            
+            // c. Badge (Achievement) Bonuses (+20 per achievement)
+            const achievementCount = userAchievements.get(userDoc.id) || 0;
+            totalPoints += achievementCount * 20;
+            
+            // d. Determine rating based on totalPoints
+            let rating: number;
+            if (totalPoints <= 100) rating = 1;
+            else if (totalPoints <= 250) rating = 2;
+            else if (totalPoints <= 500) rating = 3;
+            else if (totalPoints <= 800) rating = 4;
+            else rating = 5;
 
-            return { id: userDoc.id, totalScore };
+            return { id: userDoc.id, totalScore: totalPoints, rating: rating };
         });
 
-        // Sort users by score descending
+        // 3. Sort users by score to determine rank
         userScores.sort((a, b) => b.totalScore - a.totalScore);
 
+        // 4. Batch update user documents
         const batch = db.batch();
         userScores.forEach((scoredUser, index) => {
             const userRef = db.collection('users').doc(scoredUser.id);
             batch.update(userRef, {
                 totalScore: scoredUser.totalScore,
+                rating: scoredUser.rating,
                 rank: index + 1,
             });
         });
 
         await batch.commit();
-        logger.log(`Successfully updated ranks for ${userScores.length} users.`);
+        logger.log(`Successfully updated ranks, scores, and ratings for ${userScores.length} users.`);
 
     } catch (error) {
         logger.error("Error in updateGlobalRanking job:", error);
