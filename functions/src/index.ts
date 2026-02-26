@@ -4,8 +4,6 @@ import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import * as nodemailer from "nodemailer";
-import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { onSchedule } from "firebase-functions/v2/scheduler";
 
 // Initialize Firebase Admin SDK
 initializeApp();
@@ -23,6 +21,90 @@ const transporter = nodemailer.createTransport({
         pass: gmailPassword,
     },
 });
+
+/**
+ * A central, reusable function to calculate a user's total score and rating from scratch.
+ * @param userId The user's unique ID.
+ * @param userEmail The user's email address.
+ */
+async function calculateUserScoreAndRating(userId: string, userEmail: string) {
+    logger.log(`Recalculating score for user: ${userEmail} (${userId})`);
+    const userDocRef = db.collection('users').doc(userId);
+
+    // 1. Fetch all necessary data in parallel
+    const attendancesQuery = db.collectionGroup('attendances')
+        .where('email', '==', userEmail)
+        .where('checkOutStatus', '==', 'ok');
+    
+    const achievementsQuery = userDocRef.collection('achievements');
+
+    const [attendancesSnap, achievementsSnap] = await Promise.all([
+        attendancesQuery.get(),
+        achievementsQuery.get(),
+    ]);
+
+    let totalPoints = 0;
+
+    // 2. Calculate points
+    // a. Base Attendance Points (+10 for each 'ok' attendance)
+    const basePoints = attendancesSnap.size * 10;
+    totalPoints += basePoints;
+    logger.log(`  - Base points: ${basePoints} for ${attendancesSnap.size} attendances.`);
+
+    // b. Badge (Achievement) Bonuses (+20 per achievement)
+    const achievementBonus = achievementsSnap.size * 20;
+    totalPoints += achievementBonus;
+    if (achievementBonus > 0) {
+        logger.log(`  - Achievement bonus: +${achievementBonus} for ${achievementsSnap.size} achievements.`);
+    }
+
+    // c. Early Bird Bonus (+30 points) - This requires fetching program docs
+    const programFetchPromises = attendancesSnap.docs.map(attDoc => {
+        const programId = attDoc.data().programId;
+        return db.collection('programs').doc(programId).get();
+    });
+
+    const programSnaps = await Promise.all(programFetchPromises);
+    let earlyBirdBonuses = 0;
+    
+    attendancesSnap.docs.forEach((attDoc, index) => {
+        const att = attDoc.data();
+        const programSnap = programSnaps[index];
+
+        if (programSnap.exists()) {
+            const program = programSnap.data();
+            if (program && program.startDateTime && att.createdAt) {
+                const programStart = (program.startDateTime as Timestamp).toDate();
+                const checkInTime = (att.createdAt as Timestamp).toDate();
+                const thirtyMinutesBeforeStart = new Date(programStart.getTime() - 30 * 60 * 1000);
+
+                if (checkInTime >= thirtyMinutesBeforeStart && checkInTime < programStart) {
+                    totalPoints += 30;
+                    earlyBirdBonuses++;
+                }
+            }
+        }
+    });
+     if (earlyBirdBonuses > 0) {
+        logger.log(`  - Early bird bonus: +${earlyBirdBonuses * 30} for ${earlyBirdBonuses} early check-ins.`);
+    }
+
+    // 3. Determine rating based on totalPoints
+    let rating: number;
+    if (totalPoints <= 100) rating = 1;
+    else if (totalPoints <= 250) rating = 2;
+    else if (totalPoints <= 500) rating = 3;
+    else if (totalPoints <= 800) rating = 4;
+    else rating = 5;
+
+    logger.log(`  - FINAL SCORE for ${userEmail}: ${totalPoints}, Rating: ${rating}`);
+
+    // 4. Update the User document. Rank is no longer calculated here.
+    await userDocRef.update({
+        totalScore: totalPoints,
+        rating: rating,
+    });
+}
 
 /**
  * Sends a notification email when a student checks in (a new attendance document is created).
@@ -43,7 +125,6 @@ export const onAttendanceCheckIn = onDocumentCreated("/programs/{programId}/atte
         return;
     }
     
-    // Fetch program details to include in the email
     const programDoc = await db.doc(`programs/${event.params.programId}`).get();
     const programTitle = programDoc.exists ? programDoc.data()?.title : "sebuah program";
 
@@ -74,8 +155,7 @@ export const onAttendanceCheckIn = onDocumentCreated("/programs/{programId}/atte
 
 
 /**
- * Sends a thank you/warning email when a student checks out.
- * Point and rating calculations are now handled by the 'updateGlobalRanking' scheduled function.
+ * Sends a thank you/warning email on check-out AND triggers a score recalculation on valid check-outs.
  */
 export const onAttendanceCheckOut = onDocumentUpdated("/programs/{programId}/attendances/{attendanceId}", async (event) => {
     const beforeData = event.data?.before.data();
@@ -83,7 +163,7 @@ export const onAttendanceCheckOut = onDocumentUpdated("/programs/{programId}/att
 
     // Proceed only if the checkOutAt field was just added.
     if (!beforeData || !afterData || beforeData.checkOutAt || !afterData.checkOutAt) {
-        logger.log("Not a check-out event or already checked out. Skipping.", { attendanceId: event.params.attendanceId });
+        logger.log("Not a check-out event or already processed. Skipping.", { attendanceId: event.params.attendanceId });
         return;
     }
 
@@ -93,6 +173,7 @@ export const onAttendanceCheckOut = onDocumentUpdated("/programs/{programId}/att
         return;
     }
     
+    // --- Start Email Logic ---
     const studentName = afterData.studentName || "Pelajar";
     const programDoc = await db.doc(`programs/${event.params.programId}`).get();
     const programTitle = programDoc.exists ? programDoc.data()?.title : "program tersebut";
@@ -139,7 +220,48 @@ export const onAttendanceCheckOut = onDocumentUpdated("/programs/{programId}/att
     } catch (error) {
         logger.error("Error sending check-out email:", error);
     }
+
+    // --- Start Score Calculation Logic ---
+    if (checkOutStatus === 'ok' || checkOutStatus === 'admin_override') {
+        // Find the user's document by their email
+        const usersSnap = await db.collection('users').where('email', '==', studentEmail).limit(1).get();
+        if (usersSnap.empty) {
+            logger.warn(`Could not find user with email ${studentEmail} to update score.`);
+            return;
+        }
+        
+        const userId = usersSnap.docs[0].id;
+        // Call the central calculation function. Do not block the email sending.
+        calculateUserScoreAndRating(userId, studentEmail).catch(err => {
+            logger.error(`Failed to calculate score for ${studentEmail}`, err);
+        });
+    }
 });
+
+
+/**
+ * Triggers a score recalculation when a new achievement is awarded to a user.
+ */
+export const onAchievementCreate = onDocumentCreated("/users/{userId}/achievements/{achievementId}", async (event) => {
+    const userId = event.params.userId;
+    const userSnap = await db.collection('users').doc(userId).get();
+
+    if (!userSnap.exists()) {
+        logger.warn(`User ${userId} not found, cannot update score for new achievement.`);
+        return;
+    }
+    const userEmail = userSnap.data()?.email;
+    if (!userEmail) {
+        logger.error(`User ${userId} has no email, cannot update score.`);
+        return;
+    }
+
+    // Call the central calculation function.
+    calculateUserScoreAndRating(userId, userEmail).catch(err => {
+        logger.error(`Failed to calculate score for ${userEmail} on new achievement`, err);
+    });
+});
+
 
 /**
  * Cleans up a user's attendance data when their user account is deleted.
@@ -176,116 +298,4 @@ export const onUserDeleted = onDocumentDeleted("/users/{userId}", async (event) 
     
     await batch.commit();
     logger.log(`Successfully deleted ${attendancesSnapshot.size} attendance records for user ${userEmail}.`);
-});
-
-/**
- * Scheduled function that runs every 30 minutes to calculate and update student scores, ratings, and ranks.
- */
-export const updateGlobalRanking = onSchedule("every 30 minutes", async (event) => {
-    logger.log("Starting scheduled job: updateGlobalRanking");
-
-    try {
-        // 1. Fetch all necessary data
-        const usersSnapshot = await db.collection('users').where('role', '==', 'student').get();
-        if (usersSnapshot.empty) {
-            logger.log("No student users found. Exiting job.");
-            return;
-        }
-
-        const programsSnapshot = await db.collection('programs').get();
-        const programsMap = new Map(programsSnapshot.docs.map(doc => [doc.id, doc.data()]));
-
-        const attendancesSnapshot = await db.collectionGroup('attendances').where('checkOutStatus', '==', 'ok').get();
-        const userAttendances = new Map<string, any[]>();
-        attendancesSnapshot.forEach(doc => {
-            const data = doc.data();
-            if (!userAttendances.has(data.email)) {
-                userAttendances.set(data.email, []);
-            }
-            userAttendances.get(data.email)!.push(data);
-        });
-
-        const userAchievements = new Map<string, number>();
-        const achievementPromises = usersSnapshot.docs.map(async userDoc => {
-            const achievementsSnapshot = await db.collection('users').doc(userDoc.id).collection('achievements').get();
-            userAchievements.set(userDoc.id, achievementsSnapshot.size);
-        });
-        await Promise.all(achievementPromises);
-
-        logger.log(`Processing ${usersSnapshot.size} users.`);
-
-        // 2. Calculate scores for each user
-        const userScores = usersSnapshot.docs.map(userDoc => {
-            const user = userDoc.data();
-            let totalPoints = 0;
-            logger.log(`Calculating score for user: ${user.email}`);
-
-            const studentAttendances = userAttendances.get(user.email) || [];
-            
-            // a. Base Attendance Points (+10 for each 'ok' attendance)
-            const basePoints = studentAttendances.length * 10;
-            totalPoints += basePoints;
-            logger.log(`  - Base points: ${basePoints} (${studentAttendances.length} attendances)`);
-            
-            // b. Early Bird Bonus (+30 points)
-            let earlyBirdBonuses = 0;
-            studentAttendances.forEach((att: any) => {
-                const program = programsMap.get(att.programId);
-                if (program && program.startDateTime && att.createdAt) {
-                    const programStart = (program.startDateTime as Timestamp).toDate();
-                    const checkInTime = (att.createdAt as Timestamp).toDate();
-                    
-                    const thirtyMinutesBeforeStart = new Date(programStart.getTime() - 30 * 60 * 1000);
-
-                    if (checkInTime >= thirtyMinutesBeforeStart && checkInTime < programStart) {
-                        totalPoints += 30;
-                        earlyBirdBonuses++;
-                    }
-                }
-            });
-            if (earlyBirdBonuses > 0) {
-              logger.log(`  - Early bird bonus: +${earlyBirdBonuses * 30} points for ${earlyBirdBonuses} early check-ins.`);
-            }
-            
-            // c. Badge (Achievement) Bonuses (+20 per achievement)
-            const achievementCount = userAchievements.get(userDoc.id) || 0;
-            const achievementBonus = achievementCount * 20;
-            totalPoints += achievementBonus;
-            if (achievementBonus > 0) {
-              logger.log(`  - Achievement bonus: +${achievementBonus} points for ${achievementCount} achievements.`);
-            }
-            
-            // d. Determine rating based on totalPoints
-            let rating: number;
-            if (totalPoints <= 100) rating = 1;
-            else if (totalPoints <= 250) rating = 2;
-            else if (totalPoints <= 500) rating = 3;
-            else if (totalPoints <= 800) rating = 4;
-            else rating = 5;
-
-            logger.log(`  - FINAL SCORE for ${user.email}: ${totalPoints}, Rating: ${rating}`);
-
-            return { id: userDoc.id, totalScore: totalPoints, rating: rating };
-        });
-
-        // 3. Sort users by score to determine rank
-        userScores.sort((a, b) => b.totalScore - a.totalScore);
-
-        // 4. Batch update user documents
-        const batch = db.batch();
-        userScores.forEach((scoredUser, index) => {
-            const userRef = db.collection('users').doc(scoredUser.id);
-            batch.update(userRef, {
-                totalScore: scoredUser.totalScore,
-                rating: scoredUser.rating,
-                rank: index + 1,
-            });
-        });
-
-        await batch.commit();
-        logger.log(`Successfully updated ranks, scores, and ratings for ${userScores.length} users.`);
-
-    } catch (error) {
-        logger.error("Error in updateGlobalRanking job:", error);
-    }
 });
