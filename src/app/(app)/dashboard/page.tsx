@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -9,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useUser, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
+import { useUser, useFirestore, useMemoFirebase, useCollection, useDoc } from "@/firebase";
 import { getDocs, collection, doc, getDoc, Timestamp, updateDoc, query, orderBy, collectionGroup, where } from "firebase/firestore";
 import { useEffect, useState, useCallback }from "react";
 import { format } from "date-fns";
