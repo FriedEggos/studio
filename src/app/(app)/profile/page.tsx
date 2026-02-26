@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -21,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Camera, Star, Trophy, Award, Shield, CheckCircle } from "lucide-react";
+import { Camera, Star, Trophy, Award, Shield, CheckCircle, PiggyBank } from "lucide-react";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, collectionGroup, getDocs, query, where, collection } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -48,6 +47,7 @@ interface UserProfile {
     badge?: string;
     rating?: number;
     rank?: number;
+    totalScore?: number;
     photoURL?: string;
 }
 
@@ -94,18 +94,15 @@ export default function ProfilePage() {
     const fetchHistory = async () => {
         setIsLoadingHistory(true);
         try {
-            // 1. Fetch all programs and map them by ID
             const programsSnap = await getDocs(collection(firestore, 'programs'));
             const programsMap = new Map(programsSnap.docs.map(doc => [doc.id, doc.data().title]));
 
-            // 2. Query the 'attendances' collection group for the user's email
             const attendancesQuery = query(
                 collectionGroup(firestore, 'attendances'),
                 where('email', '==', user.email)
             );
             const attendancesSnap = await getDocs(attendancesQuery);
 
-            // 3. Combine the data
             const participationHistory = attendancesSnap.docs.map(doc => {
                 const data = doc.data();
                 return {
@@ -169,7 +166,6 @@ export default function ProfilePage() {
     );
   }
 
-  // This prevents admins from seeing a student-formatted profile
   if (userProfile.role === 'admin') {
       return (
          <Alert variant="destructive">
@@ -229,8 +225,8 @@ export default function ProfilePage() {
               <CardTitle>Achievement Gallery</CardTitle>
               <CardDescription>Your engagement progress and badges.</CardDescription>
           </CardHeader>
-          <CardContent>
-               <div className="grid grid-cols-2 gap-4 my-4">
+          <CardContent className="space-y-6">
+               <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg bg-muted/50">
                       <p className="text-sm font-medium text-muted-foreground">Global Rank</p>
                        <p className="text-3xl font-bold">#{userProfile.rank || 'N/A'}</p>
@@ -242,8 +238,15 @@ export default function ProfilePage() {
                       </div>
                   </div>
               </div>
+               <div className="flex items-center justify-between gap-4 p-4 rounded-lg bg-muted/50">
+                    <div className="flex items-center gap-3">
+                      <PiggyBank className="h-6 w-6 text-primary" />
+                      <p className="text-sm font-medium text-muted-foreground">Accumulated Points</p>
+                    </div>
+                    <p className="text-2xl font-bold">{userProfile.totalScore || 0}</p>
+                </div>
 
-              <div className="mt-6">
+              <div>
                 <p className="text-sm font-medium text-muted-foreground mb-3 text-center">Badges</p>
                 <TooltipProvider>
                   <div className="grid grid-cols-3 md:grid-cols-5 gap-4 text-center">
