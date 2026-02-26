@@ -218,13 +218,17 @@ export const updateGlobalRanking = onSchedule("every 30 minutes", async (event) 
         const userScores = usersSnapshot.docs.map(userDoc => {
             const user = userDoc.data();
             let totalPoints = 0;
+            logger.log(`Calculating score for user: ${user.email}`);
 
             const studentAttendances = userAttendances.get(user.email) || [];
             
             // a. Base Attendance Points (+10 for each 'ok' attendance)
-            totalPoints += studentAttendances.length * 10;
+            const basePoints = studentAttendances.length * 10;
+            totalPoints += basePoints;
+            logger.log(`  - Base points: ${basePoints} (${studentAttendances.length} attendances)`);
             
             // b. Early Bird Bonus (+30 points)
+            let earlyBirdBonuses = 0;
             studentAttendances.forEach((att: any) => {
                 const program = programsMap.get(att.programId);
                 if (program && program.startDateTime && att.createdAt) {
@@ -235,13 +239,21 @@ export const updateGlobalRanking = onSchedule("every 30 minutes", async (event) 
 
                     if (checkInTime >= thirtyMinutesBeforeStart && checkInTime < programStart) {
                         totalPoints += 30;
+                        earlyBirdBonuses++;
                     }
                 }
             });
+            if (earlyBirdBonuses > 0) {
+              logger.log(`  - Early bird bonus: +${earlyBirdBonuses * 30} points for ${earlyBirdBonuses} early check-ins.`);
+            }
             
             // c. Badge (Achievement) Bonuses (+20 per achievement)
             const achievementCount = userAchievements.get(userDoc.id) || 0;
-            totalPoints += achievementCount * 20;
+            const achievementBonus = achievementCount * 20;
+            totalPoints += achievementBonus;
+            if (achievementBonus > 0) {
+              logger.log(`  - Achievement bonus: +${achievementBonus} points for ${achievementCount} achievements.`);
+            }
             
             // d. Determine rating based on totalPoints
             let rating: number;
@@ -250,6 +262,8 @@ export const updateGlobalRanking = onSchedule("every 30 minutes", async (event) 
             else if (totalPoints <= 500) rating = 3;
             else if (totalPoints <= 800) rating = 4;
             else rating = 5;
+
+            logger.log(`  - FINAL SCORE for ${user.email}: ${totalPoints}, Rating: ${rating}`);
 
             return { id: userDoc.id, totalScore: totalPoints, rating: rating };
         });
