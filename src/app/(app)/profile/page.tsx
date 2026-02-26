@@ -109,7 +109,7 @@ export default function ProfilePage() {
             const participationHistory = attendancesSnap.docs.map(doc => {
                 const data = doc.data();
                 return {
-                    id: doc.id,
+                    id: `${data.programId}_${doc.id}`,
                     programTitle: programsMap.get(data.programId) || 'Unknown Program',
                     createdAt: data.createdAt,
                     checkOutAt: data.checkOutAt,
