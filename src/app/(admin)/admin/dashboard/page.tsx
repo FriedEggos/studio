@@ -255,7 +255,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Total Programs"
             icon={List}
@@ -269,13 +269,6 @@ export default function AdminDashboard() {
             value={stats.monthlyActive}
             isLoading={isLoadingStats}
             description="Unique students in the last 30 days."
-          />
-          <StatCard
-            title="Average Session Duration"
-            icon={Clock}
-            value={`${stats.avgDuration} min`}
-            isLoading={isLoadingStats}
-            description="Average duration for 'ok' checkouts."
           />
           <StatCard
             title="New Student Growth"

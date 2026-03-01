@@ -23,7 +23,6 @@ const navLinks = [
   { href: "/admin/dashboard", label: "Dashboard", icon: Home },
   { href: "/admin/programs/create", label: "Create Program", icon: PlusCircle },
   { href: "/admin/users", label: "Users", icon: Users },
-  { href: "/admin/analytics", label: "Analytics", icon: BarChart },
   { href: "/admin/profile", label: "My Profile", icon: User },
 ];
 
