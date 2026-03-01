@@ -1,8 +1,9 @@
+
 'use client';
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Camera, Star, Trophy, Award, Shield, CheckCircle, PiggyBank } from "lucide-react";
-import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
 import { doc, collectionGroup, getDocs, query, where, collection } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -58,6 +59,10 @@ interface ParticipationHistoryItem {
     checkOutAt?: { toDate: () => Date };
 }
 
+interface Achievement {
+    id: string;
+}
+
 const allBadges = [
     { name: 'Legend', icon: Trophy, criteria: 'Achieve a rating of 5 stars by high participation.', color: 'text-yellow-500' },
     { name: 'Elite Participant', icon: Award, criteria: 'Accumulate over 1000 minutes of participation.', color: 'text-indigo-500' },
@@ -81,6 +86,18 @@ export default function ProfilePage() {
 
   const [history, setHistory] = useState<ParticipationHistoryItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+
+  const achievementsRef = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return collection(firestore, 'users', user.uid, 'achievements');
+  }, [user, firestore]);
+
+  const { data: earnedAchievements, isLoading: isLoadingAchievements } = useCollection<Achievement>(achievementsRef);
+
+  const earnedBadgeNames = useMemo(() => {
+    return new Set(earnedAchievements?.map(ach => ach.id) || []);
+  }, [earnedAchievements]);
+
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -144,7 +161,7 @@ export default function ProfilePage() {
     return stars;
   };
 
-  if (isUserLoading || isProfileLoading || !user || !userProfile) {
+  if (isUserLoading || isProfileLoading || isLoadingHistory || isLoadingAchievements || !user || !userProfile) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
@@ -251,7 +268,7 @@ export default function ProfilePage() {
                 <TooltipProvider>
                   <div className="grid grid-cols-3 md:grid-cols-5 gap-4 text-center">
                     {allBadges.map((badge) => {
-                      const hasBadge = userProfile.badge === badge.name;
+                      const hasBadge = earnedBadgeNames.has(badge.name);
                        return (
                         <Tooltip key={badge.name}>
                           <TooltipTrigger>

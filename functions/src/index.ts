@@ -162,7 +162,7 @@ async function calculateUserScoreAndRating(userId: string, userEmail: string) {
 }
 
 /**
- * Sends a notification email when a student checks in.
+ * Sends a notification email when a student checks in AND triggers score calculation.
  */
 export const onAttendanceCheckIn = onDocumentCreated("/programs/{programId}/attendances/{attendanceId}", async (event) => {
     const snapshot = event.data;
@@ -180,6 +180,7 @@ export const onAttendanceCheckIn = onDocumentCreated("/programs/{programId}/atte
         return;
     }
     
+    // --- Email Logic ---
     const programDoc = await db.doc(`programs/${event.params.programId}`).get();
     const programTitle = programDoc.exists ? programDoc.data()?.title : "sebuah program";
 
@@ -206,6 +207,18 @@ export const onAttendanceCheckIn = onDocumentCreated("/programs/{programId}/atte
     } catch (error) {
         logger.error("Error sending check-in email:", error);
     }
+
+    // --- Score Calculation Trigger on Check-in ---
+    const usersSnap = await db.collection('users').where('email', '==', studentEmail).limit(1).get();
+    if (usersSnap.empty) {
+        logger.warn(`Could not find user with email ${studentEmail} to update score on check-in.`);
+        return;
+    }
+    
+    const userId = usersSnap.docs[0].id;
+    await calculateUserScoreAndRating(userId, studentEmail).catch(err => {
+        logger.error(`Failed to calculate score for ${studentEmail} on check-in:`, err);
+    });
 });
 
 /**
