@@ -87,6 +87,7 @@ export default function ProfilePage() {
   const [history, setHistory] = useState<ParticipationHistoryItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
 
+  // This useCollection hook uses an onSnapshot listener, so it will update in real-time.
   const achievementsRef = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return collection(firestore, 'users', user.uid, 'achievements');

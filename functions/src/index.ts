@@ -32,26 +32,27 @@ async function calculateUserScoreAndRating(userId: string, userEmail: string) {
     const userDocRef = db.collection('users').doc(userId);
 
     // 1. Fetch all necessary data in parallel
-    const attendancesQuery = db.collectionGroup('attendances')
-        .where('email', '==', userEmail)
-        .where('checkOutStatus', '==', 'ok');
-    
+    const allAttendancesQuery = db.collectionGroup('attendances').where('email', '==', userEmail);
     const achievementsQuery = userDocRef.collection('achievements');
 
-    const [attendancesSnap, achievementsSnap] = await Promise.all([
-        attendancesQuery.get(),
+    const [allAttendancesSnap, achievementsSnap] = await Promise.all([
+        allAttendancesQuery.get(),
         achievementsQuery.get(),
     ]);
 
-    const totalAttendances = attendancesSnap.size;
+    const totalAttendances = allAttendancesSnap.size;
     const existingBadges = new Set(achievementsSnap.docs.map(doc => doc.id));
+    const validCheckoutAttendances = allAttendancesSnap.docs.filter(doc => doc.data().checkOutStatus === 'ok');
 
-    // 2. Fetch all required program documents for bonus calculations
-    const programFetchPromises = attendancesSnap.docs.map(attDoc => {
-        const programId = attDoc.data().programId;
-        return db.collection('programs').doc(programId).get();
-    });
+    // 2. Fetch all required program documents for bonus calculations, avoiding duplicates
+    const uniqueProgramIds = [...new Set(allAttendancesSnap.docs.map(doc => doc.data().programId))];
+    if (uniqueProgramIds.length === 0) { // No attendances, nothing to do
+        await userDocRef.update({ totalScore: 0, rating: 0, badge: null });
+        return;
+    }
+    const programFetchPromises = uniqueProgramIds.map(id => db.collection('programs').doc(id).get());
     const programSnaps = await Promise.all(programFetchPromises);
+    const programsMap = new Map(programSnaps.map(snap => [snap.id, snap.data()]));
 
     // 3. Calculate points and duration
     let totalPoints = 0;
@@ -59,50 +60,49 @@ async function calculateUserScoreAndRating(userId: string, userEmail: string) {
     let earlyCheckInBonuses = 0;
     let earlyCheckOutBonuses = 0;
 
-    // a. Base Attendance & Duration
+    // a. Base Attendance points
     totalPoints += totalAttendances * 10;
-    attendancesSnap.docs.forEach(attDoc => {
+
+    // b. Duration from valid checkouts
+    validCheckoutAttendances.forEach(attDoc => {
         totalDuration += (attDoc.data().durationMinutes || 0);
     });
 
-    // b. Badge Bonuses
+    // c. Badge Bonuses
     totalPoints += existingBadges.size * 20;
 
-    // c. Early Bird & Early Checkout Bonuses
-    attendancesSnap.docs.forEach((attDoc, index) => {
+    // d. Early Bird & Early Checkout Bonuses
+    allAttendancesSnap.docs.forEach(attDoc => {
         const att = attDoc.data();
-        const programSnap = programSnaps[index];
+        const program = programsMap.get(att.programId);
+        if (!program) return;
 
-        if (programSnap.exists()) {
-            const program = programSnap.data();
-
-            // Early Check-in Bonus
-            if (program && program.startDateTime && att.createdAt) {
-                const programStart = (program.startDateTime as Timestamp).toDate();
-                const checkInTime = (att.createdAt as Timestamp).toDate();
-                const thirtyMinutesBeforeStart = new Date(programStart.getTime() - 30 * 60 * 1000);
-                if (checkInTime >= thirtyMinutesBeforeStart && checkInTime < programStart) {
-                    totalPoints += 30;
-                    earlyCheckInBonuses++;
-                }
+        // Early Check-in Bonus
+        if (program.startDateTime && att.createdAt) {
+            const programStart = (program.startDateTime as Timestamp).toDate();
+            const checkInTime = (att.createdAt as Timestamp).toDate();
+            const thirtyMinutesBeforeStart = new Date(programStart.getTime() - 30 * 60 * 1000);
+            if (checkInTime >= thirtyMinutesBeforeStart && checkInTime < programStart) {
+                totalPoints += 30;
+                earlyCheckInBonuses++;
             }
+        }
 
-            // Early Check-out Bonus
-            if (program && att.checkOutAt && program.checkOutOpenTime) {
-                const checkOutTime = (att.checkOutAt as Timestamp).toDate();
-                const checkOutOpen = (program.checkOutOpenTime as Timestamp).toDate();
-                const thirtyMinutesAfterOpen = new Date(checkOutOpen.getTime() + 30 * 60 * 1000);
-                if (checkOutTime >= checkOutOpen && checkOutTime < thirtyMinutesAfterOpen) {
-                    totalPoints += 30;
-                    earlyCheckOutBonuses++;
-                }
+        // Early Check-out Bonus (only if checkout is valid)
+        if (att.checkOutStatus === 'ok' && att.checkOutAt && program.checkOutOpenTime) {
+            const checkOutTime = (att.checkOutAt as Timestamp).toDate();
+            const checkOutOpen = (program.checkOutOpenTime as Timestamp).toDate();
+            const thirtyMinutesAfterOpen = new Date(checkOutOpen.getTime() + 30 * 60 * 1000);
+            if (checkOutTime >= checkOutOpen && checkOutTime < thirtyMinutesAfterOpen) {
+                totalPoints += 30;
+                earlyCheckOutBonuses++;
             }
         }
     });
-    
+
     // 4. Determine rating based on totalPoints
     let rating: number;
-    if (totalPoints <= 100) rating = 1;
+    if (totalPoints < 101) rating = 1;
     else if (totalPoints <= 250) rating = 2;
     else if (totalPoints <= 500) rating = 3;
     else if (totalPoints <= 800) rating = 4;
@@ -130,16 +130,15 @@ async function calculateUserScoreAndRating(userId: string, userEmail: string) {
                 earnedAt: Timestamp.now(),
                 criteriaMet: desc,
             });
-            existingBadges.add(badgeName); // Add to set to prevent re-awarding and for highest badge logic
+            existingBadges.add(badgeName);
             newBadgesAwarded = true;
             logger.log(`  - Awarding new badge: ${badgeName} to ${userEmail}`);
         }
     }
     if (newBadgesAwarded) {
-        await batch.commit(); // Commit batch to award badges
-        // Point calculation will be re-triggered by onAchievementCreate, so we can stop here.
+        await batch.commit();
         logger.log(`New badges awarded. Score recalculation will be triggered. Halting current execution for ${userEmail}.`);
-        return;
+        return; // Recalculation will be triggered by onAchievementCreate, which is correct.
     }
 
     // 6. Determine highest badge earned
@@ -148,7 +147,7 @@ async function calculateUserScoreAndRating(userId: string, userEmail: string) {
 
     // 7. Log final calculation details
     logger.log(`  - Base points: ${totalAttendances * 10} for ${totalAttendances} attendances.`);
-    logger.log(`  - Badge bonus: ${achievementsSnap.size * 20} for ${achievementsSnap.size} badges.`);
+    logger.log(`  - Badge bonus: ${achievementsSnap.size * 20} for ${achievementsSnap.size} already existing badges.`);
     if (earlyCheckInBonuses > 0) logger.log(`  - Early check-in bonus: +${earlyCheckInBonuses * 30}`);
     if (earlyCheckOutBonuses > 0) logger.log(`  - Early check-out bonus: +${earlyCheckOutBonuses * 30}`);
     logger.log(`  - FINAL SCORE for ${userEmail}: ${totalPoints}, Rating: ${rating}, Highest Badge: ${highestBadge}`);
@@ -160,6 +159,7 @@ async function calculateUserScoreAndRating(userId: string, userEmail: string) {
         badge: highestBadge,
     });
 }
+
 
 /**
  * Sends a notification email when a student checks in AND triggers score calculation.
