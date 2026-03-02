@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Button } from "@/components/ui/button";
@@ -39,6 +38,8 @@ const programFormSchema = z.object({
   // Config fields
   copywriting: z.string().optional(),
   requireStudentId: z.boolean().default(true),
+  requirePhone: z.boolean().default(false),
+  requireClass: z.boolean().default(false),
   customInput1Enabled: z.boolean().default(false),
   customInput1Label: z.string().optional(),
   customInput2Enabled: z.boolean().default(false),
@@ -90,6 +91,7 @@ export default function CreateProgramPage() {
     const firestore = useFirestore();
 
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const currentYear = new Date().getFullYear();
     
     const form = useForm<ProgramFormValues>({
         resolver: zodResolver(programFormSchema),
@@ -103,6 +105,8 @@ export default function CreateProgramPage() {
             redirectUrl: "",
             copywriting: "",
             requireStudentId: true,
+            requirePhone: false,
+            requireClass: false,
             customInput1Enabled: false,
             customInput1Label: "",
             customInput2Enabled: false,
@@ -169,7 +173,9 @@ export default function CreateProgramPage() {
                 copywriting: data.copywriting || "",
                 fields: {
                     requireStudentId: data.requireStudentId,
+                    requirePhone: data.requirePhone,
                     requireEmail: true,
+                    requireClass: data.requireClass,
                     customInput1Enabled: data.customInput1Enabled,
                     customInput1Label: data.customInput1Label || "",
                     customInput2Enabled: data.customInput2Enabled,
@@ -221,8 +227,8 @@ export default function CreateProgramPage() {
                         <FormField name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} placeholder="A detailed description of the program." className="min-h-32" /></FormControl><FormMessage /></FormItem> )} />
                         <FormField name="location" render={({ field }) => ( <FormItem><FormLabel>Location</FormLabel><FormControl><Input {...field} placeholder="e.g., Main Hall, JTMK" /></FormControl><FormMessage /></FormItem> )} />
                         <div className="grid grid-cols-2 gap-4">
-                            <FormField name="startDate" render={({ field }) => (<FormItem><FormLabel>Start Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
-                            <FormField name="endDate" render={({ field }) => (<FormItem><FormLabel>End Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < (form.getValues("startDate") || new Date())} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                            <FormField name="startDate" render={({ field }) => (<FormItem><FormLabel>Start Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus captionLayout="dropdown-buttons" fromYear={currentYear - 5} toYear={currentYear + 5} /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                            <FormField name="endDate" render={({ field }) => (<FormItem><FormLabel>End Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < (form.getValues("startDate") || new Date())} initialFocus captionLayout="dropdown-buttons" fromYear={currentYear - 5} toYear={currentYear + 5} /></PopoverContent></Popover><FormMessage /></FormItem>)} />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <FormField name="startTime" render={({ field }) => ( <FormItem><FormLabel>Start Time</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem> )} />
@@ -240,14 +246,14 @@ export default function CreateProgramPage() {
                         <div className="space-y-2">
                             <FormLabel>Check-out Opens</FormLabel>
                             <div className="grid grid-cols-2 gap-4">
-                                <FormField name="checkOutOpenDate" render={({ field }) => (<FormItem><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                                <FormField name="checkOutOpenDate" render={({ field }) => (<FormItem><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus captionLayout="dropdown-buttons" fromYear={currentYear - 5} toYear={currentYear + 5} /></PopoverContent></Popover><FormMessage /></FormItem>)} />
                                 <FormField name="checkOutOpenStartTime" render={({ field }) => ( <FormItem><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem> )} />
                             </div>
                         </div>
                         <div className="space-y-2">
                             <FormLabel>Check-out Closes</FormLabel>
                             <div className="grid grid-cols-2 gap-4">
-                                <FormField name="checkOutCloseDate" render={({ field }) => (<FormItem><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < (form.getValues("checkOutOpenDate") || new Date())} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                                <FormField name="checkOutCloseDate" render={({ field }) => (<FormItem><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < (form.getValues("checkOutOpenDate") || new Date())} initialFocus captionLayout="dropdown-buttons" fromYear={currentYear - 5} toYear={currentYear + 5} /></PopoverContent></Popover><FormMessage /></FormItem>)} />
                                 <FormField name="checkOutCloseEndTime" render={({ field }) => ( <FormItem><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem> )} />
                             </div>
                         </div>
@@ -277,24 +283,8 @@ export default function CreateProgramPage() {
                                </div>
                                <FormControl><Switch checked={true} disabled /></FormControl>
                            </FormItem>
-                           <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 bg-muted/50">
-                               <div className="space-y-0.5">
-                                   <FormLabel>Require Phone Number</FormLabel>
-                                   <FormDescription className="text-xs">
-                                       Now required for all programs.
-                                   </FormDescription>
-                               </div>
-                               <FormControl><Switch checked={true} disabled /></FormControl>
-                           </FormItem>
-                           <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 bg-muted/50">
-                               <div className="space-y-0.5">
-                                   <FormLabel>Require Class</FormLabel>
-                                    <FormDescription className="text-xs">
-                                       Now required for all programs.
-                                   </FormDescription>
-                               </div>
-                               <FormControl><Switch checked={true} disabled /></FormControl>
-                           </FormItem>
+                           <FormField name="requirePhone" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3"><div className="space-y-0.5"><FormLabel>Require Phone Number</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
+                           <FormField name="requireClass" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3"><div className="space-y-0.5"><FormLabel>Require Class</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
                         </div>
                         
                         <CardTitle className="text-base pt-4">Custom Fields</CardTitle>
