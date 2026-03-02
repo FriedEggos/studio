@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -18,7 +17,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collectionGroup, doc, query, updateDoc, where } from "firebase/firestore";
+import { collectionGroup, doc, query, updateDoc, where, orderBy } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -43,7 +42,8 @@ export default function VerificationsPage() {
     if (!firestore) return null;
     return query(
       collectionGroup(firestore, 'positions'),
-      where('verificationStatus', '==', 'pending')
+      where('verificationStatus', '==', 'pending'),
+      orderBy('createdAt', 'desc')
     );
   }, [firestore]);
 
@@ -122,7 +122,7 @@ export default function VerificationsPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {formatDistanceToNow(pos.createdAt.toDate(), { addSuffix: true })}
+                      {pos.createdAt ? formatDistanceToNow(pos.createdAt.toDate(), { addSuffix: true }) : ''}
                     </TableCell>
                     <TableCell className="text-right space-x-2">
                       <Button
