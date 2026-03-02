@@ -1,3 +1,4 @@
+
 import Link from "next/link";
 import {
   Home,
@@ -6,6 +7,7 @@ import {
   BarChart,
   User,
   Users,
+  ShieldCheck,
 } from "lucide-react";
 import {
   Sheet,
@@ -23,6 +25,7 @@ const navLinks = [
   { href: "/admin/dashboard", label: "Dashboard", icon: Home },
   { href: "/admin/programs/create", label: "Create Program", icon: PlusCircle },
   { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/verifications", label: "Verifications", icon: ShieldCheck },
   { href: "/admin/profile", label: "My Profile", icon: User },
 ];
 
@@ -90,3 +93,5 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     </div>
   );
 }
+
+    

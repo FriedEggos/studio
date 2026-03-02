@@ -50,6 +50,44 @@
         "createdAt"
       ]
     },
+    "Position": {
+      "title": "Position",
+      "type": "object",
+      "description": "Represents a committee position held by a student in a program.",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user holding the position."
+        },
+        "userName": {
+          "type": "string",
+          "description": "The name of the user for display in admin panel."
+        },
+        "positionName": {
+          "type": "string",
+          "description": "The name of the position held (e.g., Chairman, Secretary)."
+        },
+        "customPositionDetail": {
+          "type": "string",
+          "description": "Specific detail if the position is 'Other Committee Members'."
+        },
+        "programName": {
+          "type": "string",
+          "description": "The name of the program where the position was held."
+        },
+        "verificationStatus": {
+          "type": "string",
+          "description": "The status of the verification request.",
+          "enum": ["pending", "approved", "rejected"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the position was submitted."
+        }
+      },
+      "required": ["userId", "userName", "positionName", "programName", "verificationStatus", "createdAt"]
+    },
     "Program": {
       "title": "Program",
       "type": "object",
@@ -252,6 +290,16 @@
         }
       },
       {
+        "path": "/users/{userId}/positions/{positionId}",
+        "definition": {
+            "entityName": "Position",
+            "schema": {
+                "$ref": "#/entities/Position"
+            },
+            "description": "Stores positions held by a student, pending admin verification."
+        }
+      },
+      {
         "path": "/programs/{programId}",
         "definition": {
           "entityName": "Program",
@@ -292,6 +340,8 @@
         }
       }
     ],
-    "reasoning": "This Firestore structure separates core program data from its form configuration and its attendance records. Public data (`programs`, `programConfigs`) is structured to be readable by unauthenticated users on a per-document basis for the QR form page, while sensitive data like attendance lists is nested and protected. This provides a secure and scalable way to handle public attendance submissions while giving administrators full control and visibility."
+    "reasoning": "This Firestore structure separates core program data from its form configuration and its attendance records. Public data (`programs`, `programConfigs`) is structured to be readable by unauthenticated users on a per-document basis for the QR form page, while sensitive data like attendance lists is nested and protected. A 'positions' sub-collection is added under 'users' to manage role verification requests."
   }
 }
+
+    

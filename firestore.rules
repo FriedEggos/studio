@@ -1,6 +1,6 @@
 
 rules_version = '2';
-// Triggering index creation for collection group query on 'attendances' by email.
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -29,16 +29,12 @@ service cloud.firestore {
     }
 
     function isCheckoutUpdate() {
-      // This function ensures that an update operation ONLY modifies the fields related to check-out.
-      // It compares the document before (resource.data) and after (request.resource.data) the update.
       let modifiedKeys = request.resource.data.diff(resource.data).affectedKeys();
-      let allowedCheckoutFields = ['checkOutAt', 'checkOutLat', 'checkOutLng', 'checkOutStatus', 'durationMinutes'];
-      
-      // The update is only allowed if the ONLY keys being changed are in the allowed list.
+      let allowedCheckoutFields = ['checkOutAt', 'checkOutStatus', 'durationMinutes'];
       return modifiedKeys.hasOnly(allowedCheckoutFields);
     }
-
-    // User profiles
+    
+    // User profiles and sub-collections
     match /users/{userId} {
       // Admins can read any profile, users can only read their own.
       allow get: if isOwner(userId) || isAdmin();
@@ -50,6 +46,25 @@ service cloud.firestore {
       allow update: if isOwner(userId) || isAdmin();
       // Only admins can delete users.
       allow delete: if isAdmin();
+      
+      // Rules for the new 'positions' sub-collection
+      match /positions/{positionId} {
+        // Students can create their own position requests.
+        // The verificationStatus must be 'pending' on creation.
+        allow create: if isOwner(userId) && request.resource.data.verificationStatus == 'pending';
+        // Admins can update any position (to approve/reject), but students cannot.
+        allow update: if isAdmin();
+        // Admins can delete position records if needed.
+        allow delete: if isAdmin();
+        // Students can read their own positions, admins can read any.
+        allow get, list: if isOwner(userId) || isAdmin();
+      }
+    }
+
+    // Collection Group query for positions
+    match /{path=**}/positions/{positionId} {
+      // Allows admins to query across all users' positions sub-collections.
+      allow list: if isAdmin();
     }
 
     // Program documents
@@ -79,32 +94,23 @@ service cloud.firestore {
     
     // Rule for the 'attendances' collection group query
     match /{path=**}/attendances/{attendanceId} {
-      // Allows `collectionGroup('attendances').where('email', '==', user.email)` for students
-      // and allows admins to perform any list query.
       allow list: if isAdmin() || (isSignedIn() && request.auth.token.email == resource.data.email);
     }
     
     // Program form configurations
     match /programConfigs/{programId} {
-       // Allow public GET for the QR form page. No public list.
       allow get: if true;
       allow list: if isAdmin();
-      // Only admins can create, update, or delete configs.
       allow create, update, delete: if isAdmin();
     }
 
     // Public QR slug to Program ID mapping
     match /qrSlugs/{slug} {
-        // Allow public GET to resolve a slug to a program ID. No list.
         allow get: if true;
         allow list: if false;
-        // Only admins can manage slug mappings.
         allow write: if isAdmin();
-    }
-    
-    // Catch-all for other collections - deny by default
-    match /{path=**} {
-      allow read, write: if false;
     }
   }
 }
+
+    
