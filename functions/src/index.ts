@@ -137,8 +137,7 @@ async function calculateUserScoreAndRating(userId: string, userEmail: string) {
     }
     if (newBadgesAwarded) {
         await batch.commit();
-        logger.log(`New badges awarded. Score recalculation will be triggered. Halting current execution for ${userEmail}.`);
-        return; // Recalculation will be triggered by onAchievementCreate, which is correct.
+        logger.log(`Committed new badges for ${userEmail}. Continuing score calculation.`);
     }
 
     // 6. Determine highest badge earned
