@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Camera, AlertCircle, Users, Award, PlusCircle, Loader2 } from "lucide-react";
+import { Camera, AlertCircle, Users, Award, PlusCircle, Loader2, Download } from "lucide-react";
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
 import { doc, collectionGroup, getDocs, query, where, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,10 +31,13 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
 
 // Schemas and Types
 interface UserProfile {
@@ -156,6 +159,42 @@ export default function ProfilePage() {
     }
   };
 
+  const handleDownloadPdf = () => {
+    if (!positions || !userProfile) return;
+
+    const approvedPositions = positions.filter(p => p.verificationStatus === 'approved');
+
+    if (approvedPositions.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'No Approved Positions',
+        description: 'You have no approved positions to download.',
+      });
+      return;
+    }
+
+    const doc = new jsPDF();
+    
+    doc.setFontSize(18);
+    doc.text('Senarai Penglibatan Jawatankuasa Yang Disahkan', 14, 22);
+    doc.setFontSize(12);
+    doc.text(`Nama Pelajar: ${userProfile.displayName}`, 14, 30);
+    doc.text(`Emel: ${userProfile.email}`, 14, 36);
+
+    autoTable(doc, {
+      startY: 45,
+      head: [['Program Name', 'Position']],
+      body: approvedPositions.map(p => [
+        p.programName,
+        p.positionName === 'Other Committee Members' ? `${p.positionName} (${p.customPositionDetail})` : p.positionName
+      ]),
+      theme: 'grid',
+      headStyles: { fillColor: [37, 51, 89] },
+    });
+
+    doc.save(`JTMK_Involvements_${userProfile.displayName.replace(' ', '_')}.pdf`);
+  };
+
   // Loading and Error States
   if (isUserLoading || isProfileLoading || isLoadingHistory || !user || !userProfile) {
     return (
@@ -234,9 +273,15 @@ export default function ProfilePage() {
         
         {/* My Positions Section */}
         <Card>
-            <CardHeader>
-                <CardTitle>My Positions & Involvements</CardTitle>
-                <CardDescription>Claim positions you held in programs for admin verification.</CardDescription>
+            <CardHeader className="flex-row items-center justify-between">
+                <div>
+                  <CardTitle>My Positions & Involvements</CardTitle>
+                  <CardDescription>Claim positions you held in programs for admin verification.</CardDescription>
+                </div>
+                <Button variant="outline" onClick={handleDownloadPdf}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Download PDF
+                </Button>
             </CardHeader>
             <CardContent>
                 <Form {...form}>
@@ -304,5 +349,3 @@ export default function ProfilePage() {
     </>
   );
 }
-
-    

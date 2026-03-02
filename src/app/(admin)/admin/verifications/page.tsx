@@ -16,7 +16,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collectionGroup, doc, query, updateDoc, where } from "firebase/firestore";
@@ -52,6 +51,7 @@ export default function VerificationsPage() {
 
   const handleVerification = async (position: Position, newStatus: 'approved' | 'rejected') => {
     if (!firestore) return;
+    // The path to the document is /users/{userId}/positions/{positionId}
     const positionDocRef = doc(firestore, `users/${position.userId}/positions`, position.id);
     
     try {
@@ -101,9 +101,15 @@ export default function VerificationsPage() {
                     <TableCell><Skeleton className="h-5 w-48" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-40" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell className="text-right"><Skeleton className="h-8 w-24" /></TableCell>
+                    <TableCell className="text-right space-x-2"><Skeleton className="h-8 w-8 inline-block" /><Skeleton className="h-8 w-8 inline-block" /></TableCell>
                   </TableRow>
                 ))
+              ) : error ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center text-destructive">
+                    Error loading verifications. Please try again.
+                  </TableCell>
+                </TableRow>
               ) : pendingPositions && pendingPositions.length > 0 ? (
                 pendingPositions.map((pos) => (
                   <TableRow key={pos.id}>
@@ -126,6 +132,7 @@ export default function VerificationsPage() {
                         onClick={() => handleVerification(pos, 'approved')}
                       >
                         <Check className="h-4 w-4" />
+                        <span className="sr-only">Approve</span>
                       </Button>
                       <Button
                         variant="outline"
@@ -134,6 +141,7 @@ export default function VerificationsPage() {
                         onClick={() => handleVerification(pos, 'rejected')}
                       >
                         <X className="h-4 w-4" />
+                         <span className="sr-only">Reject</span>
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -141,7 +149,7 @@ export default function VerificationsPage() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center">
-                    No pending verifications.
+                    No pending verifications found.
                   </TableCell>
                 </TableRow>
               )}
@@ -152,5 +160,3 @@ export default function VerificationsPage() {
     </div>
   );
 }
-
-    
