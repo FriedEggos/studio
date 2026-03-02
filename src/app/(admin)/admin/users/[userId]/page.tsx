@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -11,17 +12,10 @@ import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Star, Trophy, Award, Shield, CheckCircle } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 
 interface UserProfile {
     id: string;
@@ -31,19 +25,8 @@ interface UserProfile {
     matricId?: string;
     phoneNumber?: string;
     course?: string;
-    badge?: string;
-    rating?: number;
-    rank?: number;
     photoURL?: string;
 }
-
-const allBadges = [
-    { name: 'Legend', icon: Trophy, criteria: 'Achieve a rating of 5 stars by high participation.', color: 'text-yellow-500' },
-    { name: 'Elite Participant', icon: Award, criteria: 'Accumulate over 1000 minutes of participation.', color: 'text-indigo-500' },
-    { name: 'Commitment Pro', icon: CheckCircle, criteria: 'Attend 10 or more programs.', color: 'text-purple-500' },
-    { name: 'Active', icon: Shield, criteria: 'Attend 5 or more programs.', color: 'text-blue-500' },
-    { name: 'Rookie', icon: Shield, criteria: 'Attend your first program.', color: 'text-green-500' },
-];
 
 export default function UserProfilePage() {
   const params = useParams();
@@ -56,21 +39,6 @@ export default function UserProfilePage() {
   }, [userId, firestore]);
 
   const { data: userProfile, isLoading } = useDoc<UserProfile>(userDocRef);
-
-  const renderStars = (rating?: number) => {
-    const stars = [];
-    const totalStars = 5;
-    const filledStars = rating || 0;
-    for (let i = 1; i <= totalStars; i++) {
-        stars.push(
-            <Star
-                key={i}
-                className={cn('h-5 w-5', i <= filledStars ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground/30')}
-            />
-        );
-    }
-    return stars;
-  };
 
   if (isLoading || !userProfile) {
     return (
@@ -87,10 +55,6 @@ export default function UserProfilePage() {
             <Skeleton className="h-4 w-64 mt-2" />
           </CardHeader>
           <CardContent className="space-y-4 pt-6">
-            <div className="grid grid-cols-2 gap-4 my-4">
-                <Skeleton className="h-20 w-full" />
-                <Skeleton className="h-20 w-full" />
-            </div>
             <Skeleton className="h-5 w-full" />
             <Skeleton className="h-5 w-full" />
             <Skeleton className="h-5 w-full" />
@@ -168,64 +132,6 @@ export default function UserProfilePage() {
                 </div>
             </div>
         </CardContent>
-      </Card>
-      
-      <Card>
-          <CardHeader>
-              <CardTitle>Achievement Gallery</CardTitle>
-              <CardDescription>The student's engagement progress and badges.</CardDescription>
-          </CardHeader>
-          <CardContent>
-               <div className="grid grid-cols-2 gap-4 my-4">
-                  <div className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg bg-muted/50">
-                      <p className="text-sm font-medium text-muted-foreground">Global Rank</p>
-                      <p className="text-3xl font-bold">#{userProfile.rank || 'N/A'}</p>
-                  </div>
-                   <div className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg bg-muted/50">
-                      <p className="text-sm font-medium text-muted-foreground">Rating</p>
-                      <div className="flex items-center">
-                          {renderStars(userProfile?.rating)}
-                      </div>
-                  </div>
-              </div>
-
-              <div className="mt-6">
-                <p className="text-sm font-medium text-muted-foreground mb-3 text-center">Badges</p>
-                <TooltipProvider>
-                  <div className="grid grid-cols-3 md:grid-cols-5 gap-4 text-center">
-                    {allBadges.map((badge) => {
-                      const hasBadge = userProfile.badge === badge.name;
-                      return (
-                        <Tooltip key={badge.name}>
-                          <TooltipTrigger>
-                            <div className="flex flex-col items-center gap-2">
-                                <div className={cn(
-                                    "h-16 w-16 rounded-full flex items-center justify-center bg-muted",
-                                    hasBadge && "bg-primary/10 border-2 border-primary"
-                                )}>
-                                    <badge.icon className={cn(
-                                        "h-8 w-8",
-                                        hasBadge ? badge.color : "text-muted-foreground/40"
-                                    )} />
-                                </div>
-                                <p className={cn(
-                                    "text-xs font-medium",
-                                    hasBadge ? "text-foreground" : "text-muted-foreground"
-                                )}>{badge.name}</p>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="font-semibold">{badge.name}</p>
-                            <p className="text-xs text-muted-foreground">{badge.criteria}</p>
-                            {!hasBadge && <p className="text-xs text-destructive mt-1">(Locked)</p>}
-                          </TooltipContent>
-                        </Tooltip>
-                      );
-                    })}
-                  </div>
-                </TooltipProvider>
-              </div>
-          </CardContent>
       </Card>
     </div>
   );

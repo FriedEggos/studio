@@ -1,3 +1,4 @@
+
 {
   "indexes": [
     {
@@ -6,10 +7,6 @@
       "fields": [
         {
           "fieldPath": "role",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "rank",
           "order": "ASCENDING"
         }
       ]

@@ -21,19 +21,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Camera, Star, Trophy, Award, Shield, CheckCircle, PiggyBank } from "lucide-react";
-import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
+import { Camera } from "lucide-react";
+import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, collectionGroup, getDocs, query, where, collection } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
@@ -45,10 +38,6 @@ interface UserProfile {
     matricId?: string;
     phoneNumber?: string;
     course?: string;
-    badge?: string;
-    rating?: number;
-    rank?: number;
-    totalScore?: number;
     photoURL?: string;
 }
 
@@ -58,18 +47,6 @@ interface ParticipationHistoryItem {
     createdAt: { toDate: () => Date };
     checkOutAt?: { toDate: () => Date };
 }
-
-interface Achievement {
-    id: string;
-}
-
-const allBadges = [
-    { name: 'Legend', icon: Trophy, criteria: 'Achieve a rating of 5 stars by high participation.', color: 'text-yellow-500' },
-    { name: 'Elite Participant', icon: Award, criteria: 'Accumulate over 1000 minutes of participation.', color: 'text-indigo-500' },
-    { name: 'Commitment Pro', icon: CheckCircle, criteria: 'Attend 10 or more programs.', color: 'text-purple-500' },
-    { name: 'Active', icon: Shield, criteria: 'Attend 5 or more programs.', color: 'text-blue-500' },
-    { name: 'Rookie', icon: Shield, criteria: 'Attend your first program.', color: 'text-green-500' },
-];
 
 export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
@@ -86,19 +63,6 @@ export default function ProfilePage() {
 
   const [history, setHistory] = useState<ParticipationHistoryItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
-
-  // This useCollection hook uses an onSnapshot listener, so it will update in real-time.
-  const achievementsRef = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return collection(firestore, 'users', user.uid, 'achievements');
-  }, [user, firestore]);
-
-  const { data: earnedAchievements, isLoading: isLoadingAchievements } = useCollection<Achievement>(achievementsRef);
-
-  const earnedBadgeNames = useMemo(() => {
-    return new Set(earnedAchievements?.map(ach => ach.id) || []);
-  }, [earnedAchievements]);
-
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -147,22 +111,7 @@ export default function ProfilePage() {
     fetchHistory();
   }, [user, firestore, toast]);
 
-  const renderStars = (rating?: number) => {
-    const stars = [];
-    const totalStars = 5;
-    const filledStars = rating || 0;
-    for (let i = 1; i <= totalStars; i++) {
-        stars.push(
-            <Star
-                key={i}
-                className={cn('h-5 w-5', i <= filledStars ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground/30')}
-            />
-        );
-    }
-    return stars;
-  };
-
-  if (isUserLoading || isProfileLoading || isLoadingHistory || isLoadingAchievements || !user || !userProfile) {
+  if (isUserLoading || isProfileLoading || isLoadingHistory || !user || !userProfile) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
@@ -176,7 +125,6 @@ export default function ProfilePage() {
           </CardHeader>
           <CardContent className="space-y-4">
              <Skeleton className="h-10 w-full" />
-             <Skeleton className="h-40 w-full" />
              <Skeleton className="h-40 w-full" />
           </CardContent>
         </Card>
@@ -239,71 +187,6 @@ export default function ProfilePage() {
         </Card>
 
         <Card>
-          <CardHeader>
-              <CardTitle>Achievement Gallery</CardTitle>
-              <CardDescription>Your engagement progress and badges.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-               <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg bg-muted/50">
-                      <p className="text-sm font-medium text-muted-foreground">Global Rank</p>
-                       <p className="text-3xl font-bold">#{userProfile.rank || 'N/A'}</p>
-                  </div>
-                   <div className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg bg-muted/50">
-                      <p className="text-sm font-medium text-muted-foreground">Rating</p>
-                      <div className="flex items-center">
-                          {renderStars(userProfile?.rating)}
-                      </div>
-                  </div>
-              </div>
-               <div className="flex items-center justify-between gap-4 p-4 rounded-lg bg-muted/50">
-                    <div className="flex items-center gap-3">
-                      <PiggyBank className="h-6 w-6 text-primary" />
-                      <p className="text-sm font-medium text-muted-foreground">Accumulated Points</p>
-                    </div>
-                    <p className="text-2xl font-bold">{userProfile.totalScore || 0}</p>
-                </div>
-
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-3 text-center">Badges</p>
-                <TooltipProvider>
-                  <div className="grid grid-cols-3 md:grid-cols-5 gap-4 text-center">
-                    {allBadges.map((badge) => {
-                      const hasBadge = earnedBadgeNames.has(badge.name);
-                       return (
-                        <Tooltip key={badge.name}>
-                          <TooltipTrigger>
-                             <div className="flex flex-col items-center gap-2">
-                                <div className={cn(
-                                    "h-16 w-16 rounded-full flex items-center justify-center bg-muted",
-                                    hasBadge && "bg-primary/10 border-2 border-primary"
-                                )}>
-                                    <badge.icon className={cn(
-                                        "h-8 w-8",
-                                        hasBadge ? badge.color : "text-muted-foreground/40"
-                                    )} />
-                                </div>
-                                <p className={cn(
-                                    "text-xs font-medium",
-                                    hasBadge ? "text-foreground" : "text-muted-foreground"
-                                )}>{badge.name}</p>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="font-semibold">{badge.name}</p>
-                            <p className="text-xs text-muted-foreground">{badge.criteria}</p>
-                            {!hasBadge && <p className="text-xs text-destructive mt-1">(Locked)</p>}
-                          </TooltipContent>
-                        </Tooltip>
-                      );
-                    })}
-                  </div>
-                </TooltipProvider>
-              </div>
-          </CardContent>
-        </Card>
-
-        <Card>
             <CardHeader>
                 <CardTitle>Program Participation History</CardTitle>
                 <CardDescription>A record of all the programs you have attended.</CardDescription>
@@ -340,7 +223,7 @@ export default function ProfilePage() {
                         ) : (
                             <TableRow>
                                 <TableCell colSpan={4} className="h-24 text-center">
-                                    No programs joined yet. Start participating to earn badges!
+                                    No programs joined yet.
                                 </TableCell>
                             </TableRow>
                         )}

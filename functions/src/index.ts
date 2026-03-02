@@ -23,145 +23,7 @@ const transporter = nodemailer.createTransport({
 });
 
 /**
- * A central, reusable function to calculate a user's total score, rating, and award badges.
- * @param userId The user's unique ID.
- * @param userEmail The user's email address.
- */
-async function calculateUserScoreAndRating(userId: string, userEmail: string) {
-    logger.log(`Recalculating score and badges for user: ${userEmail} (${userId})`);
-    const userDocRef = db.collection('users').doc(userId);
-
-    // 1. Fetch all necessary data in parallel
-    const allAttendancesQuery = db.collectionGroup('attendances').where('email', '==', userEmail);
-    const achievementsQuery = userDocRef.collection('achievements');
-
-    const [allAttendancesSnap, achievementsSnap] = await Promise.all([
-        allAttendancesQuery.get(),
-        achievementsQuery.get(),
-    ]);
-
-    const totalAttendances = allAttendancesSnap.size;
-    const existingBadges = new Set(achievementsSnap.docs.map(doc => doc.id));
-    const validCheckoutAttendances = allAttendancesSnap.docs.filter(doc => doc.data().checkOutStatus === 'ok');
-
-    // 2. Fetch all required program documents for bonus calculations, avoiding duplicates
-    const uniqueProgramIds = [...new Set(allAttendancesSnap.docs.map(doc => doc.data().programId))];
-    if (uniqueProgramIds.length === 0) { // No attendances, nothing to do
-        await userDocRef.update({ totalScore: 0, rating: 0, badge: null });
-        return;
-    }
-    const programFetchPromises = uniqueProgramIds.map(id => db.collection('programs').doc(id).get());
-    const programSnaps = await Promise.all(programFetchPromises);
-    const programsMap = new Map(programSnaps.map(snap => [snap.id, snap.data()]));
-
-    // 3. Calculate points and duration
-    let totalPoints = 0;
-    let totalDuration = 0;
-    let earlyCheckInBonuses = 0;
-    let earlyCheckOutBonuses = 0;
-
-    // a. Base Attendance points
-    totalPoints += totalAttendances * 10;
-
-    // b. Duration from valid checkouts
-    validCheckoutAttendances.forEach(attDoc => {
-        totalDuration += (attDoc.data().durationMinutes || 0);
-    });
-
-    // c. Badge Bonuses
-    totalPoints += existingBadges.size * 20;
-
-    // d. Early Bird & Early Checkout Bonuses
-    allAttendancesSnap.docs.forEach(attDoc => {
-        const att = attDoc.data();
-        const program = programsMap.get(att.programId);
-        if (!program) return;
-
-        // Early Check-in Bonus
-        if (program.startDateTime && att.createdAt) {
-            const programStart = (program.startDateTime as Timestamp).toDate();
-            const checkInTime = (att.createdAt as Timestamp).toDate();
-            const thirtyMinutesBeforeStart = new Date(programStart.getTime() - 30 * 60 * 1000);
-            if (checkInTime >= thirtyMinutesBeforeStart && checkInTime < programStart) {
-                totalPoints += 30;
-                earlyCheckInBonuses++;
-            }
-        }
-
-        // Early Check-out Bonus (only if checkout is valid)
-        if (att.checkOutStatus === 'ok' && att.checkOutAt && program.checkOutOpenTime) {
-            const checkOutTime = (att.checkOutAt as Timestamp).toDate();
-            const checkOutOpen = (program.checkOutOpenTime as Timestamp).toDate();
-            const thirtyMinutesAfterOpen = new Date(checkOutOpen.getTime() + 30 * 60 * 1000);
-            if (checkOutTime >= checkOutOpen && checkOutTime < thirtyMinutesAfterOpen) {
-                totalPoints += 30;
-                earlyCheckOutBonuses++;
-            }
-        }
-    });
-
-    // 4. Determine rating based on totalPoints
-    let rating: number;
-    if (totalPoints < 101) rating = 1;
-    else if (totalPoints <= 250) rating = 2;
-    else if (totalPoints <= 500) rating = 3;
-    else if (totalPoints <= 800) rating = 4;
-    else rating = 5;
-
-    // 5. Award new badges if criteria are met
-    const badgeCriteria = {
-        'Rookie': { met: totalAttendances >= 1, desc: 'Attended your first program.' },
-        'Active': { met: totalAttendances >= 5, desc: 'Attended 5 programs.' },
-        'Commitment Pro': { met: totalAttendances >= 10, desc: 'Attended 10 programs.' },
-        'Elite Participant': { met: totalDuration > 1000, desc: 'Accumulated over 1000 participation minutes.' },
-        'Legend': { met: rating === 5, desc: 'Achieved a 5-star rating.' },
-    };
-
-    const batch = db.batch();
-    const achievementsRef = userDocRef.collection('achievements');
-    let newBadgesAwarded = false;
-
-    for (const [badgeName, { met, desc }] of Object.entries(badgeCriteria)) {
-        if (met && !existingBadges.has(badgeName)) {
-            const newBadgeRef = achievementsRef.doc(badgeName);
-            batch.set(newBadgeRef, {
-                badgeId: badgeName,
-                badgeName: badgeName.replace(/([A-Z])/g, ' $1').trim(),
-                earnedAt: Timestamp.now(),
-                criteriaMet: desc,
-            });
-            existingBadges.add(badgeName);
-            newBadgesAwarded = true;
-            logger.log(`  - Awarding new badge: ${badgeName} to ${userEmail}`);
-        }
-    }
-    if (newBadgesAwarded) {
-        await batch.commit();
-        logger.log(`Committed new badges for ${userEmail}. Continuing score calculation.`);
-    }
-
-    // 6. Determine highest badge earned
-    const badgeHierarchy = ['Legend', 'Elite Participant', 'Commitment Pro', 'Active', 'Rookie'];
-    const highestBadge = badgeHierarchy.find(b => existingBadges.has(b)) || null;
-
-    // 7. Log final calculation details
-    logger.log(`  - Base points: ${totalAttendances * 10} for ${totalAttendances} attendances.`);
-    logger.log(`  - Badge bonus: ${achievementsSnap.size * 20} for ${achievementsSnap.size} already existing badges.`);
-    if (earlyCheckInBonuses > 0) logger.log(`  - Early check-in bonus: +${earlyCheckInBonuses * 30}`);
-    if (earlyCheckOutBonuses > 0) logger.log(`  - Early check-out bonus: +${earlyCheckOutBonuses * 30}`);
-    logger.log(`  - FINAL SCORE for ${userEmail}: ${totalPoints}, Rating: ${rating}, Highest Badge: ${highestBadge}`);
-
-    // 8. Update the User document
-    await userDocRef.update({
-        totalScore: totalPoints,
-        rating: rating,
-        badge: highestBadge,
-    });
-}
-
-
-/**
- * Sends a notification email when a student checks in AND triggers score calculation.
+ * Sends a notification email when a student checks in.
  */
 export const onAttendanceCheckIn = onDocumentCreated("/programs/{programId}/attendances/{attendanceId}", async (event) => {
     const snapshot = event.data;
@@ -206,22 +68,10 @@ export const onAttendanceCheckIn = onDocumentCreated("/programs/{programId}/atte
     } catch (error) {
         logger.error("Error sending check-in email:", error);
     }
-
-    // --- Score Calculation Trigger on Check-in ---
-    const usersSnap = await db.collection('users').where('email', '==', studentEmail).limit(1).get();
-    if (usersSnap.empty) {
-        logger.warn(`Could not find user with email ${studentEmail} to update score on check-in.`);
-        return;
-    }
-    
-    const userId = usersSnap.docs[0].id;
-    await calculateUserScoreAndRating(userId, studentEmail).catch(err => {
-        logger.error(`Failed to calculate score for ${studentEmail} on check-in:`, err);
-    });
 });
 
 /**
- * Sends a thank you/warning email on check-out AND triggers a score recalculation on valid check-outs.
+ * Sends a thank you/warning email on check-out.
  */
 export const onAttendanceCheckOut = onDocumentUpdated("/programs/{programId}/attendances/{attendanceId}", async (event) => {
     const beforeData = event.data?.before.data();
@@ -268,43 +118,6 @@ export const onAttendanceCheckOut = onDocumentUpdated("/programs/{programId}/att
     } catch (error) {
         logger.error("Error sending check-out email:", error);
     }
-
-    // --- Score Calculation Trigger ---
-    if (checkOutStatus === 'ok' || checkOutStatus === 'admin_override') {
-        const usersSnap = await db.collection('users').where('email', '==', studentEmail).limit(1).get();
-        if (usersSnap.empty) {
-            logger.warn(`Could not find user with email ${studentEmail} to update score.`);
-            return;
-        }
-        
-        const userId = usersSnap.docs[0].id;
-        await calculateUserScoreAndRating(userId, studentEmail).catch(err => {
-            logger.error(`Failed to calculate score for ${studentEmail}:`, err);
-        });
-    }
-});
-
-
-/**
- * Triggers a score recalculation when a new achievement is awarded to a user.
- */
-export const onAchievementCreate = onDocumentCreated("/users/{userId}/achievements/{achievementId}", async (event) => {
-    const userId = event.params.userId;
-    const userSnap = await db.collection('users').doc(userId).get();
-
-    if (!userSnap.exists()) {
-        logger.warn(`User ${userId} not found, cannot update score for new achievement.`);
-        return;
-    }
-    const userEmail = userSnap.data()?.email;
-    if (!userEmail) {
-        logger.error(`User ${userId} has no email, cannot update score.`);
-        return;
-    }
-
-    await calculateUserScoreAndRating(userId, userEmail).catch(err => {
-        logger.error(`Failed to calculate score for ${userEmail} on new achievement:`, err);
-    });
 });
 
 

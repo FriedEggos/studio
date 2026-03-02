@@ -40,23 +40,6 @@
         "phoneNumber": {
             "type": "string",
             "description": "The student's phone number."
-        },
-        "badge": {
-          "type": "string",
-          "description": "Activity badge earned by the student.",
-          "enum": ["Legend", "Elite Participant", "Commitment Pro", "Active", "Rookie"]
-        },
-        "rating": {
-          "type": "number",
-          "description": "Student's activity rating from 1 to 5."
-        },
-        "rank": {
-          "type": "number",
-          "description": "The user's global leaderboard rank."
-        },
-        "totalScore": {
-          "type": "number",
-          "description": "The user's calculated total engagement score."
         }
       },
       "required": [
@@ -249,36 +232,6 @@
         }
       },
       "required": ["programId"]
-    },
-    "Achievement": {
-      "title": "Achievement",
-      "description": "Represents a badge or achievement earned by a user.",
-      "type": "object",
-      "properties": {
-        "badgeId": {
-          "type": "string",
-          "description": "A unique identifier for the badge type."
-        },
-        "badgeName": {
-          "type": "string",
-          "description": "The display name of the badge."
-        },
-        "earnedAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Timestamp when the badge was earned."
-        },
-        "criteriaMet": {
-          "type": "string",
-          "description": "A description of how the badge was earned."
-        }
-      },
-      "required": [
-        "badgeId",
-        "badgeName",
-        "earnedAt",
-        "criteriaMet"
-      ]
     }
   },
   "auth": {
@@ -296,16 +249,6 @@
             "$ref": "#/entities/User"
           },
           "description": "Stores individual user profile data (students and admins)."
-        }
-      },
-      {
-        "path": "/users/{userId}/achievements/{achievementId}",
-        "definition": {
-          "entityName": "Achievement",
-          "schema": {
-            "$ref": "#/entities/Achievement"
-          },
-          "description": "Stores achievements and badges earned by a user."
         }
       },
       {
