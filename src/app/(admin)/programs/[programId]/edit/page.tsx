@@ -12,8 +12,8 @@ import * as z from "zod";
 import { useUser, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter, useParams } from "next/navigation";
-import { doc, writeBatch, serverTimestamp, getDoc } from "firebase/firestore";
-import { format, parseISO } from "date-fns";
+import { doc, writeBatch, getDoc, Timestamp } from "firebase/firestore";
+import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
@@ -39,8 +39,6 @@ const programFormSchema = z.object({
   // Config fields
   copywriting: z.string().optional(),
   requireStudentId: z.boolean().default(false),
-  requirePhone: z.boolean().default(false),
-  requireClass: z.boolean().default(false),
   customInput1Enabled: z.boolean().default(false),
   customInput1Label: z.string().optional(),
   customInput2Enabled: z.boolean().default(false),
@@ -66,8 +64,9 @@ const programFormSchema = z.object({
 }).refine(data => {
     const combine = (date?: Date, time?: string): Date | undefined => {
       if (!date || !time) return undefined;
-      const d = new Date(date);
       const [h, m] = time.split(':').map(Number);
+      if (isNaN(h) || isNaN(m)) return undefined;
+      const d = new Date(date);
       d.setHours(h, m, 0, 0);
       return d;
     };
@@ -108,8 +107,6 @@ export default function EditProgramPage() {
             redirectUrl: "",
             copywriting: "",
             requireStudentId: true,
-            requirePhone: false,
-            requireClass: false,
             customInput1Enabled: false,
             customInput1Label: "",
             customInput2Enabled: false,
@@ -141,22 +138,33 @@ export default function EditProgramPage() {
                 const programData = programSnap.data();
                 const configData = configSnap.exists() ? configSnap.data() : {};
 
-                const openTime = programData.checkOutOpenTime ? parseISO(programData.checkOutOpenTime) : null;
-                const closeTime = programData.checkOutCloseTime ? parseISO(programData.checkOutCloseTime) : null;
+                if (!programData.startDateTime || !programData.endDateTime) {
+                  toast({
+                    variant: 'destructive',
+                    title: 'Outdated Program Data',
+                    description: 'This program has an old data format. Please review and re-save the dates.',
+                  });
+                }
+
+                const startDateTime = programData.startDateTime ? (programData.startDateTime as Timestamp).toDate() : new Date();
+                const endDateTime = programData.endDateTime ? (programData.endDateTime as Timestamp).toDate() : new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000); // Default 2 hours
+
+                const openTime = programData.checkOutOpenTime ? (programData.checkOutOpenTime as Timestamp).toDate() : null;
+                const closeTime = programData.checkOutCloseTime ? (programData.checkOutCloseTime as Timestamp).toDate() : null;
 
                 form.reset({
                     title: programData.title,
                     description: programData.description,
                     location: programData.location,
-                    startDate: parseISO(programData.startDate),
-                    startTime: programData.startTime,
-                    endDate: parseISO(programData.endDate),
-                    endTime: programData.endTime,
+                    startDate: startDateTime,
+                    startTime: format(startDateTime, 'HH:mm'),
+                    endDate: endDateTime,
+                    endTime: format(endDateTime, 'HH:mm'),
                     status: programData.status,
                     qrSlug: programData.qrSlug,
                     redirectUrl: programData.redirectUrl,
                     copywriting: configData.copywriting,
-                    ...configData.fields,
+                    ...(configData.fields || {}),
                     checkOutOpenDate: openTime,
                     checkOutOpenStartTime: openTime ? format(openTime, 'HH:mm') : '',
                     checkOutCloseDate: closeTime,
@@ -196,27 +204,39 @@ export default function EditProgramPage() {
             const newSlugDocRef = doc(firestore, "qrSlugs", newSlug);
             batch.set(newSlugDocRef, { programId });
 
-            const combineDateAndTime = (date?: Date, time?: string): string | null => {
-                if (!date || !time) return null;
-                const d = new Date(date);
-                const [h, m] = time.split(':').map(Number);
-                d.setHours(h, m, 0, 0);
-                return d.toISOString();
-            }
+            const combineDateAndTime = (date: Date, time: string): Date => {
+                const [hours, minutes] = time.split(':').map(Number);
+                const newDate = new Date(date);
+                newDate.setHours(hours, minutes, 0, 0);
+                return newDate;
+            };
+
+            const startDateTime = combineDateAndTime(data.startDate, data.startTime);
+            const endDateTime = combineDateAndTime(data.endDate, data.endTime);
+            const checkInOpenTime = new Date(startDateTime.getTime() - 30 * 60 * 1000);
+            const checkInCloseTime = new Date(startDateTime.getTime() + 30 * 60 * 1000);
+            
+            const checkOutOpenDateTime = data.checkOutOpenDate && data.checkOutOpenStartTime
+                ? combineDateAndTime(data.checkOutOpenDate, data.checkOutOpenStartTime)
+                : null;
+            const checkOutCloseDateTime = data.checkOutCloseDate && data.checkOutCloseEndTime
+                ? combineDateAndTime(data.checkOutCloseDate, data.checkOutCloseEndTime)
+                : null;
+
 
             const programData = {
                 title: data.title,
                 description: data.description,
                 location: data.location,
-                startDate: data.startDate.toISOString(),
-                startTime: data.startTime,
-                endDate: data.endDate.toISOString(),
-                endTime: data.endTime,
+                startDateTime: startDateTime,
+                endDateTime: endDateTime,
+                checkInOpenTime: checkInOpenTime,
+                checkInCloseTime: checkInCloseTime,
                 status: data.status,
                 qrSlug: newSlug,
                 redirectUrl: data.redirectUrl || "",
-                checkOutOpenTime: combineDateAndTime(data.checkOutOpenDate, data.checkOutOpenStartTime),
-                checkOutCloseTime: combineDateAndTime(data.checkOutCloseDate, data.checkOutCloseEndTime),
+                checkOutOpenTime: checkOutOpenDateTime,
+                checkOutCloseTime: checkOutCloseDateTime,
             };
             batch.update(programDocRef, programData);
 
@@ -225,9 +245,7 @@ export default function EditProgramPage() {
                 copywriting: data.copywriting || "",
                 fields: {
                     requireStudentId: data.requireStudentId,
-                    requirePhone: data.requirePhone,
                     requireEmail: true,
-                    requireClass: data.requireClass,
                     customInput1Enabled: data.customInput1Enabled,
                     customInput1Label: data.customInput1Label || "",
                     customInput2Enabled: data.customInput2Enabled,
@@ -337,8 +355,24 @@ export default function EditProgramPage() {
                                </div>
                                <FormControl><Switch checked={true} disabled /></FormControl>
                            </FormItem>
-                           <FormField name="requirePhone" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3"><div className="space-y-0.5"><FormLabel>Require Phone Number</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
-                           <FormField name="requireClass" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3"><div className="space-y-0.5"><FormLabel>Require Class</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
+                           <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 bg-muted/50">
+                               <div className="space-y-0.5">
+                                   <FormLabel>Require Phone Number</FormLabel>
+                                   <FormDescription className="text-xs">
+                                       Now required for all programs.
+                                   </FormDescription>
+                               </div>
+                               <FormControl><Switch checked={true} disabled /></FormControl>
+                           </FormItem>
+                           <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 bg-muted/50">
+                               <div className="space-y-0.5">
+                                   <FormLabel>Require Class</FormLabel>
+                                    <FormDescription className="text-xs">
+                                       Now required for all programs.
+                                   </FormDescription>
+                               </div>
+                               <FormControl><Switch checked={true} disabled /></FormControl>
+                           </FormItem>
                         </div>
                         
                         <CardTitle className="text-base pt-4">Custom Fields</CardTitle>
