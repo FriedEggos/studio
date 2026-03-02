@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -46,6 +45,8 @@ export default function RegisterPage() {
   const auth = useAuth();
   const firestore = useFirestore();
   const [fullName, setFullName] = useState("");
+  const [matricId, setMatricId] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -55,7 +56,7 @@ export default function RegisterPage() {
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!fullName || !email || !password || !course || !confirmPassword) {
+    if (!fullName || !email || !password || !course || !confirmPassword || !matricId || !phoneNumber) {
       toast({
         variant: "destructive",
         title: "Please fill all fields",
@@ -89,6 +90,8 @@ export default function RegisterPage() {
           email: user.email,
           role: role,
           course: course,
+          matricId: matricId,
+          phoneNumber: phoneNumber,
           createdAt: serverTimestamp(),
         };
         
@@ -144,8 +147,29 @@ export default function RegisterPage() {
                 onChange={(e) => setFullName(e.target.value)}
               />
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="matric-id">Student ID (Matric No.)</Label>
+              <Input
+                id="matric-id"
+                placeholder="e.g., 2021XXXXXX"
+                required
+                value={matricId}
+                onChange={(e) => setMatricId(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="phone-number">Phone Number</Label>
+              <Input
+                id="phone-number"
+                type="tel"
+                placeholder="e.g., 012-3456789"
+                required
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+              />
+            </div>
              <div className="grid gap-2">
-              <Label htmlFor="course">Course</Label>
+              <Label htmlFor="course">Department</Label>
               <Select onValueChange={setCourse} value={course} required>
                 <SelectTrigger id="course">
                   <SelectValue placeholder="Select your department" />
