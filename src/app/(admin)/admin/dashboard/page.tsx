@@ -64,6 +64,7 @@ export default function AdminDashboard() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [programToDelete, setProgramToDelete] = useState<Program | null>(null);
+  const [now, setNow] = useState(new Date());
 
   const programsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -83,6 +84,11 @@ export default function AdminDashboard() {
 
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(true);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000); // Update every minute
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!firestore) return;
@@ -242,6 +248,23 @@ export default function AdminDashboard() {
     </Card>
   );
 
+  const getProgramStatus = (program: Program): 'upcoming' | 'ongoing' | 'completed' => {
+      const startTime = program.startDateTime?.toDate();
+      const endTime = program.endDateTime?.toDate();
+
+      if (!startTime || !endTime) {
+          return 'upcoming';
+      }
+
+      if (now < startTime) {
+          return 'upcoming';
+      }
+      if (now > endTime) {
+          return 'completed';
+      }
+      return 'ongoing';
+  };
+
   return (
     <>
       <div className="space-y-6">
@@ -320,7 +343,9 @@ export default function AdminDashboard() {
                               </TableRow>
                           ))
                           ) : programs && programs.length > 0 ? (
-                          programs.map((program) => (
+                          programs.map((program) => {
+                            const dynamicStatus = getProgramStatus(program);
+                            return (
                               <TableRow key={program.id}>
                                   <TableCell>
                                   <div className="font-medium">{program.title}</div>
@@ -329,7 +354,7 @@ export default function AdminDashboard() {
                                   </div>
                                   </TableCell>
                                   <TableCell>
-                                  <Badge variant={program.status === 'completed' ? 'outline' : program.status === 'ongoing' ? 'default' : 'secondary'} className="capitalize">{program.status}</Badge>
+                                  <Badge variant={dynamicStatus === 'completed' ? 'outline' : dynamicStatus === 'ongoing' ? 'default' : 'secondary'} className="capitalize">{dynamicStatus}</Badge>
                                   </TableCell>
                                   <TableCell className="text-right">
                                   <DropdownMenu>
@@ -366,7 +391,8 @@ export default function AdminDashboard() {
                                   </DropdownMenu>
                                   </TableCell>
                               </TableRow>
-                          ))
+                            )
+                          })
                           ) : (
                           <TableRow>
                               <TableCell colSpan={3} className="h-24 text-center">
