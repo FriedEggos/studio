@@ -40,7 +40,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase";
 import { collection, query, orderBy, writeBatch, getDocs, doc, Timestamp, collectionGroup, where, limit } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -59,15 +59,16 @@ type Program = {
 export default function AdminDashboard() {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { user } = useUser();
   
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [programToDelete, setProgramToDelete] = useState<Program | null>(null);
 
   const programsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !user) return null;
     return query(collection(firestore, 'programs'), orderBy('createdAt', 'desc'));
-  }, [firestore]);
+  }, [firestore, user]);
   
   const { data: programs, isLoading: isLoadingPrograms } = useCollection<Program>(programsQuery);
 
