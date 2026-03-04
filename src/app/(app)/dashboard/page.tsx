@@ -186,16 +186,6 @@ export default function StudentDashboard() {
         const endTime = (program.endDateTime as Timestamp).toDate();
 
         const programStatus = now > endTime ? 'completed' : now >= startTime ? 'ongoing' : 'upcoming';
-        
-        const showPreProgramBonus = !attendance && programStatus === 'upcoming' && now > new Date(startTime.getTime() - 60 * 60 * 1000) && now < startTime;
-
-        const checkOutOpenTime = program.checkOutOpenTime ? (program.checkOutOpenTime as Timestamp).toDate() : null;
-        const isEarlyCheckoutWindow = 
-            attendance && 
-            !attendance.checkOutAt && 
-            checkOutOpenTime &&
-            now >= checkOutOpenTime &&
-            now < new Date(checkOutOpenTime.getTime() + 30 * 60 * 1000);
 
         return (
             <Card className="rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col">
@@ -219,28 +209,14 @@ export default function StudentDashboard() {
                         <>
                             <CheckoutStatusBadge attendance={attendance} />
                             {!attendance.checkOutAt && (
-                                <>
-                                    {isEarlyCheckoutWindow && (
-                                        <Badge variant="outline" className="mt-2 border-green-600 text-green-700 bg-green-50">
-                                            🎁 Claim +30 Early Bird Points!
-                                        </Badge>
-                                    )}
-                                    <Button onClick={() => handleCheckout(program.id)} disabled={isCheckingOut === program.id} className="mt-2" size="sm">
-                                        {isCheckingOut === program.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                        Check-out Now
-                                    </Button>
-                                </>
+                                <Button onClick={() => handleCheckout(program.id)} disabled={isCheckingOut === program.id} className="mt-2" size="sm">
+                                    {isCheckingOut === program.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Check-out Now
+                                </Button>
                             )}
                         </>
                     ) : (
-                        <>
-                            {showPreProgramBonus && (
-                                <Badge variant="outline" className="border-blue-600 text-blue-700 bg-blue-50">
-                                    🎁 Check-in early for +30 points!
-                                </Badge>
-                            )}
-                            <p className="text-sm text-muted-foreground">Scan the program QR code to check in.</p>
-                        </>
+                        <p className="text-sm text-muted-foreground">Scan the program QR code to check in.</p>
                     )}
                 </CardFooter>
             </Card>
