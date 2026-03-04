@@ -176,10 +176,10 @@ export default function ProfilePage() {
     const doc = new jsPDF();
     
     doc.setFontSize(18);
-    doc.text('Senarai Penglibatan Jawatankuasa Yang Disahkan', 14, 22);
+    doc.text('List of Verified Committee Involvements', 14, 22);
     doc.setFontSize(12);
-    doc.text(`Nama Pelajar: ${userProfile.displayName}`, 14, 30);
-    doc.text(`Emel: ${userProfile.email}`, 14, 36);
+    doc.text(`Student Name: ${userProfile.displayName}`, 14, 30);
+    doc.text(`Email: ${userProfile.email}`, 14, 36);
 
     autoTable(doc, {
       startY: 45,
@@ -226,27 +226,6 @@ export default function ProfilePage() {
       <div className="space-y-6">
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">My Profile</h1>
 
-        <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Programs Attended</CardTitle>
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{totalProgramsAttended}</div>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Verified Involvements</CardTitle>
-                    <Award className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{totalInvolvements}</div>
-                </CardContent>
-            </Card>
-        </div>
-
         <Card>
           <CardHeader className="items-center text-center">
             <Link href="/profile/edit" className="relative group">
@@ -270,12 +249,33 @@ export default function ProfilePage() {
             <Button className="w-full" asChild><Link href="/profile/edit">Edit Profile</Link></Button>
           </CardContent>
         </Card>
+
+        <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Programs Attended</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{totalProgramsAttended}</div>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Verified Involvements</CardTitle>
+                    <Award className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{totalInvolvements}</div>
+                </CardContent>
+            </Card>
+        </div>
         
-        {/* My Positions Section */}
+        {/* Contributions Section */}
         <Card>
             <CardHeader className="flex-row items-center justify-between">
                 <div>
-                  <CardTitle>My Positions & Involvements</CardTitle>
+                  <CardTitle>Contributions</CardTitle>
                   <CardDescription>Claim positions you held in programs for admin verification.</CardDescription>
                 </div>
                 <Button variant="outline" onClick={handleDownloadPdf}>
