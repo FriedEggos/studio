@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Calendar as CalendarIcon, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -13,15 +13,12 @@ import { useUser, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { doc, writeBatch, serverTimestamp, collection, addDoc } from "firebase/firestore";
-import { format } from "date-fns";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { generateSlug } from "@/lib/slug-generator";
 import { Switch } from "@/components/ui/switch";
 import Link from "next/link";
+import { DateDropdownPicker } from "@/components/ui/date-dropdown-picker";
 
 const programFormSchema = z.object({
   title: z.string().min(1, "Title is required."),
@@ -227,8 +224,8 @@ export default function CreateProgramPage() {
                         <FormField name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} placeholder="A detailed description of the program." className="min-h-32" /></FormControl><FormMessage /></FormItem> )} />
                         <FormField name="location" render={({ field }) => ( <FormItem><FormLabel>Location</FormLabel><FormControl><Input {...field} placeholder="e.g., Main Hall, JTMK" /></FormControl><FormMessage /></FormItem> )} />
                         <div className="grid grid-cols-2 gap-4">
-                            <FormField name="startDate" render={({ field }) => (<FormItem><FormLabel>Start Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus captionLayout="dropdown-buttons" fromYear={currentYear - 10} toYear={currentYear + 10} /></PopoverContent></Popover><FormMessage /></FormItem>)} />
-                            <FormField name="endDate" render={({ field }) => (<FormItem><FormLabel>End Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < (form.getValues("startDate") || new Date())} initialFocus captionLayout="dropdown-buttons" fromYear={currentYear - 10} toYear={currentYear + 10} /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                            <FormField name="startDate" render={({ field }) => (<FormItem><FormLabel>Start Date</FormLabel><FormControl><DateDropdownPicker value={field.value} onChange={field.onChange} fromYear={currentYear - 10} toYear={currentYear + 10} /></FormControl><FormMessage /></FormItem>)} />
+                            <FormField name="endDate" render={({ field }) => (<FormItem><FormLabel>End Date</FormLabel><FormControl><DateDropdownPicker value={field.value} onChange={field.onChange} fromYear={currentYear - 10} toYear={currentYear + 10} /></FormControl><FormMessage /></FormItem>)} />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <FormField name="startTime" render={({ field }) => ( <FormItem><FormLabel>Start Time</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem> )} />
@@ -246,14 +243,14 @@ export default function CreateProgramPage() {
                         <div className="space-y-2">
                             <FormLabel>Check-out Opens</FormLabel>
                             <div className="grid grid-cols-2 gap-4">
-                                <FormField name="checkOutOpenDate" render={({ field }) => (<FormItem><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus captionLayout="dropdown-buttons" fromYear={currentYear - 10} toYear={currentYear + 10} /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                                <FormField name="checkOutOpenDate" render={({ field }) => (<FormItem><FormControl><DateDropdownPicker value={field.value} onChange={field.onChange} fromYear={currentYear - 10} toYear={currentYear + 10} /></FormControl><FormMessage /></FormItem>)} />
                                 <FormField name="checkOutOpenStartTime" render={({ field }) => ( <FormItem><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem> )} />
                             </div>
                         </div>
                         <div className="space-y-2">
                             <FormLabel>Check-out Closes</FormLabel>
                             <div className="grid grid-cols-2 gap-4">
-                                <FormField name="checkOutCloseDate" render={({ field }) => (<FormItem><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < (form.getValues("checkOutOpenDate") || new Date())} initialFocus captionLayout="dropdown-buttons" fromYear={currentYear - 10} toYear={currentYear + 10} /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                                <FormField name="checkOutCloseDate" render={({ field }) => (<FormItem><FormControl><DateDropdownPicker value={field.value} onChange={field.onChange} fromYear={currentYear - 10} toYear={currentYear + 10} /></FormControl><FormMessage /></FormItem>)} />
                                 <FormField name="checkOutCloseEndTime" render={({ field }) => ( <FormItem><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem> )} />
                             </div>
                         </div>
