@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -58,15 +57,15 @@ export default function VerificationsPage() {
     try {
       await updateDoc(positionDocRef, { verificationStatus: newStatus });
       toast({
-        title: `Jawatan ${newStatus === 'approved' ? 'Diluluskan' : 'Ditolak'}`,
-        description: `Jawatan untuk ${position.userName} telah ${newStatus === 'approved' ? 'diluluskan' : 'ditolak'}.`,
+        title: `Position ${newStatus === 'approved' ? 'Approved' : 'Rejected'}`,
+        description: `The position for ${position.userName} has been ${newStatus === 'approved' ? 'approved' : 'rejected'}.`,
       });
     } catch (err) {
       console.error('Verification update failed:', err);
       toast({
         variant: 'destructive',
-        title: 'Kemas Kini Gagal',
-        description: 'Tidak dapat mengemas kini status jawatan.',
+        title: 'Update Failed',
+        description: 'Could not update the position status.',
       });
     }
   };
@@ -74,24 +73,24 @@ export default function VerificationsPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
-        Pengesahan Menunggu
+        Pending Verifications
       </h1>
       <Card>
         <CardHeader>
-          <CardTitle>Permohonan Jawatan</CardTitle>
+          <CardTitle>Position Applications</CardTitle>
           <CardDescription>
-            Semak dan luluskan atau tolak tuntutan jawatan yang dihantar oleh pelajar.
+            Review and approve or reject position claims submitted by students.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Pelajar</TableHead>
-                <TableHead>Nama Program</TableHead>
-                <TableHead>Jawatan Dituntut</TableHead>
-                <TableHead>Dihantar</TableHead>
-                <TableHead className="text-right">Tindakan</TableHead>
+                <TableHead>Student</TableHead>
+                <TableHead>Program Name</TableHead>
+                <TableHead>Position Claimed</TableHead>
+                <TableHead>Submitted</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -108,7 +107,7 @@ export default function VerificationsPage() {
               ) : error ? (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center text-destructive">
-                    Ralat memuatkan pengesahan. Sila cuba lagi.
+                    Error loading verifications. Please try again.
                   </TableCell>
                 </TableRow>
               ) : pendingPositions && pendingPositions.length > 0 ? (
@@ -133,7 +132,7 @@ export default function VerificationsPage() {
                         onClick={() => handleVerification(pos, 'approved')}
                       >
                         <Check className="h-4 w-4" />
-                        <span className="sr-only">Luluskan</span>
+                        <span className="sr-only">Approve</span>
                       </Button>
                       <Button
                         variant="outline"
@@ -142,7 +141,7 @@ export default function VerificationsPage() {
                         onClick={() => handleVerification(pos, 'rejected')}
                       >
                         <X className="h-4 w-4" />
-                         <span className="sr-only">Tolak</span>
+                         <span className="sr-only">Reject</span>
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -150,7 +149,7 @@ export default function VerificationsPage() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center">
-                    Tiada pengesahan menunggu ditemui.
+                    No pending verifications found.
                   </TableCell>
                 </TableRow>
               )}
@@ -161,5 +160,3 @@ export default function VerificationsPage() {
     </div>
   );
 }
-
-    
