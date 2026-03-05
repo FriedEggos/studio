@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collectionGroup, doc, query, updateDoc, where, orderBy } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Check, X } from "lucide-react";
 
@@ -30,6 +30,7 @@ interface Position {
   positionName: string;
   customPositionDetail?: string;
   programName: string;
+  peringkat?: string;
   verificationStatus: 'pending' | 'approved' | 'rejected';
   createdAt: { toDate: () => Date };
 }
@@ -73,7 +74,7 @@ export default function VerificationsPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
-        Pending Verifications
+        Verification
       </h1>
       <Card>
         <CardHeader>
@@ -86,10 +87,12 @@ export default function VerificationsPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>No.</TableHead>
                 <TableHead>Student</TableHead>
-                <TableHead>Program Name</TableHead>
-                <TableHead>Position Claimed</TableHead>
-                <TableHead>Submitted</TableHead>
+                <TableHead>Program</TableHead>
+                <TableHead>Level</TableHead>
+                <TableHead>Position</TableHead>
+                <TableHead>Date</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -97,24 +100,28 @@ export default function VerificationsPage() {
               {isLoading ? (
                 [...Array(5)].map((_, i) => (
                   <TableRow key={i}>
+                    <TableCell><Skeleton className="h-5 w-6" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-48" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-40" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                     <TableCell className="text-right space-x-2"><Skeleton className="h-8 w-8 inline-block" /><Skeleton className="h-8 w-8 inline-block" /></TableCell>
                   </TableRow>
                 ))
               ) : error ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center text-destructive">
+                  <TableCell colSpan={7} className="h-24 text-center text-destructive">
                     Error loading verifications. Please try again.
                   </TableCell>
                 </TableRow>
               ) : pendingPositions && pendingPositions.length > 0 ? (
-                pendingPositions.map((pos) => (
+                pendingPositions.map((pos, index) => (
                   <TableRow key={pos.id}>
+                    <TableCell>{index + 1}</TableCell>
                     <TableCell className="font-medium">{pos.userName}</TableCell>
                     <TableCell>{pos.programName}</TableCell>
+                    <TableCell>{pos.peringkat || 'N/A'}</TableCell>
                     <TableCell>
                       {pos.positionName}
                       {pos.positionName === "AJK Lain-Lain" && pos.customPositionDetail && (
@@ -122,7 +129,7 @@ export default function VerificationsPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {pos.createdAt ? formatDistanceToNow(pos.createdAt.toDate(), { addSuffix: true }) : ''}
+                      {pos.createdAt ? format(pos.createdAt.toDate(), 'dd/MM/yyyy') : ''}
                     </TableCell>
                     <TableCell className="text-right space-x-2">
                       <Button
@@ -148,7 +155,7 @@ export default function VerificationsPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={7} className="h-24 text-center">
                     No pending verifications found.
                   </TableCell>
                 </TableRow>

@@ -62,12 +62,14 @@ interface Position {
     positionName: string;
     customPositionDetail?: string;
     programName: string;
+    peringkat: string;
     verificationStatus: 'pending' | 'approved' | 'rejected';
 }
 
 const positionSchema = z.object({
-  positionName: z.string().min(1, "Position is required."),
-  programName: z.string().min(1, "Program name is required."),
+  programName: z.string().min(1, "Nama program diperlukan."),
+  peringkat: z.string().min(1, "Peringkat diperlukan."),
+  positionName: z.string().min(1, "Jawatan diperlukan."),
   customPositionDetail: z.string().optional(),
 }).refine(data => {
     if (data.positionName === "AJK Lain-Lain") {
@@ -83,6 +85,16 @@ const positionOptions = [
   "Pengerusi", "Naib Pengerusi", "Setiausaha", "Bendahari", 
   "Penolong Setiausaha", "Penolong Bendahari", "AJK Lain-Lain"
 ];
+
+const peringkatOptions = [
+    "Peringkat Antarabangsa",
+    "Peringkat Kebangsaan",
+    "Peringkat Negeri",
+    "Peringkat Daerah",
+    "Peringkat Institusi / Universiti / Politeknik",
+    "Peringkat Jabatan / Kelab / Persatuan"
+];
+
 
 // Profile Page Component
 export default function ProfilePage() {
@@ -104,7 +116,7 @@ export default function ProfilePage() {
   // Form Management
   const form = useForm<z.infer<typeof positionSchema>>({
     resolver: zodResolver(positionSchema),
-    defaultValues: { positionName: '', programName: '', customPositionDetail: '' },
+    defaultValues: { positionName: '', programName: '', customPositionDetail: '', peringkat: '' },
   });
   const watchPositionName = form.watch('positionName');
   const [isSubmittingPosition, setIsSubmittingPosition] = useState(false);
@@ -278,10 +290,10 @@ export default function ProfilePage() {
         <Card>
             <CardHeader className="flex-row items-center justify-between">
                 <div>
-                  <CardTitle>Contributions</CardTitle>
+                  <CardTitle>My Contributions</CardTitle>
                   <CardDescription>Claim positions you held in programs for admin verification.</CardDescription>
                 </div>
-                <Button variant="outline" onClick={handleDownloadPdf}>
+                <Button variant="outline" onClick={handleDownloadPdf} disabled={approvedPositions.length === 0}>
                     <Download className="mr-2 h-4 w-4" />
                     Download PDF
                 </Button>
@@ -290,32 +302,33 @@ export default function ProfilePage() {
                 {hasPending ? (
                      <Alert>
                         <AlertCircle className="h-4 w-4" />
-                        <AlertTitle>Pending Verification</AlertTitle>
+                        <AlertTitle>Permohonan anda sedang disemak</AlertTitle>
                         <AlertDescription>
-                           Your position application is under review. You can submit a new one after this has been verified.
+                           Borang permohonan akan dibuka semula selepas permohonan semasa disahkan.
                         </AlertDescription>
                     </Alert>
                 ) : (
                     <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onPositionSubmit)} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start p-4 border rounded-lg mb-6">
-                            <FormField control={form.control} name="positionName" render={({ field }) => (
-                                <FormItem><FormLabel>Position</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Pilih jawatan" /></SelectTrigger></FormControl><SelectContent>{positionOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
-                            )} />
-                            <FormField control={form.control} name="programName" render={({ field }) => (
-                                <FormItem><FormLabel>Program Name</FormLabel><FormControl><Input placeholder="Full program name" {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
-                            <div className="grid gap-2">
+                        <form onSubmit={form.handleSubmit(onPositionSubmit)} className="space-y-4 p-4 border rounded-lg mb-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField control={form.control} name="programName" render={({ field }) => (
+                                    <FormItem><FormLabel>Nama Program</FormLabel><FormControl><Input placeholder="Nama penuh program" {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField control={form.control} name="peringkat" render={({ field }) => (
+                                    <FormItem><FormLabel>Peringkat</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Pilih peringkat" /></SelectTrigger></FormControl><SelectContent>{peringkatOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                                )} />
+                                <FormField control={form.control} name="positionName" render={({ field }) => (
+                                    <FormItem><FormLabel>Jawatan</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Pilih jawatan" /></SelectTrigger></FormControl><SelectContent>{positionOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                                )} />
                                 {watchPositionName === 'AJK Lain-Lain' && (
                                     <FormField control={form.control} name="customPositionDetail" render={({ field }) => (
-                                        <FormItem><FormLabel>Position Details</FormLabel><FormControl><Input placeholder="e.g., Head of Multimedia" {...field} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Butiran Jawatan</FormLabel><FormControl><Input placeholder="e.g., Ketua Multimedia" {...field} /></FormControl><FormMessage /></FormItem>
                                     )} />
                                 )}
                             </div>
-                            <div className="md:col-span-3">
                             <Button type="submit" disabled={isSubmittingPosition} className="w-full">
-                                    {isSubmittingPosition ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</> : <> <PlusCircle className="mr-2 h-4 w-4" /> Submit for Verification</>}
+                                    {isSubmittingPosition ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Menghantar...</> : <> <PlusCircle className="mr-2 h-4 w-4" /> Hantar untuk Pengesahan</>}
                             </Button>
-                            </div>
                         </form>
                     </Form>
                 )}
