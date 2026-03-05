@@ -77,7 +77,7 @@ export default function VerificationsPage() {
       </h1>
       <Card>
         <CardHeader>
-          <CardTitle>Position Applications</CardTitle>
+          <CardTitle>Applications</CardTitle>
           <CardDescription>
             Review and approve or reject position claims submitted by students.
           </CardDescription>
