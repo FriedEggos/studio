@@ -67,22 +67,22 @@ interface Position {
 }
 
 const positionSchema = z.object({
-  positionName: z.string().min(1, "Position is required."),
-  programName: z.string().min(1, "Program name is required."),
+  positionName: z.string().min(1, "Jawatan diperlukan."),
+  programName: z.string().min(1, "Nama program diperlukan."),
   customPositionDetail: z.string().optional(),
 }).refine(data => {
-    if (data.positionName === "Other Committee Members") {
+    if (data.positionName === "AJK Lain-Lain") {
         return !!data.customPositionDetail && data.customPositionDetail.length > 0;
     }
     return true;
 }, {
-    message: "Detail is required for 'Other Committee Members'.",
+    message: "Butiran diperlukan untuk 'AJK Lain-Lain'.",
     path: ['customPositionDetail'],
 });
 
 const positionOptions = [
-  "Chairman", "Vice Chairman", "Secretary", "Treasurer", 
-  "Assistant Secretary", "Assistant Treasurer", "Other Committee Members"
+  "Pengerusi", "Naib Pengerusi", "Setiausaha", "Bendahari", 
+  "Penolong Setiausaha", "Penolong Bendahari", "AJK Lain-Lain"
 ];
 
 // Profile Page Component
@@ -149,11 +149,11 @@ export default function ProfilePage() {
             verificationStatus: 'pending',
             createdAt: serverTimestamp(),
         });
-        toast({ title: 'Success!', description: 'Your position has been submitted for verification.' });
+        toast({ title: 'Berjaya!', description: 'Jawatan anda telah dihantar untuk pengesahan.' });
         form.reset();
     } catch (error) {
         console.error("Error submitting position:", error);
-        toast({ variant: 'destructive', title: 'Submission Failed' });
+        toast({ variant: 'destructive', title: 'Penghantaran Gagal' });
     } finally {
         setIsSubmittingPosition(false);
     }
@@ -167,8 +167,8 @@ export default function ProfilePage() {
     if (approvedPositions.length === 0) {
       toast({
         variant: 'destructive',
-        title: 'No Approved Positions',
-        description: 'You have no approved positions to download.',
+        title: 'Tiada Jawatan Diluluskan',
+        description: 'Anda tiada jawatan yang diluluskan untuk dimuat turun.',
       });
       return;
     }
@@ -176,30 +176,34 @@ export default function ProfilePage() {
     const doc = new jsPDF();
     
     doc.setFontSize(18);
-    doc.text('List of Verified Committee Involvements', 14, 22);
+    doc.text('Senarai Penglibatan Jawatankuasa Yang Disahkan', 14, 22);
     doc.setFontSize(12);
-    doc.text(`Student Name: ${userProfile.displayName}`, 14, 30);
-    doc.text(`Email: ${userProfile.email}`, 14, 36);
+    doc.text(`Nama Pelajar: ${userProfile.displayName}`, 14, 30);
+    doc.text(`Emel: ${userProfile.email}`, 14, 36);
 
     autoTable(doc, {
       startY: 45,
-      head: [['Program Name', 'Position']],
+      head: [['Nama Program', 'Jawatan']],
       body: approvedPositions.map(p => [
         p.programName,
-        p.positionName === 'Other Committee Members' ? `${p.positionName} (${p.customPositionDetail})` : p.positionName
+        p.positionName === 'AJK Lain-Lain' ? `${p.positionName} (${p.customPositionDetail})` : p.positionName
       ]),
       theme: 'grid',
       headStyles: { fillColor: [37, 51, 89] },
     });
 
-    doc.save(`JTMK_Involvements_${userProfile.displayName.replace(' ', '_')}.pdf`);
+    doc.save(`JTMK_Penglibatan_${userProfile.displayName.replace(' ', '_')}.pdf`);
   };
+  
+  const hasPending = useMemo(() => positions?.some(p => p.verificationStatus === 'pending'), [positions]);
+  const approvedPositions = useMemo(() => positions?.filter(p => p.verificationStatus === 'approved') || [], [positions]);
+  const displayedPositions = useMemo(() => positions?.filter(p => p.verificationStatus !== 'rejected') || [], [positions]);
 
   // Loading and Error States
   if (isUserLoading || isProfileLoading || isLoadingHistory || !user || !userProfile) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">My Profile</h1>
+        <h1 className="text-2xl font-bold">Profil Saya</h1>
         <Card><CardHeader><Skeleton className="w-24 h-24"/><Skeleton className="h-6 w-48"/></CardHeader><CardContent><Skeleton className="h-40 w-full"/></CardContent></Card>
         <Card><CardHeader><Skeleton className="h-8 w-32"/></CardHeader><CardContent><Skeleton className="h-20 w-full"/></CardContent></Card>
       </div>
@@ -210,21 +214,21 @@ export default function ProfilePage() {
       return (
          <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Access Denied</AlertTitle>
-            <AlertDescription>This profile page is for students. Go to the <Link href="/admin/dashboard" className="font-bold underline">Admin Dashboard</Link>.</AlertDescription>
+            <AlertTitle>Akses Ditolak</AlertTitle>
+            <AlertDescription>Halaman profil ini adalah untuk pelajar. Pergi ke <Link href="/admin/dashboard" className="font-bold underline">Papan Pemuka Admin</Link>.</AlertDescription>
         </Alert>
       )
   }
 
   // Derived State for UI
   const totalProgramsAttended = history.length;
-  const totalInvolvements = positions?.filter(p => p.verificationStatus === 'approved').length ?? 0;
+  const totalInvolvements = approvedPositions.length;
 
   // Render
   return (
     <>
       <div className="space-y-6">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">My Profile</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">Profil Saya</h1>
 
         <Card>
           <CardHeader className="items-center text-center">
@@ -237,23 +241,23 @@ export default function ProfilePage() {
                 <Camera className="h-8 w-8 text-white" />
               </div>
             </Link>
-            <CardTitle className="font-headline">{userProfile?.displayName || "JTMK Student"}</CardTitle>
+            <CardTitle className="font-headline">{userProfile?.displayName || "Pelajar JTMK"}</CardTitle>
             <CardDescription>{userProfile?.email}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-4 my-4 text-sm border-t pt-4">
-              <div className="flex justify-between items-center"><span className="font-semibold text-muted-foreground">Matric ID</span><span>{userProfile?.matricId || 'Not set'}</span></div>
-              <div className="flex justify-between items-center"><span className="font-semibold text-muted-foreground">Phone Number</span><span>{userProfile?.phoneNumber || 'Not set'}</span></div>
-              <div className="flex justify-between items-center"><span className="font-semibold text-muted-foreground">Department</span><span>{userProfile?.course || 'Not set'}</span></div>
+              <div className="flex justify-between items-center"><span className="font-semibold text-muted-foreground">ID Matrik</span><span>{userProfile?.matricId || 'Tidak ditetapkan'}</span></div>
+              <div className="flex justify-between items-center"><span className="font-semibold text-muted-foreground">Nombor Telefon</span><span>{userProfile?.phoneNumber || 'Tidak ditetapkan'}</span></div>
+              <div className="flex justify-between items-center"><span className="font-semibold text-muted-foreground">Jabatan</span><span>{userProfile?.course || 'Tidak ditetapkan'}</span></div>
             </div>
-            <Button className="w-full" asChild><Link href="/profile/edit">Edit Profile</Link></Button>
+            <Button className="w-full" asChild><Link href="/profile/edit">Kemaskini Profil</Link></Button>
           </CardContent>
         </Card>
 
         <div className="grid gap-4 md:grid-cols-2">
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Programs Attended</CardTitle>
+                    <CardTitle className="text-sm font-medium">Jumlah Program Dihadiri</CardTitle>
                     <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -262,7 +266,7 @@ export default function ProfilePage() {
             </Card>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Verified Involvements</CardTitle>
+                    <CardTitle className="text-sm font-medium">Penglibatan Disahkan</CardTitle>
                     <Award className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -275,44 +279,54 @@ export default function ProfilePage() {
         <Card>
             <CardHeader className="flex-row items-center justify-between">
                 <div>
-                  <CardTitle>Contributions</CardTitle>
-                  <CardDescription>Claim positions you held in programs for admin verification.</CardDescription>
+                  <CardTitle>Sumbangan</CardTitle>
+                  <CardDescription>Tuntut jawatan yang anda pegang dalam program untuk pengesahan admin.</CardDescription>
                 </div>
                 <Button variant="outline" onClick={handleDownloadPdf}>
                     <Download className="mr-2 h-4 w-4" />
-                    Download PDF
+                    Muat Turun PDF
                 </Button>
             </CardHeader>
             <CardContent>
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onPositionSubmit)} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start p-4 border rounded-lg mb-6">
-                        <FormField control={form.control} name="positionName" render={({ field }) => (
-                            <FormItem><FormLabel>Position</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select position" /></SelectTrigger></FormControl><SelectContent>{positionOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
-                        )} />
-                        <FormField control={form.control} name="programName" render={({ field }) => (
-                            <FormItem><FormLabel>Program Name</FormLabel><FormControl><Input placeholder="Full program name" {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                        <div className="grid gap-2">
-                             {watchPositionName === 'Other Committee Members' && (
-                                <FormField control={form.control} name="customPositionDetail" render={({ field }) => (
-                                    <FormItem><FormLabel>Position Detail</FormLabel><FormControl><Input placeholder="e.g., Head of Multimedia" {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                            )}
-                        </div>
-                        <div className="md:col-span-3">
-                           <Button type="submit" disabled={isSubmittingPosition} className="w-full">
-                                {isSubmittingPosition ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</> : <> <PlusCircle className="mr-2 h-4 w-4" /> Submit for Verification</>}
-                           </Button>
-                        </div>
-                    </form>
-                </Form>
+                {hasPending ? (
+                     <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Menunggu Pengesahan</AlertTitle>
+                        <AlertDescription>
+                           Permohonan jawatan anda sedang disemak. Anda boleh menghantar permohonan baru selepas ini disahkan.
+                        </AlertDescription>
+                    </Alert>
+                ) : (
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onPositionSubmit)} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start p-4 border rounded-lg mb-6">
+                            <FormField control={form.control} name="positionName" render={({ field }) => (
+                                <FormItem><FormLabel>Jawatan</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Pilih jawatan" /></SelectTrigger></FormControl><SelectContent>{positionOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="programName" render={({ field }) => (
+                                <FormItem><FormLabel>Nama Program</FormLabel><FormControl><Input placeholder="Nama penuh program" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <div className="grid gap-2">
+                                {watchPositionName === 'AJK Lain-Lain' && (
+                                    <FormField control={form.control} name="customPositionDetail" render={({ field }) => (
+                                        <FormItem><FormLabel>Butiran Jawatan</FormLabel><FormControl><Input placeholder="cth., Ketua Multimedia" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )} />
+                                )}
+                            </div>
+                            <div className="md:col-span-3">
+                            <Button type="submit" disabled={isSubmittingPosition} className="w-full">
+                                    {isSubmittingPosition ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Menghantar...</> : <> <PlusCircle className="mr-2 h-4 w-4" /> Hantar untuk Pengesahan</>}
+                            </Button>
+                            </div>
+                        </form>
+                    </Form>
+                )}
                 
-                <h3 className="text-md font-semibold mt-6 mb-2">Submitted Positions</h3>
+                <h3 className="text-md font-semibold mt-6 mb-2">Jawatan Dihantar</h3>
                  <Table>
-                    <TableHeader><TableRow><TableHead>Program</TableHead><TableHead>Position</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Program</TableHead><TableHead>Jawatan</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
                     <TableBody>
                         {isLoadingPositions ? ([...Array(2)].map((_, i) => <TableRow key={i}><TableCell colSpan={3}><Skeleton className="h-5 w-full" /></TableCell></TableRow>))
-                        : positions && positions.length > 0 ? (positions.map(pos => (
+                        : displayedPositions && displayedPositions.length > 0 ? (displayedPositions.map(pos => (
                             <TableRow key={pos.id}>
                                 <TableCell>{pos.programName}</TableCell>
                                 <TableCell>
@@ -324,23 +338,23 @@ export default function ProfilePage() {
                                 </TableCell>
                             </TableRow>
                         )))
-                        : (<TableRow><TableCell colSpan={3} className="h-24 text-center">No positions submitted yet.</TableCell></TableRow>)}
+                        : (<TableRow><TableCell colSpan={3} className="h-24 text-center">Tiada jawatan dihantar lagi.</TableCell></TableRow>)}
                     </TableBody>
                 </Table>
             </CardContent>
         </Card>
 
         <Card>
-            <CardHeader><CardTitle>Program Participation History</CardTitle><CardDescription>A record of all the programs you have attended.</CardDescription></CardHeader>
+            <CardHeader><CardTitle>Sejarah Penyertaan Program</CardTitle><CardDescription>Rekod semua program yang telah anda hadiri.</CardDescription></CardHeader>
             <CardContent>
                 <Table>
-                    <TableHeader><TableRow><TableHead>#</TableHead><TableHead>Program Name</TableHead><TableHead>Date Joined</TableHead><TableHead>Check-out Time</TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>#</TableHead><TableHead>Nama Program</TableHead><TableHead>Tarikh Sertai</TableHead><TableHead>Masa Daftar Keluar</TableHead></TableRow></TableHeader>
                     <TableBody>
                         {isLoadingHistory ? ([...Array(3)].map((_, i) => <TableRow key={i}><TableCell colSpan={4}><Skeleton className="h-5 w-full" /></TableCell></TableRow>))
                         : history.length > 0 ? (history.map((item, index) => (
                             <TableRow key={item.id}><TableCell>{index + 1}</TableCell><TableCell className="font-medium">{item.programTitle}</TableCell><TableCell>{item.createdAt ? format(item.createdAt.toDate(), 'Pp') : '-'}</TableCell><TableCell>{item.checkOutAt ? format(item.checkOutAt.toDate(), 'Pp') : '-'}</TableCell></TableRow>
                         )))
-                        : (<TableRow><TableCell colSpan={4} className="h-24 text-center">No programs joined yet.</TableCell></TableRow>)}
+                        : (<TableRow><TableCell colSpan={4} className="h-24 text-center">Belum menyertai sebarang program lagi.</TableCell></TableRow>)}
                     </TableBody>
                 </Table>
             </CardContent>
@@ -349,3 +363,5 @@ export default function ProfilePage() {
     </>
   );
 }
+
+    
