@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -20,9 +20,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Camera, AlertCircle, Users, Award, PlusCircle, Loader2, Download } from "lucide-react";
+import { Camera, AlertCircle, Users, Award, PlusCircle, Loader2, Download, Trash2 } from "lucide-react";
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, collectionGroup, getDocs, query, where, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { doc, collectionGroup, getDocs, query, where, collection, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { format } from 'date-fns';
@@ -36,6 +36,16 @@ import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 
 // Schemas and Types
@@ -121,6 +131,10 @@ export default function ProfilePage() {
   const watchPositionName = form.watch('positionName');
   const [isSubmittingPosition, setIsSubmittingPosition] = useState(false);
 
+  // State for delete dialog
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [positionToDelete, setPositionToDelete] = useState<Position | null>(null);
+
   // Effects
   useEffect(() => {
     if (!isUserLoading && !user) router.push('/login');
@@ -167,6 +181,30 @@ export default function ProfilePage() {
         toast({ variant: 'destructive', title: 'Submission Failed' });
     } finally {
         setIsSubmittingPosition(false);
+    }
+  };
+
+  // Delete handler
+  const handleDeletePosition = async () => {
+    if (!positionToDelete || !user || !firestore) return;
+
+    const positionDocRef = doc(firestore, `users/${user.uid}/positions`, positionToDelete.id);
+    try {
+        await deleteDoc(positionDocRef);
+        toast({
+            title: 'Contribution Deleted',
+            description: 'The selected contribution has been removed from your profile.',
+        });
+    } catch (error) {
+        console.error("Error deleting position:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Deletion Failed',
+            description: 'Could not remove the contribution.',
+        });
+    } finally {
+        setIsDeleteDialogOpen(false);
+        setPositionToDelete(null);
     }
   };
 
@@ -335,9 +373,16 @@ export default function ProfilePage() {
                 
                 <h3 className="text-md font-semibold mt-6 mb-2">Submitted Positions</h3>
                  <Table>
-                    <TableHeader><TableRow><TableHead>Program</TableHead><TableHead>Position</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Program</TableHead>
+                            <TableHead>Position</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
                     <TableBody>
-                        {isLoadingPositions ? ([...Array(2)].map((_, i) => <TableRow key={i}><TableCell colSpan={3}><Skeleton className="h-5 w-full" /></TableCell></TableRow>))
+                        {isLoadingPositions ? ([...Array(2)].map((_, i) => <TableRow key={i}><TableCell colSpan={4}><Skeleton className="h-5 w-full" /></TableCell></TableRow>))
                         : displayedPositions && displayedPositions.length > 0 ? (displayedPositions.map(pos => (
                             <TableRow key={pos.id}>
                                 <TableCell>{pos.programName}</TableCell>
@@ -348,9 +393,25 @@ export default function ProfilePage() {
                                 <TableCell>
                                     <Badge variant={pos.verificationStatus === 'approved' ? 'default' : pos.verificationStatus === 'rejected' ? 'destructive' : 'secondary'} className="capitalize">{pos.verificationStatus}</Badge>
                                 </TableCell>
+                                <TableCell className="text-right">
+                                    {pos.verificationStatus === 'approved' && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                            onClick={() => {
+                                                setPositionToDelete(pos);
+                                                setIsDeleteDialogOpen(true);
+                                            }}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                            <span className="sr-only">Delete</span>
+                                        </Button>
+                                    )}
+                                </TableCell>
                             </TableRow>
                         )))
-                        : (<TableRow><TableCell colSpan={3} className="h-24 text-center">No positions submitted yet.</TableCell></TableRow>)}
+                        : (<TableRow><TableCell colSpan={4} className="h-24 text-center">No positions submitted yet.</TableCell></TableRow>)}
                     </TableBody>
                 </Table>
             </CardContent>
@@ -372,6 +433,27 @@ export default function ProfilePage() {
             </CardContent>
         </Card>
       </div>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete your
+              contribution record for &quot;{positionToDelete?.programName}&quot;.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPositionToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className={buttonVariants({ variant: "destructive" })}
+              onClick={handleDeletePosition}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
