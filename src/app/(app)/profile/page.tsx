@@ -73,7 +73,7 @@ interface Position {
     customPositionDetail?: string;
     programName: string;
     peringkat: string;
-    verificationStatus: 'pending' | 'approved' | 'rejected';
+    verificationStatus: 'pending' | 'approved' | 'rejected' | 'awaiting_evidence';
 }
 
 const positionSchema = z.object({
@@ -246,7 +246,7 @@ export default function ProfilePage() {
   
   const hasPending = useMemo(() => positions?.some(p => p.verificationStatus === 'pending'), [positions]);
   const approvedPositions = useMemo(() => positions?.filter(p => p.verificationStatus === 'approved') || [], [positions]);
-  const displayedPositions = useMemo(() => positions?.filter(p => p.verificationStatus !== 'rejected') || [], [positions]);
+  const displayedPositions = useMemo(() => positions?.filter(p => p.verificationStatus !== 'rejected' && p.verificationStatus !== 'awaiting_evidence') || [], [positions]);
 
   // Loading and Error States
   if (isUserLoading || isProfileLoading || isLoadingHistory || !user || !userProfile) {
