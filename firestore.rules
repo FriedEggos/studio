@@ -13,15 +13,14 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
     
-    function userIsAdmin(userId) {
-        return exists(/databases/$(database)/documents/users/$(userId)) &&
-               get(/databases/$(database)/documents/users/$(userId)).data.role == 'admin';
+    // This function is safe because the `get` call for a user on their own
+    // document is always allowed by the `isOwner()` check in the /users/{userId} rule.
+    function isAdmin() {
+        return isSignedIn() &&
+               exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+               get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    function isAdmin() {
-      return isSignedIn() && userIsAdmin(request.auth.uid);
-    }
-    
     function isStudent() {
         return isSignedIn() && 
                exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
@@ -47,7 +46,7 @@ service cloud.firestore {
       // Only admins can delete users.
       allow delete: if isAdmin();
       
-      // Rules for the new 'positions' sub-collection
+      // Rules for the 'positions' sub-collection
       match /positions/{positionId} {
         // Students can create their own position requests.
         // The verificationStatus must be 'pending' on creation.
@@ -112,5 +111,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
