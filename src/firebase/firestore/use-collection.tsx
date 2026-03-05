@@ -72,9 +72,9 @@ export function useCollection<T = any>(
     // Guard 2: Prevent accidental root-level listening, but allow collection group queries through.
     if (!isCollectionGroupQuery) {
         const currentPath = getPath();
-        // This check is to prevent expensive root-level queries.
-        if (!currentPath || currentPath === "" || currentPath.endsWith('/documents')) {
-          return; 
+        // This check prevents expensive root-level queries which are almost always a mistake.
+        if (!currentPath || currentPath.split('/').filter(Boolean).length === 0) {
+          return;
         }
     }
 
