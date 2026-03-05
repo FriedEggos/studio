@@ -47,21 +47,37 @@ export function useCollection<T = any>(
       setError(null);
       return;
     }
+    
+    const isCollectionGroupQuery = !!(memoizedTargetRefOrQuery as any)._query?.collectionGroup;
 
     // Helper to extract path for validation and error reporting
     const getPath = () => {
-      return memoizedTargetRefOrQuery.type === 'collection'
-        ? (memoizedTargetRefOrQuery as CollectionReference).path
-        : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString();
+      try {
+        if ('path' in memoizedTargetRefOrQuery && (memoizedTargetRefOrQuery as any).path) {
+          return (memoizedTargetRefOrQuery as CollectionReference).path;
+        }
+        const internalQuery = memoizedTargetRefOrQuery as any;
+        if (internalQuery._query?.path) {
+          return internalQuery._query.path.canonicalString();
+        }
+        if (isCollectionGroupQuery) {
+          return `collectionGroup<${(memoizedTargetRefOrQuery as any)._query.collectionGroup}>`;
+        }
+        return 'unknown_path';
+      } catch {
+        return 'path_resolution_failed';
+      }
     };
 
-    const currentPath = getPath();
-
-    // Guard 2: Prevent root-level listening (The fix for your current error)
-    // If the path is empty or just the root documents node, don't execute
-    if (!currentPath || currentPath === "" || currentPath.endsWith('/documents')) {
-      return; 
+    // Guard 2: Prevent accidental root-level listening, but allow collection group queries through.
+    if (!isCollectionGroupQuery) {
+        const currentPath = getPath();
+        // This check is to prevent expensive root-level queries.
+        if (!currentPath || currentPath === "" || currentPath.endsWith('/documents')) {
+          return; 
+        }
     }
+
 
     setIsLoading(true);
     setError(null);
