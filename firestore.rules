@@ -17,7 +17,6 @@ service cloud.firestore {
     // document is always allowed by the `isOwner()` check in the /users/{userId} rule.
     function isAdmin() {
         return isSignedIn() &&
-               exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
@@ -63,7 +62,7 @@ service cloud.firestore {
     // Collection Group query for positions
     match /{path=**}/positions/{positionId} {
       // Allows admins to query across all users' positions sub-collections.
-      allow list: if isAdmin();
+      allow list, get: if isAdmin();
     }
 
     // Program documents
