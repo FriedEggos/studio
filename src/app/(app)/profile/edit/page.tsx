@@ -122,11 +122,7 @@ export default function EditProfilePage() {
         newPhotoURL = await getDownloadURL(storageRef);
       }
 
-      if (newPhotoURL && newPhotoURL !== user.photoURL) {
-        await updateProfile(auth.currentUser, { photoURL: newPhotoURL, displayName: data.displayName });
-      } else {
-        await updateProfile(auth.currentUser, { displayName: data.displayName });
-      }
+      await updateProfile(auth.currentUser, { displayName: data.displayName, photoURL: newPhotoURL });
       
       const updatedData = {
         displayName: data.displayName,
@@ -134,6 +130,7 @@ export default function EditProfilePage() {
         course: data.course,
         matricId: data.matricId,
         phoneNumber: data.phoneNumber,
+        photoURL: newPhotoURL,
       };
 
       updateDocumentNonBlocking(userDocRef, updatedData);

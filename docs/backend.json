@@ -19,6 +19,10 @@
           "type": "string",
           "description": "Display name of the user."
         },
+        "photoURL": {
+            "type": "string",
+            "description": "URL for the user's profile picture."
+        },
         "role": {
           "type": "string",
           "description": "Role of the user (e.g., student, admin).",
@@ -343,5 +347,3 @@
     "reasoning": "This Firestore structure separates core program data from its form configuration and its attendance records. Public data (`programs`, `programConfigs`) is structured to be readable by unauthenticated users on a per-document basis for the QR form page, while sensitive data like attendance lists is nested and protected. A 'positions' sub-collection is added under 'users' to manage role verification requests."
   }
 }
-
-    

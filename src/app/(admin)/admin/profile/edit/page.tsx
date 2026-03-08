@@ -111,13 +111,12 @@ export default function AdminEditProfilePage() {
         newPhotoURL = await getDownloadURL(storageRef);
       }
       
-      if (newPhotoURL && newPhotoURL !== auth.currentUser.photoURL) {
-        await updateProfile(auth.currentUser, { photoURL: newPhotoURL });
-      }
+      await updateProfile(auth.currentUser, { displayName: data.displayName, photoURL: newPhotoURL });
 
       const updatedData = {
         displayName: data.displayName,
-        email: data.email, // Keep email for completeness, but it's disabled in the form
+        email: data.email,
+        photoURL: newPhotoURL,
       };
 
       updateDocumentNonBlocking(userDocRef, updatedData);
