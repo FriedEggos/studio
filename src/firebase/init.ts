@@ -39,6 +39,8 @@ export function getSdks(firebaseApp: FirebaseApp) {
     firebaseApp,
     auth: getAuth(firebaseApp),
     firestore: getFirestore(firebaseApp),
+    // This initializes and exports the Firebase Storage service.
+    // The useStorage() hook in your components uses this instance.
     storage: getStorage(firebaseApp),
     functions: getFunctions(firebaseApp, 'us-central1')
   };
