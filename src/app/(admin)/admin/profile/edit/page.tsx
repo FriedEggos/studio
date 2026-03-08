@@ -111,7 +111,7 @@ export default function AdminEditProfilePage() {
 
       if (avatarFile && storage) {
         setUploadProgress(0);
-        const storageRef = ref(storage, `profile-pictures/${user.uid}`);
+        const storageRef = ref(storage, `profile-pictures/${user.uid}/profile.jpg`);
         const uploadTask = uploadBytesResumable(storageRef, avatarFile);
 
         newPhotoURL = await new Promise((resolve, reject) => {
