@@ -22,10 +22,11 @@ import { useUser, useFirestore, useDoc, updateDocumentNonBlocking, useMemoFireba
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { updateProfile } from 'firebase/auth';
 import { Camera } from 'lucide-react';
 import { compressAndResizeImage } from '@/lib/image-utils';
+import { Progress } from '@/components/ui/progress';
 
 const profileFormSchema = z.object({
   displayName: z.string().min(1, 'Display name is required.'),
@@ -42,6 +43,7 @@ export default function AdminEditProfilePage() {
   const auth = useAuth();
   const storage = useStorage();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.photoURL || null);
@@ -102,14 +104,34 @@ export default function AdminEditProfilePage() {
   const onSubmit = async (data: ProfileFormValues) => {
     if (!userDocRef || !user || !auth.currentUser) return;
     setIsSubmitting(true);
+    setUploadProgress(null);
     
     try {
       let newPhotoURL = user.photoURL;
 
-      if (avatarFile) {
+      if (avatarFile && storage) {
+        setUploadProgress(0);
         const storageRef = ref(storage, `profile-pictures/${user.uid}`);
-        await uploadBytes(storageRef, avatarFile);
-        newPhotoURL = await getDownloadURL(storageRef);
+        const uploadTask = uploadBytesResumable(storageRef, avatarFile);
+
+        newPhotoURL = await new Promise((resolve, reject) => {
+          uploadTask.on(
+            'state_changed',
+            (snapshot) => {
+              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+              setUploadProgress(progress);
+            },
+            (error) => {
+              console.error("Upload failed:", error);
+              reject(error);
+            },
+            () => {
+              getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                resolve(downloadURL);
+              });
+            }
+          );
+        });
       }
       
       await updateProfile(auth.currentUser, { displayName: data.displayName, photoURL: newPhotoURL });
@@ -132,10 +154,13 @@ export default function AdminEditProfilePage() {
       toast({
         variant: "destructive",
         title: "Profile Update Failed",
-        description: "An error occurred while updating your profile.",
+        description: error.code === 'storage/unauthorized'
+          ? "Permission denied. Check your storage rules."
+          : "An error occurred while updating your profile.",
       });
     } finally {
       setIsSubmitting(false);
+      setUploadProgress(null);
     }
   };
 
@@ -206,6 +231,12 @@ export default function AdminEditProfilePage() {
                 />
               </div>
             </div>
+             {uploadProgress !== null && (
+                <div className="grid gap-2">
+                    <Label>Upload Progress</Label>
+                    <Progress value={uploadProgress} />
+                </div>
+            )}
             <div className="grid gap-3">
               <Label htmlFor="role">Role</Label>
               <Input id="role" type="text" value={userProfile.role} disabled />
@@ -227,7 +258,7 @@ export default function AdminEditProfilePage() {
             Cancel
           </Button>
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : 'Save Changes'}
+             {isSubmitting ? (uploadProgress !== null ? `Uploading ${Math.round(uploadProgress)}%...` : 'Saving...') : 'Save Changes'}
           </Button>
         </div>
       </form>
