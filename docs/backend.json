@@ -67,6 +67,14 @@
           "type": "string",
           "description": "The name of the user for display in admin panel."
         },
+        "matricId": {
+          "type": "string",
+          "description": "The matriculation ID of the student submitting the claim."
+        },
+        "course": {
+          "type": "string",
+          "description": "The department/course of the student."
+        },
         "positionName": {
           "type": "string",
           "description": "The name of the position held (e.g., Chairman, Secretary)."
@@ -79,6 +87,10 @@
           "type": "string",
           "description": "The name of the program where the position was held."
         },
+        "peringkat": {
+          "type": "string",
+          "description": "The level of the program (e.g., Kebangsaan, Negeri)."
+        },
         "verificationStatus": {
           "type": "string",
           "description": "The status of the verification request.",
@@ -90,7 +102,7 @@
           "description": "Timestamp when the position was submitted."
         }
       },
-      "required": ["userId", "userName", "positionName", "programName", "verificationStatus", "createdAt"]
+      "required": ["userId", "userName", "positionName", "programName", "verificationStatus", "createdAt", "peringkat", "matricId", "course"]
     },
     "Program": {
       "title": "Program",

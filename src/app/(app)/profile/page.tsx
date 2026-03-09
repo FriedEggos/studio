@@ -67,6 +67,10 @@ interface ParticipationHistoryItem {
 
 interface Position {
     id: string;
+    userId: string;
+    userName: string;
+    matricId: string;
+    course: string;
     positionName: string;
     customPositionDetail?: string;
     programName: string;
@@ -171,6 +175,8 @@ export default function ProfilePage() {
         await addDoc(positionsQuery, {
             userId: user.uid,
             userName: userProfile.displayName,
+            matricId: userProfile.matricId,
+            course: userProfile.course,
             ...values,
             verificationStatus: 'pending',
             createdAt: serverTimestamp(),
