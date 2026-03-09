@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { Logo } from "@/components/logo";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, FileCheck, QrCode, CheckCircle } from "lucide-react";
 import { useUser } from "@/firebase";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -103,7 +103,8 @@ export default function Home() {
             </div>
             <div className="mx-auto grid items-start gap-8 sm:max-w-4xl sm:grid-cols-2 md:gap-12 lg:max-w-5xl lg:grid-cols-3">
               <div className="grid gap-1 p-4 rounded-lg border bg-card shadow-sm hover:shadow-md transition-shadow">
-                <h3 className="text-lg font-bold font-headline">
+                <h3 className="text-lg font-bold font-headline flex items-center gap-2">
+                  <QrCode className="h-5 w-5 text-primary" />
                   QR Registration
                 </h3>
                 <p className="text-sm text-muted-foreground">
@@ -111,7 +112,8 @@ export default function Home() {
                 </p>
               </div>
               <div className="grid gap-1 p-4 rounded-lg border bg-card shadow-sm hover:shadow-md transition-shadow">
-                <h3 className="text-lg font-bold font-headline">
+                <h3 className="text-lg font-bold font-headline flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-primary" />
                   Self Check-in & Check-out
                 </h3>
                 <p className="text-sm text-muted-foreground">
@@ -119,11 +121,12 @@ export default function Home() {
                 </p>
               </div>
               <div className="grid gap-1 p-4 rounded-lg border bg-card shadow-sm hover:shadow-md transition-shadow">
-                <h3 className="text-lg font-bold font-headline">
-                  Digital Badges
+                <h3 className="text-lg font-bold font-headline flex items-center gap-2">
+                  <FileCheck className="h-5 w-5 text-primary" />
+                  Verified Contributions
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Collect badges automatically after participation is confirmed.
+                  Students can submit documentation as proof of their roles in programs. Once verified by admins, these contributions are formally &apos;chopped&apos; and added to their digital professional portfolio.
                 </p>
               </div>
             </div>
