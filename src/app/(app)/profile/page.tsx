@@ -21,6 +21,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { AlertCircle, Users, Award, PlusCircle, Loader2, Download, BadgeCheck } from "lucide-react";
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
 import { doc, collectionGroup, getDocs, query, where, collection, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
@@ -37,7 +43,7 @@ import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { getInitials } from '@/lib/utils';
+import { getInitials, isProfileComplete } from '@/lib/utils';
 
 
 // Schemas and Types
@@ -124,6 +130,12 @@ export default function ProfilePage() {
   const watchPositionName = form.watch('positionName');
   const [isSubmittingPosition, setIsSubmittingPosition] = useState(false);
 
+  // Derived state for UI logic
+  const profileComplete = isProfileComplete(userProfile);
+  const hasPending = useMemo(() => positions?.some(p => p.verificationStatus === 'pending'), [positions]);
+  const approvedPositions = useMemo(() => positions?.filter(p => p.verificationStatus === 'approved') || [], [positions]);
+  const displayedPositions = useMemo(() => positions?.filter(p => p.verificationStatus !== 'rejected' && p.verificationStatus !== 'awaiting_evidence') || [], [positions]);
+
   // Effects
   useEffect(() => {
     if (!isUserLoading && !user) router.push('/login');
@@ -165,9 +177,15 @@ export default function ProfilePage() {
         });
         toast({ title: 'Success!', description: 'Your position has been submitted for verification.' });
         form.reset();
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error submitting position:", error);
-        toast({ variant: 'destructive', title: 'Submission Failed' });
+        toast({ 
+            variant: 'destructive', 
+            title: 'Submission Failed', 
+            description: error.message.includes('permission-denied') 
+                ? "Your profile must be complete to submit contributions."
+                : "An unexpected error occurred."
+        });
     } finally {
         setIsSubmittingPosition(false);
     }
@@ -212,10 +230,6 @@ export default function ProfilePage() {
 
     doc.save(`JTMK_Involvement_${userProfile.displayName.replace(' ', '_')}.pdf`);
   };
-  
-  const hasPending = useMemo(() => positions?.some(p => p.verificationStatus === 'pending'), [positions]);
-  const approvedPositions = useMemo(() => positions?.filter(p => p.verificationStatus === 'approved') || [], [positions]);
-  const displayedPositions = useMemo(() => positions?.filter(p => p.verificationStatus !== 'rejected' && p.verificationStatus !== 'awaiting_evidence') || [], [positions]);
 
   // Loading and Error States
   if (isUserLoading || isProfileLoading || isLoadingHistory || !user || !userProfile) {
@@ -237,10 +251,6 @@ export default function ProfilePage() {
         </Alert>
       )
   }
-
-  // Derived State for UI
-  const totalProgramsAttended = history.length;
-  const totalInvolvements = approvedPositions.length;
 
   // Render
   return (
@@ -276,7 +286,7 @@ export default function ProfilePage() {
                     <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{totalProgramsAttended}</div>
+                    <div className="text-2xl font-bold">{history.length}</div>
                 </CardContent>
             </Card>
             <Card>
@@ -285,7 +295,7 @@ export default function ProfilePage() {
                     <Award className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{totalInvolvements}</div>
+                    <div className="text-2xl font-bold">{approvedPositions.length}</div>
                 </CardContent>
             </Card>
         </div>
@@ -316,23 +326,39 @@ export default function ProfilePage() {
                         <form onSubmit={form.handleSubmit(onPositionSubmit)} className="space-y-4 p-4 border rounded-lg mb-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <FormField control={form.control} name="programName" render={({ field }) => (
-                                    <FormItem><FormLabel>Nama Program</FormLabel><FormControl><Input placeholder="Nama penuh program" {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Nama Program</FormLabel><FormControl><Input placeholder="Nama penuh program" {...field} disabled={!profileComplete} /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField control={form.control} name="peringkat" render={({ field }) => (
-                                    <FormItem><FormLabel>Peringkat</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Pilih peringkat" /></SelectTrigger></FormControl><SelectContent>{peringkatOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Peringkat</FormLabel><Select onValueChange={field.onChange} value={field.value} disabled={!profileComplete}><FormControl><SelectTrigger><SelectValue placeholder="Pilih peringkat" /></SelectTrigger></FormControl><SelectContent>{peringkatOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                                 )} />
                                 <FormField control={form.control} name="positionName" render={({ field }) => (
-                                    <FormItem><FormLabel>Jawatan</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Pilih jawatan" /></SelectTrigger></FormControl><SelectContent>{positionOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Jawatan</FormLabel><Select onValueChange={field.onChange} value={field.value} disabled={!profileComplete}><FormControl><SelectTrigger><SelectValue placeholder="Pilih jawatan" /></SelectTrigger></FormControl><SelectContent>{positionOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                                 )} />
                                 {watchPositionName === 'AJK Lain-Lain' && (
                                     <FormField control={form.control} name="customPositionDetail" render={({ field }) => (
-                                        <FormItem><FormLabel>Butiran Jawatan</FormLabel><FormControl><Input placeholder="e.g., Ketua Multimedia" {...field} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Butiran Jawatan</FormLabel><FormControl><Input placeholder="e.g., Ketua Multimedia" {...field} disabled={!profileComplete} /></FormControl><FormMessage /></FormItem>
                                     )} />
                                 )}
                             </div>
-                            <Button type="submit" disabled={isSubmittingPosition} className="w-full">
-                                    {isSubmittingPosition ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Menghantar...</> : <> <PlusCircle className="mr-2 h-4 w-4" /> Hantar untuk Pengesahan</>}
-                            </Button>
+
+                             <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        {/* The TooltipTrigger needs a child that can accept a ref, so we wrap the Button */}
+                                        <div className="w-full">
+                                            <Button type="submit" disabled={!profileComplete || isSubmittingPosition} className="w-full">
+                                                {isSubmittingPosition ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Menghantar...</> : <> <PlusCircle className="mr-2 h-4 w-4" /> Hantar untuk Pengesahan</>}
+                                            </Button>
+                                        </div>
+                                    </TooltipTrigger>
+                                    {!profileComplete && (
+                                        <TooltipContent>
+                                            <p>You must update your Personal Details before you can submit a contribution for verification.</p>
+                                        </TooltipContent>
+                                    )}
+                                </Tooltip>
+                            </TooltipProvider>
+
                         </form>
                     </Form>
                 )}

@@ -13,8 +13,6 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
     
-    // This function is safe because the `get` call for a user on their own
-    // document is always allowed by the `isOwner()` check in the /users/{userId} rule.
     function isAdmin() {
         return isSignedIn() &&
                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
@@ -24,6 +22,14 @@ service cloud.firestore {
         return isSignedIn() && 
                exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'student';
+    }
+    
+    // Server-side check to ensure a user's profile is complete before allowing certain actions.
+    function isProfileComplete(userId) {
+      let userData = get(/databases/$(database)/documents/users/$(userId)).data;
+      return userData.matricId != null && userData.matricId.size() > 0 &&
+             userData.phoneNumber != null && userData.phoneNumber.size() > 0 &&
+             userData.course != null && userData.course.size() > 0;
     }
 
     function isCheckoutUpdate() {
@@ -47,9 +53,10 @@ service cloud.firestore {
       
       // Rules for the 'positions' sub-collection
       match /positions/{positionId} {
-        // Students can create their own position requests.
-        // The verificationStatus must be 'pending' on creation.
-        allow create: if isOwner(userId) && request.resource.data.verificationStatus == 'pending';
+        // Students can create their own position requests only if their profile is complete.
+        allow create: if isOwner(userId) && 
+                         request.resource.data.verificationStatus == 'pending' &&
+                         isProfileComplete(userId);
         // Admins can update any position (to approve/reject), but students cannot.
         allow update: if isAdmin();
         // Admins can delete position records if needed.

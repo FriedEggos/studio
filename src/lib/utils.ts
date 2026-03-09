@@ -15,3 +15,16 @@ export function getInitials(name: string): string {
   }
   return name.substring(0, 2).toUpperCase();
 }
+
+/**
+ * Checks if the essential profile fields (matricId, phoneNumber, course) are filled.
+ * @param userProfile The user's profile data object.
+ * @returns True if the profile is complete, false otherwise.
+ */
+export function isProfileComplete(userProfile?: { matricId?: string | null; phoneNumber?: string | null; course?: string | null } | null): boolean {
+    if (!userProfile) {
+        return false;
+    }
+    const { matricId, phoneNumber, course } = userProfile;
+    return !!(matricId && phoneNumber && course);
+}
