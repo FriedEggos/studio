@@ -126,7 +126,7 @@ export default function Home() {
                   Verified Contributions
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Students can submit documentation as proof of their roles in programs. Once verified by admins, these contributions are formally &apos;chopped&apos; and added to their digital professional portfolio.
+                  Get program roles and contributions officially verified by admins to build a credible digital portfolio.
                 </p>
               </div>
             </div>
