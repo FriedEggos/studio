@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from "next/link";
@@ -16,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth, useUser } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { Skeleton } from "./ui/skeleton";
+import { getInitials } from "@/lib/utils";
 
 export function UserNav({ isAdmin = false }: { isAdmin?: boolean }) {
     const { user, isUserLoading } = useUser();
@@ -40,8 +42,9 @@ export function UserNav({ isAdmin = false }: { isAdmin?: boolean }) {
     }
 
     const profileLink = isAdmin ? "/admin/profile" : "/profile";
-    const displayName = isAdmin ? "JTMK Administrator" : "JTMK Student";
-    const fallback = user.email?.[0].toUpperCase() ?? (isAdmin ? 'A' : 'S');
+    const displayName = user.displayName || (isAdmin ? "JTMK Administrator" : "JTMK Student");
+    const fallback = getInitials(displayName);
+    const photoURL = user.photoURL || `https://ui-avatars.com/api/?name=${fallback}&background=random&color=fff`;
 
     return (
         <DropdownMenu>
@@ -49,7 +52,7 @@ export function UserNav({ isAdmin = false }: { isAdmin?: boolean }) {
                 <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                     <Avatar className="h-9 w-9">
                         <AvatarImage
-                            src={user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`}
+                            src={photoURL}
                             alt={user.email || ''}
                         />
                         <AvatarFallback>{fallback}</AvatarFallback>

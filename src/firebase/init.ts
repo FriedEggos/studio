@@ -1,10 +1,10 @@
+
 'use client';
 
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
 import { getFunctions } from 'firebase/functions';
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
@@ -39,9 +39,6 @@ export function getSdks(firebaseApp: FirebaseApp) {
     firebaseApp,
     auth: getAuth(firebaseApp),
     firestore: getFirestore(firebaseApp),
-    // This initializes and exports the Firebase Storage service.
-    // The useStorage() hook in your components uses this instance.
-    storage: getStorage(firebaseApp),
     functions: getFunctions(firebaseApp, 'us-central1')
   };
 }

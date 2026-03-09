@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -20,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Camera, AlertCircle, Users, Award, PlusCircle, Loader2, Download, Trash2 } from "lucide-react";
+import { AlertCircle, Users, Award, PlusCircle, Loader2, Download, Trash2 } from "lucide-react";
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
 import { doc, collectionGroup, getDocs, query, where, collection, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -46,6 +47,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { getInitials } from '@/lib/utils';
 
 
 // Schemas and Types
@@ -281,14 +283,11 @@ export default function ProfilePage() {
 
         <Card>
           <CardHeader className="items-center text-center">
-            <Link href="/profile/edit" className="relative group">
+            <Link href="/profile/edit">
               <Avatar className="w-24 h-24 mb-4">
-                <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`} />
-                <AvatarFallback>{userProfile?.displayName?.[0].toUpperCase() || user.email?.[0].toUpperCase()}</AvatarFallback>
+                <AvatarImage src={user.photoURL || `https://ui-avatars.com/api/?name=${getInitials(userProfile.displayName || '')}&background=random&color=fff`} />
+                <AvatarFallback>{getInitials(userProfile.displayName || user.email || '')}</AvatarFallback>
               </Avatar>
-              <div className="absolute inset-0 mb-4 bg-black/40 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                <Camera className="h-8 w-8 text-white" />
-              </div>
             </Link>
             <CardTitle className="font-headline">{userProfile?.displayName || "JTMK Student"}</CardTitle>
             <CardDescription>{userProfile?.email}</CardDescription>
