@@ -10,16 +10,16 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useUser, useFirestore, useMemoFirebase, useCollection, useDoc } from "@/firebase";
+import { useUser, useFirestore, useMemoFirebase, useDoc } from "@/firebase";
 import { getDocs, collection, doc, getDoc, Timestamp, updateDoc, query, orderBy, collectionGroup, where } from "firebase/firestore";
 import { useEffect, useState, useCallback }from "react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Ticket, AlertTriangle, Loader2, PartyPopper } from "lucide-react";
+import { AlertCircle, Ticket, AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 // Interfaces for our data structures
 interface Attendance {
@@ -245,8 +245,26 @@ export default function StudentDashboard() {
         );
     };
 
+    const isProfileIncomplete = userProfile && (!userProfile.matricId || !userProfile.phoneNumber || !userProfile.course);
+
     return (
         <div className="space-y-8">
+             {isProfileIncomplete && !isProfileLoading && (
+                <Alert variant="destructive" className="flex items-center justify-between">
+                    <div className="flex items-center">
+                        <AlertTriangle className="h-5 w-5 mr-3" />
+                        <div>
+                            <AlertTitle>Action Required</AlertTitle>
+                            <AlertDescription>
+                                Please complete your profile information to unlock contribution submissions.
+                            </AlertDescription>
+                        </div>
+                    </div>
+                    <Button asChild>
+                        <Link href="/profile/edit">Go to Profile</Link>
+                    </Button>
+                </Alert>
+            )}
             <div className="space-y-2">
                 <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">Program Dashboard</h1>
                 <p className="text-muted-foreground">Browse all available programs and track your participation.</p>
