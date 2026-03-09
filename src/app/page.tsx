@@ -1,4 +1,3 @@
-
 "use client";
 
 import Image from "next/image";
@@ -64,8 +63,7 @@ export default function Home() {
                   Welcome to JTMK+
                 </h1>
                 <p className="max-w-[700px] text-muted-foreground md:text-xl">
-                  A QR-Based Program Participation & Digital Certification System.
-                  Register, participate, and track your achievements easily.
+                  Effortlessly track program participation with QR check-ins and get your committee roles officially verified. JTMK+ helps you build a credible digital portfolio.
                 </p>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
                   <Button size="lg" asChild>
