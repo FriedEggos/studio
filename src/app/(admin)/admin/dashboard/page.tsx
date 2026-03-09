@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { List, MoreHorizontal, Trash2, Loader2, UserPlus, Users } from "lucide-react";
+import { List, MoreHorizontal, Trash2, Loader2, UserPlus, Users, Download } from "lucide-react";
 import Link from "next/link";
 import { useState, useMemo, useEffect } from "react";
 import {
@@ -44,6 +44,10 @@ import { collection, query, orderBy, writeBatch, getDocs, doc, Timestamp, collec
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
+import { Input } from "@/components/ui/input";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
 
 type Program = {
     id: string;
@@ -53,6 +57,22 @@ type Program = {
     status: 'upcoming' | 'ongoing' | 'completed';
     qrSlug: string;
 };
+
+// Added matricId and course to match the latest structure
+type Position = {
+  id: string;
+  userId: string;
+  userName: string;
+  matricId: string;
+  course: string;
+  positionName: string;
+  customPositionDetail?: string;
+  programName: string;
+  peringkat: string;
+  verificationStatus: 'pending' | 'approved' | 'rejected';
+  createdAt: { toDate: () => Date };
+};
+
 
 export default function AdminDashboard() {
   const firestore = useFirestore();
@@ -76,6 +96,28 @@ export default function AdminDashboard() {
     newStudents: 0,
   });
   const [isLoadingStats, setIsLoadingStats] = useState(true);
+
+  // New state for contribution history
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const approvedPositionsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(
+      collectionGroup(firestore, 'positions'),
+      where('verificationStatus', '==', 'approved'),
+      orderBy('createdAt', 'desc')
+    );
+  }, [firestore]);
+
+  const { data: approvedPositions, isLoading: isLoadingApproved } = useCollection<Position>(approvedPositionsQuery);
+
+  const filteredPositions = useMemo(() => {
+    if (!approvedPositions) return [];
+    if (!searchQuery) return approvedPositions;
+    return approvedPositions.filter(pos =>
+      pos.matricId?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [approvedPositions, searchQuery]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000); // Update every minute
@@ -185,6 +227,45 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDownloadPdf = () => {
+    if (!filteredPositions || filteredPositions.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "No Data",
+        description: "There are no records to export.",
+      });
+      return;
+    }
+
+    const doc = new jsPDF();
+    
+    doc.setFontSize(18);
+    doc.text('Student Contribution History', 14, 22);
+    doc.setFontSize(11);
+    doc.text(`Date: ${format(new Date(), 'PPP')}`, 14, 30);
+    if(searchQuery) {
+        doc.text(`Filtered by Matric ID: ${searchQuery}`, 14, 36);
+    }
+
+
+    autoTable(doc, {
+      startY: 45,
+      head: [['No.', 'Student', 'Matric ID', 'Program', 'Level', 'Position', 'Date']],
+      body: filteredPositions.map((p, index) => [
+        index + 1,
+        p.userName,
+        p.matricId,
+        p.programName,
+        p.peringkat,
+        p.positionName === 'AJK Lain-Lain' ? `${p.positionName} (${p.customPositionDetail})` : p.positionName,
+        p.createdAt ? format(p.createdAt.toDate(), 'dd/MM/yyyy') : 'N/A',
+      ]),
+      theme: 'grid',
+      headStyles: { fillColor: [37, 51, 89] },
+    });
+
+    doc.save(`JTMK_Contribution_History_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
 
   const StatCard = ({ title, icon: Icon, value, isLoading, description }: { title: string, icon: React.ElementType, value: React.ReactNode, isLoading: boolean, description: string }) => (
     <Card>
@@ -346,6 +427,86 @@ export default function AdminDashboard() {
                   </Table>
               </CardContent>
             </Card>
+
+            <Card>
+            <CardHeader>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="font-headline">Student Contribution History</CardTitle>
+                  <CardDescription>
+                    Search and view all approved student contributions.
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Input 
+                        placeholder="Search by Matric ID..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full sm:w-64"
+                    />
+                    <Button onClick={handleDownloadPdf} variant="outline" size="sm" disabled={!filteredPositions || filteredPositions.length === 0}>
+                      <Download className="mr-2 h-4 w-4" />
+                      PDF
+                    </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>No.</TableHead>
+                            <TableHead>Student</TableHead>
+                            <TableHead>Matric ID</TableHead>
+                            <TableHead>Program</TableHead>
+                            <TableHead>Level</TableHead>
+                            <TableHead>Position</TableHead>
+                            <TableHead>Date</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {isLoadingApproved ? (
+                            [...Array(5)].map((_, i) => (
+                                <TableRow key={i}>
+                                    <TableCell><Skeleton className="h-5 w-6" /></TableCell>
+                                    <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                                    <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+                                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                                </TableRow>
+                            ))
+                        ) : filteredPositions && filteredPositions.length > 0 ? (
+                            filteredPositions.map((pos, index) => (
+                            <TableRow key={pos.id}>
+                                <TableCell>{index + 1}</TableCell>
+                                <TableCell className="font-medium">{pos.userName}</TableCell>
+                                <TableCell>{pos.matricId}</TableCell>
+                                <TableCell>{pos.programName}</TableCell>
+                                <TableCell>{pos.peringkat}</TableCell>
+                                <TableCell>
+                                {pos.positionName}
+                                {pos.positionName === "AJK Lain-Lain" && pos.customPositionDetail && (
+                                    <span className="text-muted-foreground ml-2 text-xs">({pos.customPositionDetail})</span>
+                                )}
+                                </TableCell>
+                                <TableCell>
+                                {pos.createdAt ? format(pos.createdAt.toDate(), 'dd/MM/yyyy') : ''}
+                                </TableCell>
+                            </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={7} className="h-24 text-center">
+                                    No approved contributions found for this search.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
