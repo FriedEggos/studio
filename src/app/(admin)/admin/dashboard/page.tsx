@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { List, MoreHorizontal, Trash2, Loader2, UserPlus, Users, Download } from "lucide-react";
+import { List, MoreHorizontal, Trash2, Loader2, UserPlus, Users, Download, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useState, useMemo, useEffect } from "react";
 import {
@@ -40,7 +40,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase";
-import { collection, query, orderBy, writeBatch, getDocs, doc, Timestamp, collectionGroup, where } from "firebase/firestore";
+import { collection, query, orderBy, writeBatch, getDocs, doc, Timestamp, collectionGroup, where, limit } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
@@ -86,7 +86,7 @@ export default function AdminDashboard() {
 
   const programsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    return query(collection(firestore, 'programs'), orderBy('createdAt', 'desc'));
+    return query(collection(firestore, 'programs'), orderBy('createdAt', 'desc'), limit(5));
   }, [firestore, user]);
   
   const { data: programs, isLoading: isLoadingPrograms } = useCollection<Program>(programsQuery);
@@ -368,11 +368,17 @@ export default function AdminDashboard() {
 
         <div className="grid grid-cols-1 gap-6">
           <Card>
-              <CardHeader>
-                <CardTitle className="font-headline">Program List</CardTitle>
-                <CardDescription>
-                  A summary of all created programs.
-                </CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle className="font-headline">Recent Programs</CardTitle>
+                    <CardDescription>A summary of the 5 most recently created programs.</CardDescription>
+                </div>
+                <Button asChild variant="outline" size="sm">
+                    <Link href="/admin/programs/all">
+                        View All
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                </Button>
               </CardHeader>
               <CardContent>
                   <Table>
