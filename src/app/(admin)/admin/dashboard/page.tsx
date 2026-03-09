@@ -238,33 +238,60 @@ export default function AdminDashboard() {
     }
 
     const doc = new jsPDF();
-    
-    doc.setFontSize(18);
-    doc.text('Student Contribution History', 14, 22);
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const signatureX = doc.internal.pageSize.getWidth() - 20;
+
+    // 1. Header
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text('REKOD SUMBANGAN PELAJAR JTMK', doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
-    doc.text(`Date: ${format(new Date(), 'PPP')}`, 14, 30);
-    if(searchQuery) {
-        doc.text(`Filtered by Matric ID: ${searchQuery}`, 14, 36);
+
+    let startY = 35;
+
+    // Add student info if filtered
+    if (searchQuery && filteredPositions.length > 0) {
+        const student = filteredPositions[0];
+        doc.text(`Nama Pelajar: ${student.userName}`, 14, startY);
+        doc.text(`ID Matrik: ${student.matricId}`, 14, startY + 6);
+        startY += 15;
     }
-
-
+    
+    // 2. Table
     autoTable(doc, {
-      startY: 45,
-      head: [['No.', 'Student', 'Matric ID', 'Program', 'Level', 'Position', 'Date']],
+      startY: startY,
+      head: [['No.', 'Program', 'Peringkat', 'Jawatan', 'Tarikh']],
       body: filteredPositions.map((p, index) => [
         index + 1,
-        p.userName,
-        p.matricId,
         p.programName,
         p.peringkat,
-        p.positionName === 'AJK Lain-Lain' ? `${p.positionName} (${p.customPositionDetail})` : p.positionName,
+        p.positionName === 'AJK Lain-Lain' && p.customPositionDetail
+          ? `${p.positionName} (${p.customPositionDetail})`
+          : p.positionName,
         p.createdAt ? format(p.createdAt.toDate(), 'dd/MM/yyyy') : 'N/A',
       ]),
       theme: 'grid',
       headStyles: { fillColor: [37, 51, 89] },
     });
 
-    doc.save(`JTMK_Contribution_History_${new Date().toISOString().split('T')[0]}.pdf`);
+    // 3. Signature Section
+    let finalY = (doc as any).lastAutoTable.finalY || pageHeight - 60;
+    let signatureY = finalY + 25;
+
+    // Check if there is enough space on the current page for the signature
+    if (signatureY > pageHeight - 40) {
+        doc.addPage();
+        signatureY = 40; // Start at top of new page
+    }
+    
+    doc.setFontSize(10);
+    doc.text('_______________________________', signatureX, signatureY, { align: 'right' });
+    doc.text('(PENYELARAS KELAB ICT JTMK)', signatureX, signatureY + 6, { align: 'right' });
+    doc.text('Nama:', signatureX, signatureY + 16, { align: 'right' });
+    doc.text('Tarikh:', signatureX, signatureY + 22, { align: 'right' });
+
+    doc.save(`JTMK_Sumbangan_Pelajar_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   const StatCard = ({ title, icon: Icon, value, isLoading, description }: { title: string, icon: React.ElementType, value: React.ReactNode, isLoading: boolean, description: string }) => (
