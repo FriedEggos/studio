@@ -29,9 +29,9 @@ import { getInitials } from '@/lib/utils';
 const profileFormSchema = z.object({
   displayName: z.string().min(1, 'Full name is required.'),
   email: z.string().email('Invalid email format.'),
-  course: z.string().optional(),
-  matricId: z.string().optional(),
-  phoneNumber: z.string().optional(),
+  course: z.string().min(1, "Please select your department."),
+  matricId: z.string().min(1, "Student ID is required."),
+  phoneNumber: z.string().min(1, "Phone number is required."),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
