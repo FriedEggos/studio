@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -52,8 +53,12 @@ interface CombinedProgram extends Program {
 }
 
 const ProgramStatusBadge = ({ status }: { status: 'upcoming' | 'ongoing' | 'completed' }) => {
-    const variant = status === 'completed' ? 'outline' : status === 'ongoing' ? 'default' : 'secondary';
-    return <Badge variant={variant} className="capitalize">{status}</Badge>;
+    const colorClasses = {
+        ongoing: 'bg-blue-100 text-blue-800 border border-blue-200 hover:bg-blue-100',
+        upcoming: 'bg-yellow-100 text-yellow-800 border border-yellow-200 hover:bg-yellow-100',
+        completed: 'bg-green-100 text-green-800 border border-green-200 hover:bg-green-100',
+    };
+    return <Badge className={`capitalize ${colorClasses[status]}`}>{status}</Badge>;
 }
 
 const CheckoutStatusBadge = ({ attendance }: { attendance: Attendance }) => {
@@ -359,3 +364,5 @@ export default function StudentDashboard() {
       </div>
     );
 }
+
+    
