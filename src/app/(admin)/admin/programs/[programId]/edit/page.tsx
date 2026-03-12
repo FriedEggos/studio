@@ -53,7 +53,7 @@ const programFormSchema = z.object({
     path: ['endDate'],
 }).refine(data => {
     if (data.startDate.toDateString() === data.endDate.toDateString()) {
-        return data.endTime > data.startTime;
+        return data.endTime >= data.startTime;
     }
     return true;
 }, {

@@ -48,12 +48,19 @@ const programFormSchema = z.object({
   checkOutCloseDate: z.date().optional(),
   checkOutCloseEndTime: z.string().optional(),
 
+}).refine(data => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Compare against the start of today
+    return data.startDate >= today;
+}, {
+    message: "Start date cannot be in the past.",
+    path: ['startDate'],
 }).refine(data => data.endDate >= data.startDate, {
     message: "End date must be on or after start date.",
     path: ['endDate'],
 }).refine(data => {
     if (data.startDate.toDateString() === data.endDate.toDateString()) {
-        return data.endTime > data.startTime;
+        return data.endTime >= data.startTime;
     }
     return true;
 }, {
@@ -96,6 +103,8 @@ export default function CreateProgramPage() {
             title: "",
             description: "",
             location: "",
+            startDate: new Date(),
+            endDate: new Date(),
             startTime: "",
             endTime: "",
             status: "upcoming",
