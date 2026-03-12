@@ -214,10 +214,12 @@ export default function ProfilePage() {
     doc.text('Verified Committee Involvement List', 14, 22);
     doc.setFontSize(12);
     doc.text(`Student Name: ${userProfile.displayName}`, 14, 30);
-    doc.text(`Email: ${userProfile.email}`, 14, 36);
+    doc.text(`Matric ID: ${userProfile.matricId || 'N/A'}`, 14, 36);
+    doc.text(`Email: ${userProfile.email}`, 14, 42);
+
 
     autoTable(doc, {
-      startY: 45,
+      startY: 51,
       head: [['No.', 'Program', 'Level', 'Position', 'Date', 'Status']],
       body: approvedPositions.map((p, index) => [
         index + 1,
@@ -251,7 +253,8 @@ export default function ProfilePage() {
     doc.text('Program Participation History', 14, 22);
     doc.setFontSize(12);
     doc.text(`Student Name: ${userProfile.displayName}`, 14, 30);
-    doc.text(`Email: ${userProfile.email}`, 14, 36);
+    doc.text(`Matric ID: ${userProfile.matricId || 'N/A'}`, 14, 36);
+    doc.text(`Email: ${userProfile.email}`, 14, 42);
 
     const getStatusText = (item: ParticipationHistoryItem) => {
         if (!item.checkOutAt) return 'No Checkout';
@@ -269,7 +272,7 @@ export default function ProfilePage() {
     };
 
     autoTable(doc, {
-        startY: 45,
+        startY: 51,
         head: [['No.', 'Program Name', 'Date Joined', 'Check-out Time', 'Status']],
         body: history.map((item, index) => [
             index + 1,
@@ -283,7 +286,7 @@ export default function ProfilePage() {
     });
 
     const pageHeight = doc.internal.pageSize.getHeight();
-    const signatureX = doc.internal.pageSize.getWidth() - 20;
+    const signatureX = 14;
 
     let finalY = (doc as any).lastAutoTable.finalY || pageHeight - 70;
     let signatureY = finalY + 25;
@@ -295,11 +298,11 @@ export default function ProfilePage() {
     }
     
     doc.setFontSize(10);
-    doc.text('_______________________________', signatureX, signatureY, { align: 'right' });
-    doc.text('PENYELARAS KELAB ICT JTMK', signatureX, signatureY + 6, { align: 'right' });
-    doc.text('POLITEKNIK KUCHING SARAWAK', signatureX, signatureY + 12, { align: 'right' });
-    doc.text('Nama:', signatureX, signatureY + 22, { align: 'right' });
-    doc.text('Tarikh:', signatureX, signatureY + 28, { align: 'right' });
+    doc.text('_______________________________', signatureX, signatureY);
+    doc.text('PENYELARAS KELAB ICT JTMK', signatureX, signatureY + 6);
+    doc.text('POLITEKNIK KUCHING SARAWAK', signatureX, signatureY + 12);
+    doc.text('Nama:', signatureX, signatureY + 22);
+    doc.text('Tarikh:', signatureX, signatureY + 28);
 
     doc.save(`JTMK_Participation_${userProfile.displayName.replace(' ', '_')}.pdf`);
   };
