@@ -43,7 +43,7 @@ import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { getInitials, isProfileComplete } from '@/lib/utils';
+import { getInitials, isProfileComplete, cn } from '@/lib/utils';
 
 
 // Schemas and Types
@@ -63,6 +63,7 @@ interface ParticipationHistoryItem {
     programTitle: string;
     createdAt: { toDate: () => Date };
     checkOutAt?: { toDate: () => Date };
+    checkOutStatus?: 'ok' | 'too_early' | 'outside_window' | 'too_short' | 'admin_override';
 }
 
 interface Position {
@@ -197,12 +198,8 @@ export default function ProfilePage() {
     }
   };
 
-  const handleDownloadPdf = () => {
-    if (!positions || !userProfile) return;
-
-    const approvedPositions = positions.filter(p => p.verificationStatus === 'approved');
-
-    if (approvedPositions.length === 0) {
+  const handleDownloadContributionsPdf = () => {
+    if (!approvedPositions || approvedPositions.length === 0) {
       toast({
         variant: 'destructive',
         title: 'No Approved Positions',
@@ -210,6 +207,7 @@ export default function ProfilePage() {
       });
       return;
     }
+    if (!userProfile) return;
 
     const doc = new jsPDF();
     
@@ -237,6 +235,57 @@ export default function ProfilePage() {
     doc.save(`JTMK_Involvement_${userProfile.displayName.replace(' ', '_')}.pdf`);
   };
 
+  const handleDownloadParticipationPdf = () => {
+    if (!history || history.length === 0) {
+        toast({
+            variant: 'destructive',
+            title: 'No History',
+            description: 'You have no participation history to download.',
+        });
+        return;
+    }
+    if (!userProfile) return;
+
+    const doc = new jsPDF();
+    
+    doc.setFontSize(18);
+    doc.text('Program Participation History', 14, 22);
+    doc.setFontSize(12);
+    doc.text(`Student Name: ${userProfile.displayName}`, 14, 30);
+    doc.text(`Email: ${userProfile.email}`, 14, 36);
+
+    const getStatusText = (item: ParticipationHistoryItem) => {
+        if (!item.checkOutAt) return 'No Checkout';
+        switch (item.checkOutStatus) {
+            case 'ok':
+            case 'admin_override':
+                return 'Verified';
+            case 'too_early':
+            case 'outside_window':
+            case 'too_short':
+                return 'Invalid';
+            default:
+                return 'Checked Out';
+        }
+    };
+
+    autoTable(doc, {
+        startY: 45,
+        head: [['No.', 'Program Name', 'Date Joined', 'Check-out Time', 'Status']],
+        body: history.map((item, index) => [
+            index + 1,
+            item.programTitle,
+            item.createdAt ? format(item.createdAt.toDate(), 'Pp') : '-',
+            item.checkOutAt ? format(item.checkOutAt.toDate(), 'Pp') : '-',
+            getStatusText(item)
+        ]),
+        theme: 'grid',
+        headStyles: { fillColor: [37, 51, 89] },
+    });
+
+    doc.save(`JTMK_Participation_${userProfile.displayName.replace(' ', '_')}.pdf`);
+  };
+
   // Loading and Error States
   if (isUserLoading || isProfileLoading || isLoadingHistory || !user || !userProfile) {
     return (
@@ -257,6 +306,23 @@ export default function ProfilePage() {
         </Alert>
       )
   }
+
+  const getCheckoutTimeClass = (item: ParticipationHistoryItem) => {
+    if (!item.checkOutAt) {
+        return 'text-red-600 font-semibold';
+    }
+    switch (item.checkOutStatus) {
+        case 'ok':
+        case 'admin_override':
+            return 'text-green-600 font-semibold';
+        case 'too_early':
+        case 'outside_window':
+        case 'too_short':
+            return 'text-red-600 font-semibold';
+        default:
+            return '';
+    }
+  };
 
   // Render
   return (
@@ -313,7 +379,7 @@ export default function ProfilePage() {
                   <CardTitle>My Contributions</CardTitle>
                   <CardDescription>Claim positions you held in programs for admin verification.</CardDescription>
                 </div>
-                <Button variant="outline" onClick={handleDownloadPdf} disabled={approvedPositions.length === 0}>
+                <Button variant="outline" onClick={handleDownloadContributionsPdf} disabled={approvedPositions.length === 0}>
                     <Download className="mr-2 h-4 w-4" />
                     Download PDF
                 </Button>
@@ -414,14 +480,30 @@ export default function ProfilePage() {
         </Card>
 
         <Card>
-            <CardHeader><CardTitle>Program Participation History</CardTitle><CardDescription>A record of all programs you have attended.</CardDescription></CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Program Participation History</CardTitle>
+                    <CardDescription>A record of all programs you have attended.</CardDescription>
+                </div>
+                 <Button variant="outline" size="sm" onClick={handleDownloadParticipationPdf} disabled={history.length === 0}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Download PDF
+                </Button>
+            </CardHeader>
             <CardContent>
                 <Table>
                     <TableHeader><TableRow><TableHead>#</TableHead><TableHead>Program Name</TableHead><TableHead>Date Joined</TableHead><TableHead>Check-out Time</TableHead></TableRow></TableHeader>
                     <TableBody>
                         {isLoadingHistory ? ([...Array(3)].map((_, i) => <TableRow key={i}><TableCell colSpan={4}><Skeleton className="h-5 w-full" /></TableCell></TableRow>))
                         : history.length > 0 ? (history.map((item, index) => (
-                            <TableRow key={item.id}><TableCell>{index + 1}</TableCell><TableCell className="font-medium">{item.programTitle}</TableCell><TableCell>{item.createdAt ? format(item.createdAt.toDate(), 'Pp') : '-'}</TableCell><TableCell>{item.checkOutAt ? format(item.checkOutAt.toDate(), 'Pp') : '-'}</TableCell></TableRow>
+                            <TableRow key={item.id}>
+                                <TableCell>{index + 1}</TableCell>
+                                <TableCell className="font-medium">{item.programTitle}</TableCell>
+                                <TableCell>{item.createdAt ? format(item.createdAt.toDate(), 'Pp') : '-'}</TableCell>
+                                <TableCell className={cn(getCheckoutTimeClass(item))}>
+                                    {item.checkOutAt ? format(item.checkOutAt.toDate(), 'Pp') : 'No Checkout'}
+                                </TableCell>
+                            </TableRow>
                         )))
                         : (<TableRow><TableCell colSpan={4} className="h-24 text-center">You have not joined any programs yet.</TableCell></TableRow>)}
                     </TableBody>
