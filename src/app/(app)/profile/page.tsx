@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -282,6 +281,25 @@ export default function ProfilePage() {
         theme: 'grid',
         headStyles: { fillColor: [37, 51, 89] },
     });
+
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const signatureX = doc.internal.pageSize.getWidth() - 20;
+
+    let finalY = (doc as any).lastAutoTable.finalY || pageHeight - 70;
+    let signatureY = finalY + 25;
+
+    // Check if there is enough space on the current page for the signature
+    if (signatureY > pageHeight - 50) {
+        doc.addPage();
+        signatureY = 40; // Start at top of new page
+    }
+    
+    doc.setFontSize(10);
+    doc.text('_______________________________', signatureX, signatureY, { align: 'right' });
+    doc.text('PENYELARAS KELAB ICT JTMK', signatureX, signatureY + 6, { align: 'right' });
+    doc.text('POLITEKNIK KUCHING SARAWAK', signatureX, signatureY + 12, { align: 'right' });
+    doc.text('Nama:', signatureX, signatureY + 22, { align: 'right' });
+    doc.text('Tarikh:', signatureX, signatureY + 28, { align: 'right' });
 
     doc.save(`JTMK_Participation_${userProfile.displayName.replace(' ', '_')}.pdf`);
   };
