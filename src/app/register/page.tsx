@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -36,7 +37,7 @@ const courses = [
   "Jabatan Kejuruteraan Elektrik",
   "Jabatan Teknologi Maklumat & Komunikasi",
   "Jabatan Perdagangan",
-  "Jabatan Pengajian Am",
+  "Jabatan Matematik Sains dan Komunikasi",
 ];
 
 export default function RegisterPage() {
