@@ -106,10 +106,6 @@ export async function submitCheckout(
     else if (checkOutCloseTime && now > checkOutCloseTime) {
         checkOutStatus = "outside_window";
     }
-    // Rule C: Minimum duration
-    else if (durationMinutes < 60) {
-        checkOutStatus = "too_short";
-    }
 
     // This payload contains ONLY the fields allowed by the `isCheckoutUpdate` security rule.
     const checkoutUpdatePayload = {
