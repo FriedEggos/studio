@@ -1,5 +1,6 @@
 
 import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from "firebase-functions/v2/firestore";
+import { onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
@@ -167,4 +168,86 @@ export const onUserDeleted = onDocumentDeleted("/users/{userId}", async (event) 
     
     await batch.commit();
     logger.log(`Successfully deleted ${attendancesSnapshot.size} attendance records for user ${userEmail}.`);
+});
+
+
+/**
+ * An HTTP-triggered function to clean up the database for production.
+ * Deletes all data from specified collections but preserves admin users.
+ * To run, deploy this function and call its URL.
+ * It's recommended to secure this function, e.g., by requiring authentication.
+ */
+export const cleanupProductionDatabase = onRequest({
+    timeoutSeconds: 540,
+    memory: '1GiB',
+}, async (req, res) => {
+    logger.info("Starting database cleanup for production...");
+
+    // Helper for recursive deletion.
+    const deleteCollectionRecursive = async (collectionRef) => {
+        const snapshot = await collectionRef.limit(500).get();
+        if (snapshot.empty) {
+            return;
+        }
+
+        const batch = db.batch();
+        for (const doc of snapshot.docs) {
+            // Recursively delete subcollections
+            const subcollections = await doc.ref.listCollections();
+            for (const subcollection of subcollections) {
+                await deleteCollectionRecursive(subcollection);
+            }
+            batch.delete(doc.ref);
+        }
+        await batch.commit();
+
+        // Recurse to delete remaining documents
+        await deleteCollectionRecursive(collectionRef);
+    };
+
+    try {
+        // 1. Delete specified collections entirely
+        const collectionsToDelete = ['programs', 'programConfigs', 'qrSlugs'];
+        for (const col of collectionsToDelete) {
+            logger.info(`Deleting collection: ${col}`);
+            const collectionRef = db.collection(col);
+            await deleteCollectionRecursive(collectionRef);
+            logger.info(`Finished deleting collection: ${col}`);
+        }
+
+        // 2. Handle users and their subcollections
+        logger.info("Processing users for deletion...");
+        const usersRef = db.collection('users');
+        const usersSnapshot = await usersRef.get();
+        const userDeletionBatch = db.batch();
+        let studentsDeleted = 0;
+
+        for (const userDoc of usersSnapshot.docs) {
+            if (userDoc.data().role !== 'admin') {
+                // Delete 'positions' subcollection for the non-admin user
+                const positionsRef = userDoc.ref.collection('positions');
+                await deleteCollectionRecursive(positionsRef);
+                
+                // Add the user document itself to the batch delete
+                userDeletionBatch.delete(userDoc.ref);
+                studentsDeleted++;
+            }
+        }
+        
+        if (studentsDeleted > 0) {
+            await userDeletionBatch.commit();
+            logger.info(`Deleted ${studentsDeleted} non-admin user documents and their positions.`);
+        } else {
+            logger.info("No non-admin users found to delete.");
+        }
+        
+        // Note: The onUserDeleted function will also trigger to clean up attendance records
+        // associated with the deleted users' emails.
+
+        res.status(200).send("Database cleanup successful. Admin users preserved.");
+
+    } catch (error) {
+        logger.error("Error during database cleanup:", error);
+        res.status(500).send("Database cleanup failed. Check function logs for details.");
+    }
 });
