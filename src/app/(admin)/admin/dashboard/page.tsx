@@ -239,7 +239,7 @@ export default function AdminDashboard() {
 
     const doc = new jsPDF();
     const pageHeight = doc.internal.pageSize.getHeight();
-    const signatureX = doc.internal.pageSize.getWidth() - 20;
+    const signatureX = 14;
 
     // 1. Header
     doc.setFontSize(16);
@@ -286,10 +286,10 @@ export default function AdminDashboard() {
     }
     
     doc.setFontSize(10);
-    doc.text('_______________________________', signatureX, signatureY, { align: 'right' });
-    doc.text('(PENYELARAS KELAB ICT JTMK)', signatureX, signatureY + 6, { align: 'right' });
-    doc.text('Nama:', signatureX, signatureY + 16, { align: 'right' });
-    doc.text('Tarikh:', signatureX, signatureY + 22, { align: 'right' });
+    doc.text('_______________________________', signatureX, signatureY);
+    doc.text('(PENYELARAS KELAB ICT JTMK)', signatureX, signatureY + 6);
+    doc.text('Nama:', signatureX, signatureY + 16);
+    doc.text('Tarikh:', signatureX, signatureY + 22);
 
     doc.save(`JTMK_Sumbangan_Pelajar_${new Date().toISOString().split('T')[0]}.pdf`);
   };
