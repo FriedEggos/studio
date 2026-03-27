@@ -101,14 +101,35 @@ export const onAttendanceCheckOut = onDocumentUpdated("/programs/{programId}/att
             from: `"JTMK+ System" <${gmailEmail}>`,
             to: studentEmail,
             subject: `Terima Kasih Kerana Menyertai - ${programTitle}`,
-            html: `...`, // Email body omitted for brevity
+            html: `
+                <p>Hai ${studentName},</p>
+                <p>Terima kasih kerana telah mendaftar keluar dari program <strong>${programTitle}</strong>.</p>
+                <p>Kehadiran anda telah disahkan dan direkodkan sepenuhnya.</p>
+                <p>Waktu daftar keluar: ${afterData.checkOutAt.toDate().toLocaleString("ms-MY")}</p>
+                <br>
+                <p>Terima kasih,</p>
+                <p>Sistem Kehadiran JTMK+</p>
+            `,
         };
     } else {
+        const reason = checkOutStatus === 'too_early' ? 'anda mendaftar keluar terlalu awal' 
+                     : checkOutStatus === 'outside_window' ? 'anda mendaftar keluar di luar tempoh yang dibenarkan' 
+                     : 'tempoh kehadiran anda terlalu singkat';
+
         mailOptions = {
             from: `"JTMK+ System" <${gmailEmail}>`,
             to: studentEmail,
             subject: `Amaran Status Daftar Keluar - ${programTitle}`,
-            html: `...`, // Email body omitted for brevity
+            html: `
+                <p>Hai ${studentName},</p>
+                <p>Daftar keluar anda untuk program <strong>${programTitle}</strong> telah direkodkan tetapi dengan amaran.</p>
+                <p><strong>Sebab:</strong> Status daftar keluar anda ditandakan sebagai tidak sah kerana ${reason}.</p>
+                <p>Waktu daftar keluar: ${afterData.checkOutAt.toDate().toLocaleString("ms-MY")}</p>
+                <p>Sila berhubung dengan penganjur program jika anda percaya ini adalah satu kesilapan.</p>
+                <br>
+                <p>Terima kasih,</p>
+                <p>Sistem Kehadiran JTMK+</p>
+            `,
         };
     }
     

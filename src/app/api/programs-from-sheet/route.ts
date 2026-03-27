@@ -2,7 +2,12 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  const appsScriptUrl = "https://script.google.com/macros/s/AKfycbw2AKphDqfWmOEgOEzj2VK_3OhfchFsHVFgOrPoDLW6vRUKoeeepbBhV_S8uCk1mooDqA/exec";
+  const appsScriptUrl = process.env.APPS_SCRIPT_URL;
+
+  if (!appsScriptUrl) {
+    console.error("APPS_SCRIPT_URL environment variable is not set.");
+    return NextResponse.json({ error: "Application is not configured to retrieve data from Google Sheets." }, { status: 500 });
+  }
   
   try {
     const response = await fetch(appsScriptUrl, { cache: 'no-store' });
