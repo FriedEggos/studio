@@ -198,21 +198,25 @@ export default function StudentDashboard() {
             const checkInAt = (attendance.createdAt as Timestamp).toDate();
             
             let checkOutStatus: string = "ok";
-            if (now <= checkInAt) { checkOutStatus = "too_early"; }
             const checkOutOpenTime = program.checkOutOpenTime ? program.checkOutOpenTime.toDate() : null;
             const checkOutCloseTime = program.checkOutCloseTime ? program.checkOutCloseTime.toDate() : null;
-            if ((checkOutOpenTime && now < checkOutOpenTime) || (checkOutCloseTime && now > checkOutCloseTime)) { checkOutStatus = "outside_window"; }
+
+            if (now <= checkInAt) {
+                checkOutStatus = "too_early";
+            } else if ((checkOutOpenTime && now < checkOutOpenTime) || (checkOutCloseTime && now > checkOutCloseTime)) {
+                checkOutStatus = "outside_window";
+            }
+
             const durationMinutes = Math.floor((now.getTime() - checkInAt.getTime()) / 60000);
-            if (durationMinutes < 60) { checkOutStatus = "too_short"; }
 
             await updateDoc(attendanceDocRef, {
                 checkOutAt: Timestamp.fromDate(now),
-                durationMinutes: durationMinutes,
+                durationMinutes: durationMinutes < 0 ? 0 : durationMinutes,
                 checkOutStatus: checkOutStatus,
             });
 
             if (checkOutStatus === 'ok') { toast({ title: 'Success!', description: 'Check-out berjaya dan disahkan.' }); } 
-            else { toast({ variant: 'destructive', title: 'Check-out Recorded', description: 'Check-out direkodkan tetapi status tidak sah.' }); }
+            else { toast({ variant: 'destructive', title: 'Check-out Recorded with Warning', description: 'Your check-out was recorded, but flagged as invalid. Contact an admin if you believe this is an error.' }); }
 
             fetchProgramsAndAttendance();
         } catch (error: any) {
@@ -365,4 +369,3 @@ export default function StudentDashboard() {
     );
 }
 
-    
