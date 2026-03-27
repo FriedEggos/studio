@@ -68,7 +68,7 @@ const CheckoutStatusBadge = ({ attendance }: { attendance: Attendance }) => {
     
     switch (attendance.checkOutStatus) {
         case 'ok':
-            return <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100">Checked Out (Verified)</Badge>;
+            return <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100">Checked Out</Badge>;
         case 'admin_override':
             return <Badge className="bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100">Admin Verified</Badge>;
         case 'too_early':
