@@ -95,8 +95,15 @@ const positionSchema = z.object({
 });
 
 const positionOptions = [
-  "Pengerusi", "Naib Pengerusi", "Setiausaha", "Bendahari", 
-  "Penolong Setiausaha", "Penolong Bendahari", "AJK Lain-Lain"
+  "Pengerusi",
+  "Naib Pengerusi",
+  "Pengarah Program",
+  "Timbalan Pengarah Program",
+  "Setiausaha",
+  "Bendahari",
+  "Penolong Setiausaha",
+  "Penolong Bendahari",
+  "AJK Lain-Lain",
 ];
 
 const peringkatOptions = [
