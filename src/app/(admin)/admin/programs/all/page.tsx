@@ -66,7 +66,8 @@ export default function AllProgramsPage() {
 
   const programsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    return query(collection(firestore, 'programs'), orderBy('createdAt', 'desc'));
+    // Sort by status descending (U > O > C), then by start date ascending (nearest first)
+    return query(collection(firestore, 'programs'), orderBy('status', 'desc'), orderBy('startDateTime', 'asc'));
   }, [firestore, user]);
   
   const { data: programs, isLoading: isLoadingPrograms } = useCollection<Program>(programsQuery);
