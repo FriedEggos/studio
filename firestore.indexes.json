@@ -67,6 +67,39 @@
       "fields": [
         { "fieldPath": "createdAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "role", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "role", "order": "ASCENDING" },
+        { "fieldPath": "rank", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "positions",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "verificationStatus", "order": "ASCENDING" },
+        { "fieldPath": "matricId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "programs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "DESCENDING" },
+        { "fieldPath": "startDateTime", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
