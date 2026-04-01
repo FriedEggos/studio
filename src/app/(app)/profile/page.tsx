@@ -100,12 +100,15 @@ const positionOptions = [
 ];
 
 const peringkatOptions = [
-    "Peringkat Antarabangsa",
+    "Peringkat Kelab",
+    "Peringkat Program",
+    "Peringkat Jabatan",
+    "Peringkat Politeknik",
+    "Peringkat Zon / Negeri",
     "Peringkat Kebangsaan",
-    "Peringkat Negeri",
-    "Peringkat Daerah",
-    "Peringkat Institusi / Universiti / Politeknik",
-    "Peringkat Jabatan / Kelab / Persatuan"
+    "Peringkat Antarabangsa",
+    "Peringkat Komuniti",
+    "Tiada"
 ];
 
 
