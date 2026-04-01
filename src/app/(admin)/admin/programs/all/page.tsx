@@ -66,8 +66,7 @@ export default function AllProgramsPage() {
 
   const programsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    // Sort by status descending (U > O > C), then by start date ascending (nearest first)
-    return query(collection(firestore, 'programs'), orderBy('status', 'desc'), orderBy('startDateTime', 'asc'));
+    return query(collection(firestore, 'programs'), orderBy('startDateTime', 'asc'));
   }, [firestore, user]);
   
   const { data: programs, isLoading: isLoadingPrograms } = useCollection<Program>(programsQuery);
@@ -76,6 +75,40 @@ export default function AllProgramsPage() {
     const timer = setInterval(() => setNow(new Date()), 60000); // Update every minute
     return () => clearInterval(timer);
   }, []);
+
+  const getProgramStatus = (program: Program): 'upcoming' | 'ongoing' | 'completed' => {
+      const startTime = program.startDateTime?.toDate();
+      const endTime = program.endDateTime?.toDate();
+      if (!startTime || !endTime) return 'upcoming';
+      if (now < startTime) return 'upcoming';
+      if (now > endTime) return 'completed';
+      return 'ongoing';
+  };
+
+  const sortedPrograms = useMemo(() => {
+    if (!programs) return [];
+    
+    const statusOrder = {
+      upcoming: 1,
+      ongoing: 2,
+      completed: 3,
+    };
+
+    return [...programs].sort((a, b) => {
+      const statusA = getProgramStatus(a);
+      const statusB = getProgramStatus(b);
+      
+      const orderA = statusOrder[statusA];
+      const orderB = statusOrder[statusB];
+      
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      
+      // If status is the same, rely on the existing date sort from the query.
+      return 0;
+    });
+  }, [programs, now]);
 
   const handleDeleteProgram = async () => {
     if (!firestore || !programToDelete) return;
@@ -118,15 +151,6 @@ export default function AllProgramsPage() {
     }
   };
 
-  const getProgramStatus = (program: Program): 'upcoming' | 'ongoing' | 'completed' => {
-      const startTime = program.startDateTime?.toDate();
-      const endTime = program.endDateTime?.toDate();
-      if (!startTime || !endTime) return 'upcoming';
-      if (now < startTime) return 'upcoming';
-      if (now > endTime) return 'completed';
-      return 'ongoing';
-  };
-
   return (
     <>
       <div className="space-y-6">
@@ -165,8 +189,8 @@ export default function AllProgramsPage() {
                               <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                               </TableRow>
                           ))
-                          ) : programs && programs.length > 0 ? (
-                          programs.map((program) => {
+                          ) : sortedPrograms && sortedPrograms.length > 0 ? (
+                          sortedPrograms.map((program) => {
                             const dynamicStatus = getProgramStatus(program);
                             return (
                               <TableRow key={program.id}>
