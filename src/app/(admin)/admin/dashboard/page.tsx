@@ -241,45 +241,64 @@ export default function AdminDashboard() {
     const pageHeight = doc.internal.pageSize.getHeight();
     const signatureX = 14;
 
-    // 1. Header
+    // PDF Title
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
     doc.text('REKOD SUMBANGAN PELAJAR JTMK', doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
-
-    let startY = 35;
-
-    // Add student info if filtered
-    if (searchQuery && filteredPositions.length > 0) {
-        const student = filteredPositions[0];
-        doc.text(`Nama Pelajar: ${student.userName}`, 14, startY);
-        doc.text(`ID Matrik: ${student.matricId}`, 14, startY + 6);
-        startY += 15;
-    }
     
-    // 2. Table
-    autoTable(doc, {
-      startY: startY,
-      head: [['No.', 'Program', 'Peringkat', 'Jawatan', 'Tarikh']],
-      body: filteredPositions.map((p, index) => [
-        index + 1,
-        p.programName,
-        p.peringkat,
-        p.positionName === 'AJK Lain-Lain' && p.customPositionDetail
-          ? `${p.positionName} (${p.customPositionDetail})`
-          : p.positionName,
-        p.createdAt ? format(p.createdAt.toDate(), 'dd/MM/yyyy') : 'N/A',
-      ]),
-      theme: 'grid',
-      headStyles: { fillColor: [37, 51, 89] },
-    });
+    let startY = 35;
+    
+    // Conditional logic for PDF content
+    if (searchQuery && filteredPositions.length > 0) {
+      // ** STUDENT-SPECIFIC REPORT **
+      const student = filteredPositions[0];
+      doc.text(`Nama Pelajar: ${student.userName}`, 14, startY);
+      doc.text(`ID Matrik: ${student.matricId}`, 14, startY + 6);
+      startY += 15;
+      
+      autoTable(doc, {
+        startY: startY,
+        head: [['No.', 'Program', 'Peringkat', 'Jawatan', 'Tarikh']],
+        body: filteredPositions.map((p, index) => [
+          index + 1,
+          p.programName,
+          p.peringkat,
+          p.positionName === 'AJK Lain-Lain' && p.customPositionDetail
+            ? `${p.positionName} (${p.customPositionDetail})`
+            : p.positionName,
+          p.createdAt ? format(p.createdAt.toDate(), 'dd/MM/yyyy') : 'N/A',
+        ]),
+        theme: 'grid',
+        headStyles: { fillColor: [37, 51, 89] },
+      });
 
-    // 3. Signature Section
+    } else {
+      // ** "ALL" REPORT **
+      autoTable(doc, {
+        startY: startY,
+        head: [['No.', 'Student', 'Matric ID', 'Program', 'Level', 'Position', 'Date']],
+        body: filteredPositions.map((p, index) => [
+          index + 1,
+          p.userName,
+          p.matricId,
+          p.programName,
+          p.peringkat,
+          p.positionName === 'AJK Lain-Lain' && p.customPositionDetail
+            ? `${p.positionName} (${p.customPositionDetail})`
+            : p.positionName,
+          p.createdAt ? format(p.createdAt.toDate(), 'dd/MM/yyyy') : 'N/A',
+        ]),
+        theme: 'grid',
+        headStyles: { fillColor: [37, 51, 89] },
+      });
+    }
+
+    // Signature Section
     let finalY = (doc as any).lastAutoTable.finalY || pageHeight - 60;
     let signatureY = finalY + 25;
 
-    // Check if there is enough space on the current page for the signature
     if (signatureY > pageHeight - 40) {
         doc.addPage();
         signatureY = 40; // Start at top of new page
