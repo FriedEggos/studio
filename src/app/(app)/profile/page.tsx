@@ -210,24 +210,31 @@ export default function ProfilePage() {
 
     const doc = new jsPDF();
     
-    doc.setFontSize(18);
-    doc.text('Verified Committee Involvement List', 14, 22);
-    doc.setFontSize(12);
-    doc.text(`Student Name: ${userProfile.displayName}`, 14, 30);
-    doc.text(`Matric ID: ${userProfile.matricId || 'N/A'}`, 14, 36);
-    doc.text(`Email: ${userProfile.email}`, 14, 42);
-
+    // PDF Title
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text('REKOD SUMBANGAN PELAJAR JTMK', doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    
+    // Student Details Header
+    let startY = 35;
+    doc.text(`Nama: ${userProfile.displayName}`, 14, startY);
+    startY += 6;
+    doc.text(`No. Matrik: ${userProfile.matricId || 'N/A'}`, 14, startY);
+    startY += 6;
+    doc.text(`Email: ${userProfile.email}`, 14, startY);
+    startY += 10; // Add space before table
 
     autoTable(doc, {
-      startY: 51,
-      head: [['No.', 'Program', 'Level', 'Position', 'Date', 'Status']],
+      startY: startY,
+      head: [['No.', 'Program', 'Peringkat', 'Jawatan', 'Tarikh']],
       body: approvedPositions.map((p, index) => [
         index + 1,
         p.programName,
         p.peringkat,
         p.positionName === 'AJK Lain-Lain' ? `${p.positionName} (${p.customPositionDetail})` : p.positionName,
         p.createdAt ? format(p.createdAt.toDate(), 'dd/MM/yyyy') : 'N/A',
-        'Approved'
       ]),
       theme: 'grid',
       headStyles: { fillColor: [37, 51, 89] },
