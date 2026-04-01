@@ -92,6 +92,7 @@ export default function AdminDashboard() {
   const { data: programs, isLoading: isLoadingPrograms } = useCollection<Program>(programsQuery);
 
   const [stats, setStats] = useState({
+    totalPrograms: 0,
     monthlyActive: 0,
     newStudents: 0,
   });
@@ -134,33 +135,37 @@ export default function AdminDashboard() {
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
             const thirtyDaysAgoTimestamp = Timestamp.fromDate(thirtyDaysAgo);
 
-            // Use Promise.all to fetch attendances and users in parallel
-            const [attendancesSnapshot, usersSnapshot] = await Promise.all([
-                getDocs(collectionGroup(firestore, 'attendances')),
-                getDocs(query(collection(firestore, 'users'), where('role', '==', 'student')))
+            // Define queries
+            const programsQuery = collection(firestore, 'programs');
+            const activeStudentsQuery = query(collectionGroup(firestore, 'positions'), where('createdAt', '>=', thirtyDaysAgoTimestamp));
+            const newStudentsQuery = query(collection(firestore, 'users'), where('role', '==', 'student'), where('createdAt', '>=', thirtyDaysAgoTimestamp));
+
+            // Fetch data in parallel
+            const [programsSnapshot, activeStudentsSnapshot, newStudentsSnapshot] = await Promise.all([
+                getDocs(programsQuery),
+                getDocs(activeStudentsQuery),
+                getDocs(newStudentsQuery)
             ]);
-
-            // Calculate stats from snapshots
-            const activeEmails = new Set<string>();
             
-            attendancesSnapshot.forEach(doc => {
+            // Calculate Total Programs
+            const totalPrograms = programsSnapshot.size;
+
+            // Calculate Monthly Active Students from positions
+            const activeMatricIds = new Set<string>();
+            activeStudentsSnapshot.forEach(doc => {
                 const data = doc.data();
-                if (data.createdAt && (data.createdAt as Timestamp).toDate() >= thirtyDaysAgo) {
-                    activeEmails.add(data.email);
+                if (data.matricId) {
+                    activeMatricIds.add(data.matricId);
                 }
             });
+            const monthlyActive = activeMatricIds.size;
 
-            let newStudents = 0;
-
-            usersSnapshot.forEach(doc => {
-                const data = doc.data();
-                if (data.createdAt && (data.createdAt as Timestamp).toDate() >= thirtyDaysAgo) {
-                    newStudents++;
-                }
-            });
+            // Calculate New Student Growth
+            const newStudents = newStudentsSnapshot.size;
 
             setStats({
-                monthlyActive: activeEmails.size,
+                totalPrograms,
+                monthlyActive,
                 newStudents,
             });
 
@@ -169,7 +174,7 @@ export default function AdminDashboard() {
             toast({
                 variant: "destructive",
                 title: "Failed to load stats",
-                description: "Could not load dashboard statistics."
+                description: "Could not load dashboard statistics. You may need to create a Firestore index."
             });
         } finally {
             setIsLoadingStats(false);
@@ -365,8 +370,8 @@ export default function AdminDashboard() {
           <StatCard
             title="Total Programs"
             icon={List}
-            value={programs?.length ?? 0}
-            isLoading={isLoadingPrograms}
+            value={stats.totalPrograms}
+            isLoading={isLoadingStats}
             description="Total programs created."
           />
           <StatCard
