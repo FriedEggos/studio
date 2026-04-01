@@ -137,8 +137,18 @@ export default function AdminDashboard() {
 
             // Define queries
             const programsQuery = collection(firestore, 'programs');
-            const activeStudentsQuery = query(collectionGroup(firestore, 'positions'), where('verificationStatus', '==', 'approved'), where('createdAt', '>=', thirtyDaysAgoTimestamp));
-            const newStudentsQuery = query(collection(firestore, 'users'), where('role', '==', 'student'), where('createdAt', '>=', thirtyDaysAgoTimestamp));
+            const activeStudentsQuery = query(
+              collectionGroup(firestore, 'positions'), 
+              where('verificationStatus', '==', 'approved'), 
+              where('createdAt', '>=', thirtyDaysAgoTimestamp),
+              orderBy('createdAt', 'desc')
+            );
+            const newStudentsQuery = query(
+              collection(firestore, 'users'), 
+              where('role', '==', 'student'), 
+              where('createdAt', '>=', thirtyDaysAgoTimestamp),
+              orderBy('createdAt', 'desc')
+            );
 
             // Fetch data in parallel
             const [programsSnapshot, activeStudentsSnapshot, newStudentsSnapshot] = await Promise.all([
