@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -18,7 +17,7 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useFirestore } from "@/firebase";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, serverTimestamp, setDoc, collection, query, where, getDocs } from "firebase/firestore";
 import {
   Select,
   SelectContent,
@@ -77,6 +76,21 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
+      const matricIdUpper = matricId.toUpperCase();
+      const usersRef = collection(firestore, "users");
+      const q = query(usersRef, where("matricId", "==", matricIdUpper));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        toast({
+          variant: "destructive",
+          title: "Registration Failed",
+          description: "Matric number has been taken. Please input a different one.",
+        });
+        setIsLoading(false);
+        return;
+      }
+      
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
