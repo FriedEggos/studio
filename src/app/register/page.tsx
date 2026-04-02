@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Eye, EyeOff } from "lucide-react";
+import { getInitials } from "@/lib/utils";
 
 const adminEmails = ["ahammedrasiah@gmail.com", "syazmiza0304@gmail.com"];
 
@@ -97,7 +98,10 @@ export default function RegisterPage() {
       const user = userCredential.user;
 
       if (user) {
-        await updateProfile(user, { displayName: fullName.toUpperCase() });
+        const initials = getInitials(fullName.toUpperCase());
+        const photoURL = `https://ui-avatars.com/api/?name=${initials}&background=random&color=fff`;
+
+        await updateProfile(user, { displayName: fullName.toUpperCase(), photoURL });
         
         const role = adminEmails.includes(user.email || "") ? "admin" : "student";
         
@@ -109,6 +113,7 @@ export default function RegisterPage() {
           id: user.uid,
           displayName: fullName.toUpperCase(),
           email: user.email,
+          photoURL,
           role: role,
           course: course,
           matricId: matricIdUpper,

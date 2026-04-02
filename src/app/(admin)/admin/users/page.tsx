@@ -36,6 +36,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
+import { getInitials } from '@/lib/utils';
 
 interface User {
   id: string;
@@ -153,8 +154,8 @@ export default function UsersPage() {
                       <TableCell>
                         <div className="flex items-center gap-4">
                           <Avatar>
-                            <AvatarImage src={user.photoURL} />
-                            <AvatarFallback>{user.displayName?.[0].toUpperCase() || user.email[0].toUpperCase()}</AvatarFallback>
+                            <AvatarImage src={user.photoURL || `https://ui-avatars.com/api/?name=${getInitials(user.displayName || '')}&background=random&color=fff`} />
+                            <AvatarFallback>{getInitials(user.displayName || user.email || '')}</AvatarFallback>
                           </Avatar>
                           <div>
                             <div className="font-medium">{user.displayName}</div>

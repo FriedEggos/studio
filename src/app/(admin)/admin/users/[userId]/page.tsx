@@ -16,6 +16,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { getInitials } from "@/lib/utils";
 
 interface UserProfile {
     id: string;
@@ -75,8 +76,8 @@ export default function UserProfilePage() {
               <Card>
                   <CardHeader className="items-center text-center">
                       <Avatar className="w-24 h-24 mb-4">
-                          <AvatarImage src={userProfile.photoURL || `https://picsum.photos/seed/${userProfile.id}/200/200`} />
-                          <AvatarFallback>{userProfile.displayName?.[0].toUpperCase() || userProfile.email?.[0].toUpperCase()}</AvatarFallback>
+                          <AvatarImage src={userProfile.photoURL || `https://ui-avatars.com/api/?name=${getInitials(userProfile.displayName || '')}&background=random&color=fff`} />
+                          <AvatarFallback>{getInitials(userProfile.displayName || userProfile.email || '')}</AvatarFallback>
                       </Avatar>
                       <CardTitle className="font-headline">{userProfile.displayName}</CardTitle>
                       <CardDescription>{userProfile.email}</CardDescription>
@@ -106,8 +107,8 @@ export default function UserProfilePage() {
       <Card>
         <CardHeader className="items-center text-center">
           <Avatar className="w-24 h-24 mb-4">
-            <AvatarImage src={userProfile.photoURL || `https://picsum.photos/seed/${userProfile.id}/200/200`} />
-            <AvatarFallback>{userProfile.displayName?.[0].toUpperCase() || userProfile.email?.[0].toUpperCase()}</AvatarFallback>
+            <AvatarImage src={userProfile.photoURL || `https://ui-avatars.com/api/?name=${getInitials(userProfile.displayName || '')}&background=random&color=fff`} />
+            <AvatarFallback>{getInitials(userProfile.displayName || userProfile.email || '')}</AvatarFallback>
           </Avatar>
           <CardTitle className="font-headline">{userProfile.displayName}</CardTitle>
           <CardDescription>{userProfile.email}</CardDescription>
