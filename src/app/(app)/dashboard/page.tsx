@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -26,6 +25,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Interfaces for our data structures
@@ -107,6 +116,10 @@ export default function StudentDashboard() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalContent, setModalContent] = useState<{ title: string; programs: CombinedProgram[] }>({ title: '', programs: [] });
     
+    // Checkout confirmation state
+    const [isCheckoutAlertOpen, setIsCheckoutAlertOpen] = useState(false);
+    const [programToCheckout, setProgramToCheckout] = useState<CombinedProgram | null>(null);
+    
     const [userProfile, setUserProfile] = useState<any>(null);
     const [isProfileLoading, setIsProfileLoading] = useState(true);
 
@@ -181,6 +194,8 @@ export default function StudentDashboard() {
     const handleCheckout = async (programId: string) => {
         if (!firestore || !user || !user.email) return;
         setIsCheckingOut(programId);
+        setIsCheckoutAlertOpen(false); // Close dialog on action
+        setProgramToCheckout(null);
 
         const studentEmail = user.email.toLowerCase();
         const programDocRef = doc(firestore, 'programs', programId);
@@ -264,7 +279,7 @@ export default function StudentDashboard() {
                         <>
                             <CheckoutStatusBadge attendance={attendance} />
                             {!attendance.checkOutAt && (
-                                <Button onClick={() => handleCheckout(program.id)} disabled={isCheckingOut === program.id} className="mt-2" size="sm">
+                                <Button onClick={() => { setProgramToCheckout(program); setIsCheckoutAlertOpen(true); }} disabled={isCheckingOut === program.id} className="mt-2" size="sm">
                                     {isCheckingOut === program.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     Check-out Now
                                 </Button>
@@ -365,7 +380,25 @@ export default function StudentDashboard() {
                 </ScrollArea>
             </DialogContent>
         </Dialog>
+        
+        <AlertDialog open={isCheckoutAlertOpen} onOpenChange={setIsCheckoutAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Confirm Check-out</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Are you sure you want to check-out from "{programToCheckout?.title}"? This action cannot be undone.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setProgramToCheckout(null)}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={() => programToCheckout && handleCheckout(programToCheckout.id)}
+                    >
+                        Confirm
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
 }
-
