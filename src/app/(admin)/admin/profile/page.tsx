@@ -69,9 +69,9 @@ export default function AdminProfilePage() {
               <AvatarFallback>{getInitials(userProfile.displayName || user.email || '')}</AvatarFallback>
             </Avatar>
           </Link>
-          <CardTitle className="font-headline">{userProfile?.displayName || "JTMK Administrator"}</CardTitle>
+          <CardTitle className="font-headline">{userProfile?.displayName?.toUpperCase() || "JTMK Administrator"}</CardTitle>
           <CardDescription>{userProfile?.email}</CardDescription>
-          <CardDescription className="font-semibold capitalize mt-1">{userProfile?.role}</CardDescription>
+          <CardDescription className="font-semibold uppercase mt-1">{userProfile?.role}</CardDescription>
         </CardHeader>
         <CardContent>
           <Button className="w-full" asChild>

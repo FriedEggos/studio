@@ -81,17 +81,17 @@ export default function RegisterPage() {
       const user = userCredential.user;
 
       if (user) {
-        await updateProfile(user, { displayName: fullName });
+        await updateProfile(user, { displayName: fullName.toUpperCase() });
         
         const role = adminEmails.includes(user.email || "") ? "admin" : "student";
         const userDocRef = doc(firestore, "users", user.uid);
         const userData = {
           id: user.uid,
-          displayName: fullName,
+          displayName: fullName.toUpperCase(),
           email: user.email,
           role: role,
           course: course,
-          matricId: matricId,
+          matricId: matricId.toUpperCase(),
           phoneNumber: phoneNumber,
           createdAt: serverTimestamp(),
         };

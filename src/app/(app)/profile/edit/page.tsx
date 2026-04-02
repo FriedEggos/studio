@@ -92,16 +92,16 @@ export default function EditProfilePage() {
     setIsSubmitting(true);
     
     try {
-      const initials = getInitials(data.displayName);
+      const initials = getInitials(data.displayName.toUpperCase());
       const newPhotoURL = `https://ui-avatars.com/api/?name=${initials}&background=random&color=fff`;
 
-      await updateProfile(auth.currentUser, { displayName: data.displayName, photoURL: newPhotoURL });
+      await updateProfile(auth.currentUser, { displayName: data.displayName.toUpperCase(), photoURL: newPhotoURL });
       
       const updatedData = {
-        displayName: data.displayName,
+        displayName: data.displayName.toUpperCase(),
         email: data.email,
         course: data.course,
-        matricId: data.matricId,
+        matricId: data.matricId.toUpperCase(),
         phoneNumber: data.phoneNumber,
         photoURL: newPhotoURL,
       };
@@ -190,7 +190,7 @@ export default function EditProfilePage() {
 
               <div className="grid gap-3">
                 <Label htmlFor="role">Role</Label>
-                <Input id="role" type="text" value={userProfile.role} disabled />
+                <Input id="role" type="text" value={userProfile.role?.toUpperCase()} disabled />
               </div>
               
               <FormField
