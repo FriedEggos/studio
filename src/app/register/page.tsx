@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -17,7 +18,7 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useFirestore } from "@/firebase";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { doc, serverTimestamp, setDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, serverTimestamp, setDoc, getDoc, writeBatch } from "firebase/firestore";
 import {
   Select,
   SelectContent,
@@ -77,11 +78,12 @@ export default function RegisterPage() {
 
     try {
       const matricIdUpper = matricId.toUpperCase();
-      const usersRef = collection(firestore, "users");
-      const q = query(usersRef, where("matricId", "==", matricIdUpper));
-      const querySnapshot = await getDocs(q);
+      
+      // Securely check for matric ID uniqueness
+      const matricIdRef = doc(firestore, "matricIds", matricIdUpper);
+      const matricIdSnap = await getDoc(matricIdRef);
 
-      if (!querySnapshot.empty) {
+      if (matricIdSnap.exists()) {
         toast({
           variant: "destructive",
           title: "Registration Failed",
@@ -98,6 +100,10 @@ export default function RegisterPage() {
         await updateProfile(user, { displayName: fullName.toUpperCase() });
         
         const role = adminEmails.includes(user.email || "") ? "admin" : "student";
+        
+        const batch = writeBatch(firestore);
+
+        // 1. Set the user document
         const userDocRef = doc(firestore, "users", user.uid);
         const userData = {
           id: user.uid,
@@ -105,12 +111,18 @@ export default function RegisterPage() {
           email: user.email,
           role: role,
           course: course,
-          matricId: matricId.toUpperCase(),
+          matricId: matricIdUpper,
           phoneNumber: phoneNumber,
           createdAt: serverTimestamp(),
         };
-        
-        await setDoc(userDocRef, userData, { merge: true });
+        batch.set(userDocRef, userData);
+
+        // 2. Claim the matric ID in the public collection
+        const newMatricIdRef = doc(firestore, "matricIds", matricIdUpper);
+        batch.set(newMatricIdRef, { uid: user.uid, createdAt: serverTimestamp() });
+
+        // Commit both writes at once
+        await batch.commit();
 
         toast({
           title: "Registration Successful",

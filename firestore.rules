@@ -36,6 +36,22 @@ service cloud.firestore {
       let allowedCheckoutFields = ['checkOutAt', 'checkOutStatus', 'durationMinutes'];
       return modifiedKeys.hasOnly(allowedCheckoutFields);
     }
+
+    // Publicly queryable collection to enforce unique matriculation IDs.
+    match /matricIds/{matricId} {
+        // Allow anyone (like the registration page) to `get` a document to check for existence.
+        allow get: if true;
+
+        // Do not allow listing the entire collection.
+        allow list: if false;
+
+        // Allow an authenticated user to create a matricId document for themselves.
+        // This is done atomically in a batch write with user creation.
+        allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+
+        // Prevent modification or deletion from the client-side to protect uniqueness.
+        allow update, delete: if false;
+    }
     
     // User profiles and sub-collections
     match /users/{userId} {

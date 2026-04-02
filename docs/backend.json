@@ -286,6 +286,23 @@
         }
       },
       "required": ["programId"]
+    },
+    "MatricId": {
+      "title": "Matric ID Uniqueness",
+      "type": "object",
+      "description": "Ensures matriculation IDs are unique. The document ID is the matric ID itself.",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The user ID (UID) of the student who owns this matric ID."
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the matric ID was claimed."
+        }
+      },
+      "required": ["uid", "createdAt"]
     }
   },
   "auth": {
@@ -353,6 +370,16 @@
                 "$ref": "#/entities/QrSlug"
             },
             "description": "Publicly readable index to map unique URL slugs to program IDs."
+        }
+      },
+      {
+        "path": "/matricIds/{matricId}",
+        "definition": {
+            "entityName": "MatricId",
+            "schema": {
+                "$ref": "#/entities/MatricId"
+            },
+            "description": "Stores a mapping of matriculation IDs to user UIDs to enforce uniqueness. Document ID is the matriculation ID."
         }
       }
     ],
