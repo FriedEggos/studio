@@ -250,6 +250,25 @@ export default function ProfilePage() {
       headStyles: { fillColor: [37, 51, 89] },
     });
 
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const signatureX = 14;
+
+    let finalY = (doc as any).lastAutoTable.finalY || pageHeight - 70;
+    let signatureY = finalY + 25;
+
+    // Check if there is enough space on the current page for the signature
+    if (signatureY > pageHeight - 50) {
+        doc.addPage();
+        signatureY = 40; // Start at top of new page
+    }
+    
+    doc.setFontSize(10);
+    doc.text('_______________________________', signatureX, signatureY);
+    doc.text('PENYELARAS KELAB ICT JTMK', signatureX, signatureY + 6);
+    doc.text('POLITEKNIK KUCHING SARAWAK', signatureX, signatureY + 12);
+    doc.text('Nama:', signatureX, signatureY + 22);
+    doc.text('Tarikh:', signatureX, signatureY + 28);
+
     doc.save(`JTMK_Involvement_${userProfile.displayName.replace(' ', '_')}.pdf`);
   };
 
