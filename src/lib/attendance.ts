@@ -43,6 +43,8 @@ export async function createCheckIn(
 
     await setDoc(attendanceDocRef, {
         ...formData,
+        studentName: formData.studentName?.toUpperCase(),
+        studentId: formData.studentId?.toUpperCase(),
         programId: programId,
         createdAt: serverTimestamp(), // This is the checkInAt time
         userAgent: navigator.userAgent,
