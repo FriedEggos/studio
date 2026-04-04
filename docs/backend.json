@@ -91,6 +91,14 @@
           "type": "string",
           "description": "The level of the program (e.g., Kebangsaan, Negeri)."
         },
+        "semester": {
+          "type": "number",
+          "description": "The semester the student was in when they held the position."
+        },
+        "className": {
+            "type": "string",
+            "description": "The class or group of the student."
+        },
         "verificationStatus": {
           "type": "string",
           "description": "The status of the verification request.",
@@ -102,7 +110,7 @@
           "description": "Timestamp when the position was submitted."
         }
       },
-      "required": ["userId", "userName", "positionName", "programName", "verificationStatus", "createdAt", "peringkat", "matricId", "course"]
+      "required": ["userId", "userName", "positionName", "programName", "verificationStatus", "createdAt", "peringkat", "matricId", "course", "semester", "className"]
     },
     "Program": {
       "title": "Program",
@@ -386,3 +394,5 @@
     "reasoning": "This Firestore structure separates core program data from its form configuration and its attendance records. Public data (`programs`, `programConfigs`) is structured to be readable by unauthenticated users on a per-document basis for the QR form page, while sensitive data like attendance lists is nested and protected. A 'positions' sub-collection is added under 'users' to manage role verification requests."
   }
 }
+
+    

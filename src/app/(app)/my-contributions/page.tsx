@@ -67,6 +67,8 @@ interface Position {
     customPositionDetail?: string;
     programName: string;
     peringkat: string;
+    semester: string;
+    className: string;
     verificationStatus: 'pending' | 'approved' | 'rejected' | 'awaiting_evidence';
     createdAt: { toDate: () => Date };
 }
@@ -76,6 +78,8 @@ const positionSchema = z.object({
   peringkat: z.string().min(1, "Peringkat diperlukan."),
   positionName: z.string().min(1, "Jawatan diperlukan."),
   customPositionDetail: z.string().optional(),
+  semester: z.string().min(1, "Semester diperlukan."),
+  className: z.string().min(1, "Kelas diperlukan."),
 }).refine(data => {
     if (data.positionName === "AJK Lain-Lain") {
         return !!data.customPositionDetail && data.customPositionDetail.length > 0;
@@ -110,6 +114,15 @@ const peringkatOptions = [
     "Tiada"
 ];
 
+const semesterOptions = Array.from({ length: 9 }, (_, i) => (i + 1).toString());
+const classOptions = [
+    "DIT1A", "DIT1B", "DIT1C",
+    "DIT2A", "DIT2B", "DIT2C", "DIT2D",
+    "DIT3A", "DIT3B", "DIT3C", "DIT3D",
+    "DIT4A", "DIT4B", "DIT4C", "DIT4D",
+    "DIT5A", "DIT5B", "DIT5C", "DIT5D"
+];
+
 
 // Page Component
 export default function MyContributionsPage() {
@@ -128,7 +141,7 @@ export default function MyContributionsPage() {
   // Form Management
   const form = useForm<z.infer<typeof positionSchema>>({
     resolver: zodResolver(positionSchema),
-    defaultValues: { positionName: '', programName: '', customPositionDetail: '', peringkat: '' },
+    defaultValues: { programName: '', peringkat: '', positionName: '', customPositionDetail: '', semester: '', className: '' },
   });
   const watchPositionName = form.watch('positionName');
   const [isSubmittingPosition, setIsSubmittingPosition] = useState(false);
@@ -155,6 +168,7 @@ export default function MyContributionsPage() {
             matricId: userProfile.matricId,
             course: userProfile.course,
             ...values,
+            semester: parseInt(values.semester),
             verificationStatus: 'pending',
             createdAt: serverTimestamp(),
         });
@@ -205,12 +219,14 @@ export default function MyContributionsPage() {
 
     autoTable(doc, {
       startY: startY,
-      head: [['No.', 'Program', 'Peringkat', 'Jawatan', 'Tarikh']],
+      head: [['No.', 'Program', 'Peringkat', 'Jawatan', 'Semester', 'Kelas', 'Tarikh']],
       body: approvedPositions.map((p, index) => [
         index + 1,
         p.programName,
         p.peringkat,
         p.positionName === 'AJK Lain-Lain' ? `${p.positionName} (${p.customPositionDetail})` : p.positionName,
+        p.semester,
+        p.className,
         p.createdAt ? format(p.createdAt.toDate(), 'dd/MM/yyyy') : 'N/A',
       ]),
       theme: 'grid',
@@ -304,6 +320,12 @@ export default function MyContributionsPage() {
                                         <FormItem><FormLabel>Butiran Jawatan</FormLabel><FormControl><Input placeholder="e.g., Ketua Multimedia" {...field} disabled={!profileComplete} /></FormControl><FormMessage /></FormItem>
                                     )} />
                                 )}
+                                <FormField control={form.control} name="semester" render={({ field }) => (
+                                    <FormItem><FormLabel>Semester</FormLabel><Select onValueChange={field.onChange} value={field.value} disabled={!profileComplete}><FormControl><SelectTrigger><SelectValue placeholder="Pilih semester" /></SelectTrigger></FormControl><SelectContent>{semesterOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                                )} />
+                                <FormField control={form.control} name="className" render={({ field }) => (
+                                    <FormItem><FormLabel>Kelas</FormLabel><Select onValueChange={field.onChange} value={field.value} disabled={!profileComplete}><FormControl><SelectTrigger><SelectValue placeholder="Pilih kelas" /></SelectTrigger></FormControl><SelectContent>{classOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                                )} />
                             </div>
 
                              <TooltipProvider>
@@ -336,12 +358,14 @@ export default function MyContributionsPage() {
                             <TableHead>Program</TableHead>
                             <TableHead>Level</TableHead>
                             <TableHead>Position</TableHead>
+                            <TableHead>Semester</TableHead>
+                            <TableHead>Class</TableHead>
                             <TableHead>Date</TableHead>
                             <TableHead>Status</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {isLoadingPositions ? ([...Array(2)].map((_, i) => <TableRow key={i}><TableCell colSpan={6}><Skeleton className="h-5 w-full" /></TableCell></TableRow>))
+                        {isLoadingPositions ? ([...Array(2)].map((_, i) => <TableRow key={i}><TableCell colSpan={8}><Skeleton className="h-5 w-full" /></TableCell></TableRow>))
                         : displayedPositions && displayedPositions.length > 0 ? (displayedPositions.map((pos, index) => (
                             <TableRow key={pos.id}>
                                 <TableCell>{index + 1}</TableCell>
@@ -351,6 +375,8 @@ export default function MyContributionsPage() {
                                   {pos.positionName}
                                   {pos.customPositionDetail && <span className="text-muted-foreground text-xs ml-2">({pos.customPositionDetail})</span>}
                                 </TableCell>
+                                <TableCell>{pos.semester}</TableCell>
+                                <TableCell>{pos.className}</TableCell>
                                 <TableCell>{pos.createdAt ? format(pos.createdAt.toDate(), 'dd/MM/yyyy') : ''}</TableCell>
                                 <TableCell>
                                     {pos.verificationStatus === 'approved' ? (
@@ -366,7 +392,7 @@ export default function MyContributionsPage() {
                                 </TableCell>
                             </TableRow>
                         )))
-                        : (<TableRow><TableCell colSpan={6} className="h-24 text-center">No positions submitted yet.</TableCell></TableRow>)}
+                        : (<TableRow><TableCell colSpan={8} className="h-24 text-center">No positions submitted yet.</TableCell></TableRow>)}
                     </TableBody>
                 </Table>
             </CardContent>
