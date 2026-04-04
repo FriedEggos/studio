@@ -196,6 +196,8 @@ export default function StudentDashboard() {
         setIsCheckingOut(programId);
         setIsCheckoutAlertOpen(false); // Close dialog on action
         setProgramToCheckout(null);
+        
+        const checkoutTimestamp = new Date(); // Use a fresh timestamp for validation and update
 
         const studentEmail = user.email.toLowerCase();
         const programDocRef = doc(firestore, 'programs', programId);
@@ -216,16 +218,16 @@ export default function StudentDashboard() {
             const checkOutOpenTime = program.checkOutOpenTime ? program.checkOutOpenTime.toDate() : null;
             const checkOutCloseTime = program.checkOutCloseTime ? program.checkOutCloseTime.toDate() : null;
 
-            if (now <= checkInAt) {
+            if (checkoutTimestamp <= checkInAt) {
                 checkOutStatus = "too_early";
-            } else if ((checkOutOpenTime && now < checkOutOpenTime) || (checkOutCloseTime && now > checkOutCloseTime)) {
+            } else if ((checkOutOpenTime && checkoutTimestamp < checkOutOpenTime) || (checkOutCloseTime && checkoutTimestamp > checkOutCloseTime)) {
                 checkOutStatus = "outside_window";
             }
 
-            const durationMinutes = Math.floor((now.getTime() - checkInAt.getTime()) / 60000);
+            const durationMinutes = Math.floor((checkoutTimestamp.getTime() - checkInAt.getTime()) / 60000);
 
             await updateDoc(attendanceDocRef, {
-                checkOutAt: Timestamp.fromDate(now),
+                checkOutAt: Timestamp.fromDate(checkoutTimestamp),
                 durationMinutes: durationMinutes < 0 ? 0 : durationMinutes,
                 checkOutStatus: checkOutStatus,
             });
