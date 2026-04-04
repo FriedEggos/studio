@@ -31,6 +31,8 @@ interface Position {
   customPositionDetail?: string;
   programName: string;
   peringkat?: string;
+  semester?: number;
+  className?: string;
   verificationStatus: 'pending' | 'approved' | 'rejected';
   createdAt: { toDate: () => Date };
 }
@@ -92,6 +94,8 @@ export default function VerificationsPage() {
                 <TableHead>Program</TableHead>
                 <TableHead>Level</TableHead>
                 <TableHead>Position</TableHead>
+                <TableHead>Semester</TableHead>
+                <TableHead>Class</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -105,13 +109,15 @@ export default function VerificationsPage() {
                     <TableCell><Skeleton className="h-5 w-40" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                     <TableCell className="text-right space-x-2"><Skeleton className="h-8 w-8 inline-block" /><Skeleton className="h-8 w-8 inline-block" /></TableCell>
                   </TableRow>
                 ))
               ) : error ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center text-destructive">
+                  <TableCell colSpan={9} className="h-24 text-center text-destructive">
                     Error loading verifications. Please try again.
                   </TableCell>
                 </TableRow>
@@ -128,6 +134,8 @@ export default function VerificationsPage() {
                         <span className="text-muted-foreground ml-2">({pos.customPositionDetail})</span>
                       )}
                     </TableCell>
+                    <TableCell>{pos.semester || 'N/A'}</TableCell>
+                    <TableCell>{pos.className || 'N/A'}</TableCell>
                     <TableCell>
                       {pos.createdAt ? format(pos.createdAt.toDate(), 'dd/MM/yyyy') : ''}
                     </TableCell>
@@ -155,7 +163,7 @@ export default function VerificationsPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
+                  <TableCell colSpan={9} className="h-24 text-center">
                     No pending verifications found.
                   </TableCell>
                 </TableRow>
