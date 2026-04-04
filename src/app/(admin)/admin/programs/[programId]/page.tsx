@@ -243,18 +243,21 @@ export default function ProgramDetailsPage() {
   };
 
   const getCheckoutTimeClass = (att: Attendance) => {
-    if (att.checkOutStatus === 'ok') {
-        return 'text-green-600 font-semibold';
+    if (!att.checkOutAt) {
+      return ''; // Default color for '-' placeholder
     }
-    if (
-        !att.checkOutAt ||
-        att.checkOutStatus === 'too_early' ||
-        att.checkOutStatus === 'outside_window' ||
-        att.checkOutStatus === 'too_short'
-    ) {
-        return 'text-red-600 font-semibold';
+    
+    switch (att.checkOutStatus) {
+        case 'ok':
+        case 'admin_override':
+            return 'text-green-600 font-semibold';
+        case 'too_early':
+        case 'outside_window':
+        case 'too_short':
+            return 'text-red-600 font-semibold';
+        default:
+            return ''; // Default for undefined or other statuses
     }
-    return ''; // Default for other statuses like 'admin_override'
   };
 
 

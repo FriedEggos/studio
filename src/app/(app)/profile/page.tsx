@@ -367,18 +367,18 @@ export default function ProfilePage() {
 
   const getCheckoutTimeClass = (item: ParticipationHistoryItem) => {
     if (!item.checkOutAt) {
-        return 'text-red-600 font-semibold';
+      return 'text-muted-foreground font-medium';
     }
     switch (item.checkOutStatus) {
-        case 'ok':
-        case 'admin_override':
-            return 'text-green-600 font-semibold';
-        case 'too_early':
-        case 'outside_window':
-        case 'too_short':
-            return 'text-red-600 font-semibold';
-        default:
-            return '';
+      case 'ok':
+      case 'admin_override':
+        return 'text-green-600 font-semibold';
+      case 'too_early':
+      case 'outside_window':
+      case 'too_short':
+        return 'text-red-600 font-semibold';
+      default:
+        return '';
     }
   };
 
