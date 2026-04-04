@@ -155,7 +155,7 @@ export default function AdminDashboard() {
             const [programsSnapshot, activeStudentsSnapshot, newStudentsSnapshot] = await Promise.all([
                 getDocs(programsQuery),
                 getDocs(activeStudentsQuery),
-                getDocs(newStudentsSnapshot)
+                getDocs(newStudentsQuery)
             ]);
             
             // Calculate Total Programs
