@@ -196,11 +196,11 @@ export default function MyContributionsPage() {
     
     // Student Details Header
     let startY = 35;
-    doc.text(`Nama: ${'userProfile.displayName'}`, 14, startY);
+    doc.text(`Nama: ${userProfile.displayName}`, 14, startY);
     startY += 6;
     doc.text(`No. Matrik: ${userProfile.matricId || 'N/A'}`, 14, startY);
     startY += 6;
-    doc.text(`Email: ${'userProfile.email'}`, 14, startY);
+    doc.text(`Email: ${userProfile.email}`, 14, startY);
     startY += 10; // Add space before table
 
     autoTable(doc, {
