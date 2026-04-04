@@ -1,6 +1,6 @@
 
 import Link from "next/link";
-import { Home, Menu, User } from "lucide-react";
+import { Home, Menu, User, Award } from "lucide-react";
 
 import {
   Sheet,
@@ -15,6 +15,7 @@ import { UserNav } from "@/components/user-nav";
 
 const navLinks = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
+  { href: "/my-contributions", label: "My Contributions", icon: Award },
   { href: "/profile", label: "My Profile", icon: User },
 ];
 
