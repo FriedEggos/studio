@@ -26,7 +26,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { AlertCircle, PlusCircle, Loader2, Download, BadgeCheck } from "lucide-react";
-import { useUser, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
+import { useUser, useFirestore, useMemoFirebase, useCollection, useDoc } from "@/firebase";
 import { doc, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -196,11 +196,11 @@ export default function MyContributionsPage() {
     
     // Student Details Header
     let startY = 35;
-    doc.text(`Nama: ${userProfile.displayName}`, 14, startY);
+    doc.text(`Nama: ${'userProfile.displayName'}`, 14, startY);
     startY += 6;
     doc.text(`No. Matrik: ${userProfile.matricId || 'N/A'}`, 14, startY);
     startY += 6;
-    doc.text(`Email: ${userProfile.email}`, 14, startY);
+    doc.text(`Email: ${'userProfile.email'}`, 14, startY);
     startY += 10; // Add space before table
 
     autoTable(doc, {
@@ -375,3 +375,5 @@ export default function MyContributionsPage() {
     </>
   );
 }
+
+    
