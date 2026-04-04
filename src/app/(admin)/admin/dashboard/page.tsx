@@ -58,7 +58,6 @@ type Program = {
     qrSlug: string;
 };
 
-// Added matricId and course to match the latest structure
 type Position = {
   id: string;
   userId: string;
@@ -69,6 +68,8 @@ type Position = {
   customPositionDetail?: string;
   programName: string;
   peringkat: string;
+  semester: number;
+  className: string;
   verificationStatus: 'pending' | 'approved' | 'rejected';
   createdAt: { toDate: () => Date };
 };
@@ -154,7 +155,7 @@ export default function AdminDashboard() {
             const [programsSnapshot, activeStudentsSnapshot, newStudentsSnapshot] = await Promise.all([
                 getDocs(programsQuery),
                 getDocs(activeStudentsQuery),
-                getDocs(newStudentsQuery)
+                getDocs(newStudentsSnapshot)
             ]);
             
             // Calculate Total Programs
@@ -275,7 +276,7 @@ export default function AdminDashboard() {
       
       autoTable(doc, {
         startY: startY,
-        head: [['No.', 'Program', 'Peringkat', 'Jawatan', 'Tarikh']],
+        head: [['No.', 'Program', 'Peringkat', 'Jawatan', 'Semester', 'Class', 'Tarikh']],
         body: filteredPositions.map((p, index) => [
           index + 1,
           p.programName,
@@ -283,6 +284,8 @@ export default function AdminDashboard() {
           p.positionName === 'AJK Lain-Lain' && p.customPositionDetail
             ? `${p.positionName} (${p.customPositionDetail})`
             : p.positionName,
+          p.semester,
+          p.className,
           p.createdAt ? format(p.createdAt.toDate(), 'dd/MM/yyyy') : 'N/A',
         ]),
         theme: 'grid',
@@ -293,7 +296,7 @@ export default function AdminDashboard() {
       // ** "ALL" REPORT **
       autoTable(doc, {
         startY: startY,
-        head: [['No.', 'Student', 'Matric ID', 'Program', 'Level', 'Position', 'Date']],
+        head: [['No.', 'Student', 'Matric ID', 'Program', 'Level', 'Position', 'Semester', 'Class', 'Date']],
         body: filteredPositions.map((p, index) => [
           index + 1,
           p.userName,
@@ -303,6 +306,8 @@ export default function AdminDashboard() {
           p.positionName === 'AJK Lain-Lain' && p.customPositionDetail
             ? `${p.positionName} (${p.customPositionDetail})`
             : p.positionName,
+          p.semester,
+          p.className,
           p.createdAt ? format(p.createdAt.toDate(), 'dd/MM/yyyy') : 'N/A',
         ]),
         theme: 'grid',
@@ -528,6 +533,8 @@ export default function AdminDashboard() {
                             <TableHead>Program</TableHead>
                             <TableHead>Level</TableHead>
                             <TableHead>Position</TableHead>
+                            <TableHead>Semester</TableHead>
+                            <TableHead>Class</TableHead>
                             <TableHead>Date</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -541,6 +548,8 @@ export default function AdminDashboard() {
                                     <TableCell><Skeleton className="h-5 w-40" /></TableCell>
                                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                                     <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                                 </TableRow>
                             ))
@@ -558,6 +567,8 @@ export default function AdminDashboard() {
                                     <span className="text-muted-foreground ml-2 text-xs">({pos.customPositionDetail})</span>
                                 )}
                                 </TableCell>
+                                <TableCell>{pos.semester}</TableCell>
+                                <TableCell>{pos.className}</TableCell>
                                 <TableCell>
                                 {pos.createdAt ? format(pos.createdAt.toDate(), 'dd/MM/yyyy') : ''}
                                 </TableCell>
@@ -565,7 +576,7 @@ export default function AdminDashboard() {
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={7} className="h-24 text-center">
+                                <TableCell colSpan={9} className="h-24 text-center">
                                     No approved contributions found for this search.
                                 </TableCell>
                             </TableRow>
