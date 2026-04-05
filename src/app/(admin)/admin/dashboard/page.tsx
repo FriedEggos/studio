@@ -40,7 +40,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase";
-import { collection, query, orderBy, writeBatch, getDocs, doc, Timestamp, collectionGroup, where, limit } from "firebase/firestore";
+import { collection, query, orderBy, writeBatch, getDocs, doc, Timestamp, collectionGroup, where, limit, deleteDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
@@ -83,6 +83,11 @@ export default function AdminDashboard() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [programToDelete, setProgramToDelete] = useState<Program | null>(null);
+  
+  const [positionToDelete, setPositionToDelete] = useState<Position | null>(null);
+  const [isDeletePositionDialogOpen, setIsDeletePositionDialogOpen] = useState(false);
+  const [isDeletingPosition, setIsDeletingPosition] = useState(false);
+
   const [now, setNow] = useState(new Date());
 
   const programsQuery = useMemoFirebase(() => {
@@ -242,6 +247,33 @@ export default function AdminDashboard() {
       setProgramToDelete(null);
     }
   };
+
+  const handleDeletePosition = async () => {
+    if (!firestore || !positionToDelete) return;
+    setIsDeletingPosition(true);
+
+    try {
+        const positionDocRef = doc(firestore, 'users', positionToDelete.userId, 'positions', positionToDelete.id);
+        await deleteDoc(positionDocRef);
+
+        toast({
+            title: "Contribution Deleted",
+            description: "The contribution record has been successfully removed.",
+        });
+    } catch (error) {
+        console.error("Error deleting contribution:", error);
+        toast({
+            variant: "destructive",
+            title: "Deletion Failed",
+            description: "An error occurred while deleting the contribution.",
+        });
+    } finally {
+        setIsDeletingPosition(false);
+        setIsDeletePositionDialogOpen(false);
+        setPositionToDelete(null);
+    }
+  };
+
 
   const handleDownloadPdf = () => {
     if (!filteredPositions || filteredPositions.length === 0) {
@@ -536,6 +568,7 @@ export default function AdminDashboard() {
                             <TableHead>Semester</TableHead>
                             <TableHead>Class</TableHead>
                             <TableHead>Date</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -551,6 +584,7 @@ export default function AdminDashboard() {
                                     <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                                     <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                                     <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                                    <TableCell className="text-right"><Skeleton className="h-9 w-9" /></TableCell>
                                 </TableRow>
                             ))
                         ) : filteredPositions && filteredPositions.length > 0 ? (
@@ -572,11 +606,25 @@ export default function AdminDashboard() {
                                 <TableCell>
                                 {pos.createdAt ? format(pos.createdAt.toDate(), 'dd/MM/yyyy') : ''}
                                 </TableCell>
+                                <TableCell className="text-right">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                        onClick={() => {
+                                            setPositionToDelete(pos);
+                                            setIsDeletePositionDialogOpen(true);
+                                        }}
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                        <span className="sr-only">Delete contribution</span>
+                                    </Button>
+                                </TableCell>
                             </TableRow>
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={9} className="h-24 text-center">
+                                <TableCell colSpan={10} className="h-24 text-center">
                                     No approved contributions found for this search.
                                 </TableCell>
                             </TableRow>
@@ -611,6 +659,31 @@ export default function AdminDashboard() {
               {isDeleting ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isDeletePositionDialogOpen} onOpenChange={setIsDeletePositionDialogOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Delete Contribution Record?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Are you sure you want to delete this contribution record for "{positionToDelete?.programName}" by {positionToDelete?.userName}?
+                    This action cannot be undone.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setPositionToDelete(null)} disabled={isDeletingPosition}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  className={buttonVariants({ variant: "destructive" })}
+                  onClick={handleDeletePosition}
+                  disabled={isDeletingPosition}
+                >
+                  {isDeletingPosition && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isDeletingPosition ? "Deleting..." : "Delete"}
+                </AlertDialogAction>
+            </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
