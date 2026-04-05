@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -253,9 +254,8 @@ export default function ProgramDetailsPage() {
         case 'too_early':
         case 'outside_window':
         case 'too_short':
-            return 'text-red-600 font-semibold';
         default:
-            return ''; // Default for undefined or other statuses
+            return 'text-red-600 font-semibold';
     }
   };
 
@@ -496,3 +496,5 @@ export default function ProgramDetailsPage() {
     </div>
   );
 }
+
+    

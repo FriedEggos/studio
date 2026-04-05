@@ -73,9 +73,8 @@ const getCheckoutTimeClass = (attendance: Attendance) => {
       case 'too_early':
       case 'outside_window':
       case 'too_short':
-        return 'text-red-600 font-semibold';
       default:
-        return '';
+        return 'text-red-600 font-semibold';
     }
 };
 
@@ -101,9 +100,8 @@ const CheckoutStatusBadge = ({ attendance }: { attendance: Attendance }) => {
         case 'too_early':
         case 'outside_window':
         case 'too_short':
-            return <Badge className="bg-red-100 text-red-800 border-red-200 hover:bg-red-100">Invalid Checkout</Badge>;
         default:
-            return <Badge variant="secondary">Checked Out</Badge>;
+            return <Badge className="bg-red-100 text-red-800 border-red-200 hover:bg-red-100">Invalid Checkout</Badge>;
     }
 }
 
@@ -434,4 +432,5 @@ export default function StudentDashboard() {
       </div>
     );
 }
+    
     
