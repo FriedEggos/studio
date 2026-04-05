@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { doc, getDoc, Timestamp } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,6 +60,7 @@ export default function PublicAttendancePage() {
     const [error, setError] = useState<ErrorState | null>(null);
     const [program, setProgram] = useState<Program | null>(null);
     const [programConfig, setProgramConfig] = useState<ProgramConfig | null>(null);
+    const { user, isUserLoading } = useUser();
 
     const createFormSchema = (config: ProgramConfig | null) => z.object({
         studentName: z.string().min(1, { message: "Nama diperlukan." }),
@@ -149,6 +150,32 @@ export default function PublicAttendancePage() {
         }
         fetchProgramData();
     }, [firestore, qrSlug]);
+
+    useEffect(() => {
+        if (status === 'form' && user && !isUserLoading && firestore) {
+            const fetchAndSetUserData = async () => {
+                const userDocRef = doc(firestore, 'users', user.uid);
+                try {
+                    const userSnap = await getDoc(userDocRef);
+                    if (userSnap.exists()) {
+                        const userProfile = userSnap.data();
+                        if (userProfile.displayName) {
+                            form.setValue('studentName', userProfile.displayName, { shouldValidate: true });
+                        }
+                        if (userProfile.matricId) {
+                            form.setValue('studentId', userProfile.matricId, { shouldValidate: true });
+                        }
+                        if (userProfile.email) {
+                            form.setValue('email', userProfile.email, { shouldValidate: true });
+                        }
+                    }
+                } catch (error) {
+                    console.error("Could not pre-fill user data:", error);
+                }
+            };
+            fetchAndSetUserData();
+        }
+    }, [status, user, isUserLoading, firestore, form]);
     
      const onSubmit = async (values: z.infer<ReturnType<typeof createFormSchema>>) => {
         if (!firestore || !program) return;
