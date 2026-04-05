@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -9,14 +8,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, collection, deleteDoc } from "firebase/firestore";
+import { doc, collection, deleteDoc, Timestamp } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, Copy, Users, Download, Trash2 } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Users, Download, Trash2, ChevronDown, FileSpreadsheet, FileText, MoreHorizontal, Clock } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 import { exportToCsv } from "@/lib/csv-exporter";
 import {
@@ -39,29 +38,43 @@ import {
 } from "@/components/ui/alert-dialog";
 import { QRImageCard } from "@/components/qr-image-card";
 import { useState, useEffect } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { cn } from "@/lib/utils";
+import { manualAdminCheckout } from "@/lib/attendance";
+
 
 interface Program {
   id: string;
   title: string;
   description: string;
   location: string;
-  startDate: string;
-  endDate: string;
+  startDateTime: Timestamp;
+  endDateTime: Timestamp;
   status: 'upcoming' | 'ongoing' | 'completed';
   qrSlug: string;
   redirectUrl?: string;
 }
 
 interface Attendance {
-    id: string;
+    id: string; // This is the student's email
     studentName: string;
     studentId: string;
     classGroup: string;
     createdAt: {
         toDate: () => Date;
-    };
+    } | null;
+    checkOutAt?: {
+        toDate: () => Date;
+    } | null;
+    checkOutStatus?: 'ok' | 'too_early' | 'outside_window' | 'too_short' | 'admin_override';
 }
-
 
 export default function ProgramDetailsPage() {
   const params = useParams();
@@ -69,8 +82,10 @@ export default function ProgramDetailsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [qrFormUrl, setQrFormUrl] = useState('');
-  const [isAlertOpen, setIsAlertOpen] = useState(false);
-  const [selectedAttendanceId, setSelectedAttendanceId] = useState<string | null>(null);
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const [selectedAttendanceIdForDelete, setSelectedAttendanceIdForDelete] = useState<string | null>(null);
+  const [isCheckoutAlertOpen, setIsCheckoutAlertOpen] = useState(false);
+  const [selectedAttendanceForCheckout, setSelectedAttendanceForCheckout] = useState<Attendance | null>(null);
 
   const programDocRef = useMemoFirebase(() => {
     if (!programId || !firestore) return null;
@@ -87,18 +102,13 @@ export default function ProgramDetailsPage() {
   const { data: attendances, isLoading: isLoadingAttendances } = useCollection<Attendance>(attendanceQuery);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && program?.qrSlug) {
-      setQrFormUrl(`${window.location.origin}/p/${program.qrSlug}`);
+    if (typeof window !== 'undefined') {
+        if(program?.qrSlug) {
+            setQrFormUrl(`${window.location.origin}/p/${program.qrSlug}`);
+        }
     }
   }, [program]);
 
-
-  const handleCopyLink = () => {
-    if (!qrFormUrl) return;
-    navigator.clipboard.writeText(qrFormUrl);
-    toast({ title: "Link Copied!", description: "The QR form link has been copied to your clipboard." });
-  };
-  
    const handleExport = () => {
     if (!attendances || attendances.length === 0) {
       toast({
@@ -112,12 +122,82 @@ export default function ProgramDetailsPage() {
       'Student Name': att.studentName,
       'Student ID': att.studentId,
       'Class': att.classGroup,
-      'Timestamp': format(att.createdAt.toDate(), 'yyyy-MM-dd HH:mm:ss'),
+      'Check-in Time': att.createdAt ? format(att.createdAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A',
+      'Check-out Time': att.checkOutAt ? format(att.checkOutAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A',
     }));
     
     exportToCsv(`attendance_${program?.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`, dataToExport);
   };
   
+  const handleExportPdf = () => {
+    if (!attendances || attendances.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "No Data",
+        description: "There is no attendance data to export for PDF.",
+      });
+      return;
+    }
+    
+    const doc = new jsPDF();
+    
+    const tableColumns = ["Student Name", "Student ID", "Class", "Check-in Time", "Check-out Time"];
+    const tableRows = attendances.map(att => ([
+      att.studentName || '',
+      att.studentId || '-',
+      att.classGroup || '-',
+      att.createdAt ? format(att.createdAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A',
+      att.checkOutAt ? format(att.checkOutAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A',
+    ]));
+
+    doc.setFontSize(18);
+    doc.text(`Attendances: ${program?.title || 'Program'}`, 14, 22);
+    doc.setFontSize(11);
+    doc.text(`Date: ${format(new Date(), 'PPP')}`, 14, 30);
+
+    autoTable(doc, {
+      startY: 35,
+      head: [tableColumns],
+      body: tableRows,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [37, 51, 89]
+      },
+    });
+
+    const finalY = (doc as any).lastAutoTable.finalY || 100; // Get Y position after table
+
+    // Signature block logic
+    const addSignatureBlock = (startY: number) => {
+        doc.setFontSize(12);
+        doc.text('Pengesahan Kehadiran Program', 14, startY);
+        
+        doc.setFontSize(10);
+
+        // Signature 1: Pengarah Program
+        const signatureY = startY + 20;
+        doc.text('_______________________________', 14, signatureY);
+        doc.text('Pengarah Program', 14, signatureY + 5);
+        doc.text('Nama:', 14, signatureY + 10);
+        doc.text('Tarikh:', 14, signatureY + 15);
+
+        // Signature 2: Penyelaras Kelab ICT JTMK
+        doc.text('_______________________________', 115, signatureY);
+        doc.text('Penyelaras Kelab ICT JTMK', 115, signatureY + 5);
+        doc.text('Nama:', 115, signatureY + 10);
+        doc.text('Tarikh:', 115, signatureY + 15);
+    };
+
+    if (finalY > 220) { // If table is too long, add a new page for signatures
+        doc.addPage();
+        addSignatureBlock(20); // Add block at the top of the new page
+    } else {
+        addSignatureBlock(finalY + 15); // Add block after the table on the same page
+    }
+
+    doc.save(`attendance_${program?.title.replace(/\s+/g, '_') ?? 'export'}.pdf`);
+  };
+
   const handleDeleteAttendance = async (attendanceId: string) => {
     if (!firestore || !programId) return;
     const attendanceDocRef = doc(firestore, 'programs', programId, 'attendances', attendanceId);
@@ -135,8 +215,48 @@ export default function ProgramDetailsPage() {
             description: 'Could not remove the attendance record.',
         });
     }
-    setIsAlertOpen(false);
-    setSelectedAttendanceId(null);
+    setIsDeleteAlertOpen(false);
+    setSelectedAttendanceIdForDelete(null);
+  };
+
+  const handleAdminCheckout = async (attendance: Attendance | null) => {
+    if (!firestore || !programId || !attendance) return;
+    
+    const result = await manualAdminCheckout(firestore, programId, attendance.id);
+
+    if (result.status === 'success') {
+      toast({
+        title: 'Success!',
+        description: result.message,
+      });
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Override Failed',
+        description: result.message,
+      });
+    }
+    
+    setIsCheckoutAlertOpen(false);
+    setSelectedAttendanceForCheckout(null);
+  };
+
+  const getCheckoutTimeClass = (att: Attendance) => {
+    if (!att.checkOutAt) {
+      return ''; // Default color for '-' placeholder
+    }
+    
+    switch (att.checkOutStatus) {
+        case 'ok':
+        case 'admin_override':
+            return 'text-green-600 font-semibold';
+        case 'too_early':
+        case 'outside_window':
+        case 'too_short':
+            return 'text-red-600 font-semibold';
+        default:
+            return ''; // Default for undefined or other statuses
+    }
   };
 
 
@@ -193,10 +313,10 @@ export default function ProgramDetailsPage() {
             </div>
             <div className="space-y-6">
                  <Card>
-                    <CardHeader> <CardTitle className="text-lg flex items-center gap-2"><Calendar className="h-5 w-5" /> Dates</CardTitle> </CardHeader>
+                    <CardHeader> <CardTitle className="text-lg flex items-center gap-2"><Calendar className="h-5 w-5" /> Dates & Times</CardTitle> </CardHeader>
                     <CardContent>
-                        <p><strong>Start:</strong> {format(parseISO(program.startDate), 'PPP')}</p>
-                        <p><strong>End:</strong> {format(parseISO(program.endDate), 'PPP')}</p>
+                        <p><strong>Start:</strong> {program.startDateTime ? format(program.startDateTime.toDate(), 'PPP, p') : 'Invalid Date'}</p>
+                        <p><strong>End:</strong> {program.endDateTime ? format(program.endDateTime.toDate(), 'PPP, p') : 'Invalid Date'}</p>
                     </CardContent>
                 </Card>
                  <Card>
@@ -207,25 +327,18 @@ export default function ProgramDetailsPage() {
         </CardContent>
       </Card>
       
-      <div className="grid md:grid-cols-2 gap-6 items-start">
-        <Card>
-            <CardHeader><CardTitle className="font-headline flex items-center gap-2"><LinkIcon className="h-5 w-5" /> QR Form Link</CardTitle></CardHeader>
-            <CardContent>
-                <div className="flex items-center gap-2 p-2 border rounded-md bg-muted">
-                    <p className="text-sm text-muted-foreground truncate flex-1">{qrFormUrl || 'Generating link...'}</p>
-                    <Button variant="ghost" size="icon" onClick={handleCopyLink} disabled={!qrFormUrl}><Copy className="h-4 w-4" /></Button>
-                </div>
-            </CardContent>
-        </Card>
+      <div className="max-w-md mx-auto">
         {qrFormUrl ? (
-          <QRImageCard qrFormUrl={qrFormUrl} />
+          <QRImageCard 
+            qrUrl={qrFormUrl} 
+            title="QR Check-in"
+            description="Scan this to open the public attendance form."
+          />
         ) : (
            <Card>
             <CardHeader>
               <CardTitle className="font-headline">QR Code</CardTitle>
-              <CardDescription>
-                Generating QR code...
-              </CardDescription>
+              <CardDescription>Generating QR code...</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-4 text-center">
               <Skeleton className="h-[224px] w-[224px] rounded-lg" />
@@ -241,9 +354,25 @@ export default function ProgramDetailsPage() {
               <CardTitle className="font-headline flex items-center gap-2"><Users className="h-5 w-5" /> Attendances</CardTitle>
               <CardDescription>Total attendees: {isLoadingAttendances ? '...' : attendances?.length ?? 0}</CardDescription>
             </div>
-            <Button onClick={handleExport} disabled={isLoadingAttendances || !attendances || attendances.length === 0}>
-              <Download className="mr-2 h-4 w-4" /> Export CSV
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" disabled={isLoadingAttendances || !attendances || attendances.length === 0}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Export Data
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleExport}>
+                  <FileSpreadsheet className="mr-2 h-4 w-4" />
+                  Export as CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportPdf}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Export as PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </CardHeader>
           <CardContent>
               <Table>
@@ -253,6 +382,7 @@ export default function ProgramDetailsPage() {
                     <TableHead>Student ID</TableHead>
                     <TableHead>Class</TableHead>
                     <TableHead>Check-in Time</TableHead>
+                    <TableHead>Check-out Time</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -264,6 +394,7 @@ export default function ProgramDetailsPage() {
                         <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                         <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                         <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-28" /></TableCell>
                         <TableCell><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                       </TableRow>
                     ))
@@ -273,26 +404,47 @@ export default function ProgramDetailsPage() {
                         <TableCell className="font-medium">{att.studentName}</TableCell>
                         <TableCell>{att.studentId || '-'}</TableCell>
                         <TableCell>{att.classGroup || '-'}</TableCell>
-                        <TableCell>{format(att.createdAt.toDate(), 'Pp')}</TableCell>
+                        <TableCell>{att.createdAt ? format(att.createdAt.toDate(), 'Pp') : <span className="text-muted-foreground">Syncing...</span>}</TableCell>
+                        <TableCell className={cn(getCheckoutTimeClass(att))}>
+                            {att.checkOutAt ? format(att.checkOutAt.toDate(), 'Pp') : '-'}
+                        </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => {
-                                setSelectedAttendanceId(att.id);
-                                setIsAlertOpen(true);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Delete attendance</span>
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                disabled={!!att.checkOutAt}
+                                onClick={() => {
+                                  setSelectedAttendanceForCheckout(att);
+                                  setIsCheckoutAlertOpen(true);
+                                }}
+                              >
+                                <Clock className="mr-2 h-4 w-4" />
+                                <span>Mark as Checked-Out</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                onClick={() => {
+                                    setSelectedAttendanceIdForDelete(att.id);
+                                    setIsDeleteAlertOpen(true);
+                                }}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                <span>Delete</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center">
+                      <TableCell colSpan={6} className="h-24 text-center">
                         No attendances recorded yet.
                       </TableCell>
                     </TableRow>
@@ -302,7 +454,7 @@ export default function ProgramDetailsPage() {
           </CardContent>
       </Card>
 
-      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -311,16 +463,35 @@ export default function ProgramDetailsPage() {
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setSelectedAttendanceId(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogCancel onClick={() => setSelectedAttendanceIdForDelete(null)}>Cancel</AlertDialogCancel>
                 <AlertDialogAction 
-                  className={Button({ variant: "destructive" })}
-                  onClick={() => selectedAttendanceId && handleDeleteAttendance(selectedAttendanceId)}
+                  className={buttonVariants({ variant: "destructive" })}
+                  onClick={() => selectedAttendanceIdForDelete && handleDeleteAttendance(selectedAttendanceIdForDelete)}
                 >
                     Delete
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
-    </AlertDialog>
+      </AlertDialog>
+
+      <AlertDialog open={isCheckoutAlertOpen} onOpenChange={setIsCheckoutAlertOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Manually Check-Out User?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will mark <span className="font-semibold">{selectedAttendanceForCheckout?.studentName}</span> as checked-out at the current time. This action cannot be undone.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setSelectedAttendanceForCheckout(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={() => handleAdminCheckout(selectedAttendanceForCheckout)}
+                >
+                    Confirm Check-out
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   );

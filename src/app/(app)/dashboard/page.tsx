@@ -36,6 +36,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 
 // Interfaces for our data structures
 interface Attendance {
@@ -60,6 +61,23 @@ interface Program {
 interface CombinedProgram extends Program {
   attendance?: Attendance;
 }
+
+const getCheckoutTimeClass = (attendance: Attendance) => {
+    if (!attendance.checkOutAt) {
+      return '';
+    }
+    switch (attendance.checkOutStatus) {
+      case 'ok':
+      case 'admin_override':
+        return 'text-green-600 font-semibold';
+      case 'too_early':
+      case 'outside_window':
+      case 'too_short':
+        return 'text-red-600 font-semibold';
+      default:
+        return '';
+    }
+};
 
 const ProgramStatusBadge = ({ status }: { status: 'upcoming' | 'ongoing' | 'completed' }) => {
     const colorClasses = {
@@ -279,7 +297,12 @@ export default function StudentDashboard() {
                     {attendance && (
                         <div className="grid grid-cols-2 gap-4 text-sm">
                             <div><p className="font-medium text-muted-foreground">Check-in</p><p>{format(attendance.createdAt.toDate(), 'p, d MMM')}</p></div>
-                            <div><p className="font-medium text-muted-foreground">Check-out</p><p>{attendance.checkOutAt ? format(attendance.checkOutAt.toDate(), 'p, d MMM') : '-'}</p></div>
+                            <div>
+                                <p className="font-medium text-muted-foreground">Check-out</p>
+                                <p className={cn(getCheckoutTimeClass(attendance))}>
+                                    {attendance.checkOutAt ? format(attendance.checkOutAt.toDate(), 'p, d MMM') : '-'}
+                                </p>
+                            </div>
                         </div>
                     )}
                 </CardContent>

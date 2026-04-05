@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -184,6 +183,23 @@ export default function ProfilePage() {
     doc.save(`JTMK_Participation_${userProfile.displayName.replace(' ', '_')}.pdf`);
   };
 
+    const getCheckoutTimeClass = (item: ParticipationHistoryItem) => {
+        if (!item.checkOutAt) {
+            return 'text-muted-foreground font-medium';
+        }
+        switch (item.checkOutStatus) {
+            case 'ok':
+            case 'admin_override':
+                return 'text-green-600 font-semibold';
+            case 'too_early':
+            case 'outside_window':
+            case 'too_short':
+                return 'text-red-600 font-semibold';
+            default:
+                return '';
+        }
+    };
+
   // Loading and Error States
   if (isUserLoading || isProfileLoading || isLoadingHistory || !user || !userProfile) {
     return (
@@ -204,23 +220,6 @@ export default function ProfilePage() {
         </Alert>
       )
   }
-
-  const getCheckoutTimeClass = (item: ParticipationHistoryItem) => {
-    if (!item.checkOutAt) {
-      return 'text-muted-foreground font-medium';
-    }
-    switch (item.checkOutStatus) {
-      case 'ok':
-      case 'admin_override':
-        return 'text-green-600 font-semibold';
-      case 'too_early':
-      case 'outside_window':
-      case 'too_short':
-        return 'text-red-600 font-semibold';
-      default:
-        return '';
-    }
-  };
 
   // Render
   return (
