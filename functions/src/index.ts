@@ -24,31 +24,6 @@ const transporter = nodemailer.createTransport({
 });
 
 /**
- * Helper function to recursively delete a collection and its subcollections.
- */
-const deleteCollectionRecursive = async (collectionRef: CollectionReference) => {
-    const snapshot = await collectionRef.limit(500).get();
-    if (snapshot.empty) {
-        return;
-    }
-
-    const batch = db.batch();
-    for (const doc of snapshot.docs) {
-        // Recursively delete subcollections
-        const subcollections = await doc.ref.listCollections();
-        for (const subcollection of subcollections) {
-            await deleteCollectionRecursive(subcollection);
-        }
-        batch.delete(doc.ref);
-    }
-    await batch.commit();
-
-    // Recurse to delete remaining documents
-    await deleteCollectionRecursive(collectionRef);
-};
-
-
-/**
  * Sends a notification email when a student checks in.
  */
 export const onAttendanceCheckIn = onDocumentCreated("/programs/{programId}/attendances/{attendanceId}", async (event) => {
@@ -186,12 +161,26 @@ export const onUserDeleted = onDocumentDeleted("/users/{userId}", async (event) 
 
     const promises = [];
 
-    // --- 1. Delete user's 'positions' subcollection ---
+    // --- 1. Delete user's 'positions' (contributions) subcollection ---
     const positionsRef = db.collection('users').doc(userId).collection('positions');
-    const deletePositionsPromise = deleteCollectionRecursive(positionsRef)
-        .then(() => logger.log(`Successfully deleted positions subcollection for user ${userId}.`))
-        .catch(error => logger.error(`Error deleting positions for user ${userId}:`, error));
+    const deletePositionsPromise = (async () => {
+        try {
+            const query = positionsRef.limit(500);
+            let snapshot = await query.get();
+            // Loop to delete documents in batches of 500
+            while(snapshot.size > 0) {
+                const batch = db.batch();
+                snapshot.docs.forEach(doc => batch.delete(doc.ref));
+                await batch.commit();
+                snapshot = await query.get(); // Get the next batch
+            }
+            logger.log(`Successfully deleted positions subcollection for user ${userId}.`);
+        } catch (error) {
+            logger.error(`Error deleting positions for user ${userId}:`, error);
+        }
+    })();
     promises.push(deletePositionsPromise);
+
 
     // --- 2. Clean up user's attendance data by email ---
     if (userEmail) {
@@ -203,7 +192,6 @@ export const onUserDeleted = onDocumentDeleted("/users/{userId}", async (event) 
                     return;
                 }
                 
-                // Process deletions in batches of 500
                 const batchPromises = [];
                 const batchSize = 500;
                 for (let i = 0; i < attendancesSnapshot.docs.length; i += batchSize) {
