@@ -218,11 +218,18 @@ export default function StudentDashboard() {
             const checkOutOpenTime = program.checkOutOpenTime ? program.checkOutOpenTime.toDate() : null;
             const checkOutCloseTime = program.checkOutCloseTime ? program.checkOutCloseTime.toDate() : null;
 
+            // Rule 1: Cannot check out before checking in.
             if (checkoutTimestamp <= checkInAt) {
                 checkOutStatus = "too_early";
-            } else if ((checkOutOpenTime && checkoutTimestamp < checkOutOpenTime) || (checkOutCloseTime && checkoutTimestamp > checkOutCloseTime)) {
-                checkOutStatus = "outside_window";
+            } 
+            // Rule 2: If a checkout window is defined, validate against it.
+            else if (checkOutOpenTime && checkoutTimestamp < checkOutOpenTime) {
+                checkOutStatus = "outside_window"; // Checkout is before the window opens
+            } 
+            else if (checkOutCloseTime && checkoutTimestamp > checkOutCloseTime) {
+                checkOutStatus = "outside_window"; // Checkout is after the window closes
             }
+
 
             const durationMinutes = Math.floor((checkoutTimestamp.getTime() - checkInAt.getTime()) / 60000);
 
@@ -404,3 +411,4 @@ export default function StudentDashboard() {
       </div>
     );
 }
+    

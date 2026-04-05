@@ -1,4 +1,3 @@
-
 'use client';
 
 import { doc, updateDoc, Firestore, serverTimestamp, getDoc, setDoc, Timestamp } from 'firebase/firestore';
@@ -97,17 +96,17 @@ export async function submitCheckout(
     
     let checkOutStatus: string = "ok";
 
-    // Rule A: Must be after check-in
+    // Rule 1: Must be after check-in
     if (now <= checkInAt) {
         checkOutStatus = "too_early";
     }
-    // Rule B: Must be inside admin-defined check-out window
+    // Rule 2: Must be inside the admin-defined checkout window, if one exists.
     else if (checkOutOpenTime && now < checkOutOpenTime) {
-        checkOutStatus = "outside_window";
+        checkOutStatus = "outside_window"; // Before window opens
+    } else if (checkOutCloseTime && now > checkOutCloseTime) {
+        checkOutStatus = "outside_window"; // After window closes
     }
-    else if (checkOutCloseTime && now > checkOutCloseTime) {
-        checkOutStatus = "outside_window";
-    }
+
 
     // This payload contains ONLY the fields allowed by the `isCheckoutUpdate` security rule.
     const checkoutUpdatePayload = {
@@ -164,3 +163,5 @@ export async function manualAdminCheckout(
         return { status: 'error', message: 'Failed to update the attendance record.' };
     }
 }
+
+    
