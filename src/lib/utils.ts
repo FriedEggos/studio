@@ -42,7 +42,7 @@ export function getCheckoutStatusColor(
     case 'ok':
       return 'text-green-600 font-semibold';
     case 'admin_override':
-      return 'text-orange-500 font-semibold';
+      return 'text-blue-600 font-semibold';
     default:
       // This covers 'too_early', 'outside_window', 'too_short', and undefined status
       return 'text-red-600 font-semibold';
