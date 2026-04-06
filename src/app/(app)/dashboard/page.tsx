@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -96,7 +97,7 @@ const CheckoutStatusBadge = ({ attendance }: { attendance: Attendance }) => {
         case 'ok':
             return <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100">Checked Out</Badge>;
         case 'admin_override':
-            return <Badge className="bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100">Admin Verified</Badge>;
+            return <Badge className="bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100">Admin Verified</Badge>
         case 'too_early':
         case 'outside_window':
         case 'too_short':
@@ -415,8 +416,36 @@ export default function StudentDashboard() {
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Confirm Check-out</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Are you sure you want to check-out from "{programToCheckout?.title}"? This action cannot be undone.
+                    <AlertDialogDescription asChild>
+                      <div className="space-y-4">
+                        <p>Are you sure you want to check-out from "{programToCheckout?.title}"?</p>
+                        
+                        {programToCheckout?.checkOutOpenTime && (
+                            <div className="text-sm bg-muted p-3 rounded-lg text-foreground">
+                                <p className="font-semibold">Check-out Window:</p>
+                                <p>
+                                    Opens: {format(programToCheckout.checkOutOpenTime.toDate(), 'p, d MMM yyyy')}
+                                </p>
+                                {programToCheckout.checkOutCloseTime && (
+                                     <p>
+                                        Closes: {format(programToCheckout.checkOutCloseTime.toDate(), 'p, d MMM yyyy')}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                        
+                        {programToCheckout?.checkOutOpenTime && now < programToCheckout.checkOutOpenTime.toDate() && (
+                            <Alert variant="destructive">
+                                <AlertTriangle className="h-4 w-4" />
+                                <AlertTitle>It's Not Time Yet!</AlertTitle>
+                                <AlertDescription>
+                                    The check-out window has not opened. Checking out now will result in an invalid attendance record.
+                                </AlertDescription>
+                            </Alert>
+                        )}
+
+                        <p>This action cannot be undone.</p>
+                      </div>
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -424,7 +453,7 @@ export default function StudentDashboard() {
                     <AlertDialogAction 
                       onClick={() => programToCheckout && handleCheckout(programToCheckout.id)}
                     >
-                        Confirm
+                        Confirm Check-out
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
