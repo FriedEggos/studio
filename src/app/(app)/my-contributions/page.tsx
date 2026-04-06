@@ -2,7 +2,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -49,10 +49,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { isProfileComplete } from '@/lib/utils';
 import Link from 'next/link';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 
 // Schemas and Types
@@ -143,10 +146,20 @@ export default function MyContributionsPage() {
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [positionToDelete, setPositionToDelete] = useState<Position | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [expandedRemarks, setExpandedRemarks] = useState<Record<string, boolean>>({});
+  const [remarkInModal, setRemarkInModal] = useState<string | null>(null);
+
+  const toggleRemark = (positionId: string) => {
+    setExpandedRemarks(prev => ({
+      ...prev,
+      [positionId]: !prev[positionId]
+    }));
+  };
 
   // Data Fetching Hooks
   const userDocRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [user, firestore]);
@@ -409,71 +422,114 @@ export default function MyContributionsPage() {
                     </TableHeader>
                     <TableBody>
                         {isLoadingPositions ? ([...Array(2)].map((_, i) => <TableRow key={i}><TableCell colSpan={9}><Skeleton className="h-5 w-full" /></TableCell></TableRow>))
-                        : displayedPositions && displayedPositions.length > 0 ? (displayedPositions.map((pos, index) => (
-                            <TableRow key={pos.id} className={pos.verificationStatus === 'rejected' ? 'bg-destructive/5' : ''}>
-                                <TableCell>{index + 1}</TableCell>
-                                <TableCell>{pos.programName}</TableCell>
-                                <TableCell>{pos.peringkat}</TableCell>
-                                <TableCell>
-                                  {pos.positionName}
-                                  {pos.customPositionDetail && <span className="text-muted-foreground text-xs ml-2">({pos.customPositionDetail})</span>}
-                                </TableCell>
-                                <TableCell>{pos.semester}</TableCell>
-                                <TableCell>{pos.className}</TableCell>
-                                <TableCell>{pos.createdAt ? format(pos.createdAt.toDate(), 'dd/MM/yyyy') : ''}</TableCell>
-                                <TableCell>
-                                    {pos.verificationStatus === 'approved' ? (
-                                        <Badge className="bg-green-100 text-green-800 border border-green-200 hover:bg-green-100/80 capitalize">
-                                            <BadgeCheck className="mr-1 h-3.5 w-3.5" />
-                                            Approved
-                                        </Badge>
-                                    ) : pos.verificationStatus === 'rejected' && pos.rejectionRemark ? (
-                                         <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger>
-                                                    <Badge variant="destructive" className="capitalize cursor-help">
-                                                        Rejected
+                        : displayedPositions && displayedPositions.length > 0 ? (displayedPositions.map((pos, index) => {
+                            const isRejectedWithRemark = pos.verificationStatus === 'rejected' && pos.rejectionRemark;
+                            const isExpanded = expandedRemarks[pos.id] || false;
+                            const isLongRemark = isRejectedWithRemark && pos.rejectionRemark.length > 100;
+                            
+                            return (
+                                <React.Fragment key={pos.id}>
+                                    <TableRow className={isRejectedWithRemark ? 'bg-destructive/5' : ''}>
+                                        <TableCell>{index + 1}</TableCell>
+                                        <TableCell>{pos.programName}</TableCell>
+                                        <TableCell>{pos.peringkat}</TableCell>
+                                        <TableCell>
+                                          {pos.positionName}
+                                          {pos.customPositionDetail && <span className="text-muted-foreground text-xs ml-2">({pos.customPositionDetail})</span>}
+                                        </TableCell>
+                                        <TableCell>{pos.semester}</TableCell>
+                                        <TableCell>{pos.className}</TableCell>
+                                        <TableCell>{pos.createdAt ? format(pos.createdAt.toDate(), 'dd/MM/yyyy') : ''}</TableCell>
+                                        <TableCell>
+                                            {(() => {
+                                                if (pos.verificationStatus === 'approved') {
+                                                    return (
+                                                        <Badge className="bg-green-100 text-green-800 border border-green-200 hover:bg-green-100/80 capitalize">
+                                                            <BadgeCheck className="mr-1 h-3.5 w-3.5" />
+                                                            Approved
+                                                        </Badge>
+                                                    );
+                                                }
+                                                if (isRejectedWithRemark) {
+                                                    if (isMobile) {
+                                                        return (
+                                                            <Badge variant="destructive" className="capitalize cursor-pointer" onClick={() => toggleRemark(pos.id)}>
+                                                                Rejected
+                                                            </Badge>
+                                                        );
+                                                    }
+                                                    return (
+                                                        <div className="flex items-center gap-1">
+                                                            <Badge variant="destructive" className="capitalize">Rejected</Badge>
+                                                            {isLongRemark ? (
+                                                                <Button variant="ghost" size="icon" className="h-6 w-6 cursor-pointer" onClick={() => setRemarkInModal(pos.rejectionRemark!)}>
+                                                                    <AlertCircle className="h-4 w-4 text-destructive" />
+                                                                </Button>
+                                                            ) : (
+                                                                <Popover>
+                                                                    <PopoverTrigger asChild>
+                                                                        <Button variant="ghost" size="icon" className="h-6 w-6 cursor-help">
+                                                                            <AlertCircle className="h-4 w-4 text-destructive" />
+                                                                        </Button>
+                                                                    </PopoverTrigger>
+                                                                    <PopoverContent className="max-w-xs">
+                                                                        <p className="font-semibold text-destructive">Admin Remark:</p>
+                                                                        <p className="text-sm text-muted-foreground">{pos.rejectionRemark}</p>
+                                                                    </PopoverContent>
+                                                                </Popover>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                }
+                                                return (
+                                                    <Badge variant={pos.verificationStatus === 'pending' ? 'secondary' : 'destructive'} className="capitalize">
+                                                        {pos.verificationStatus}
                                                     </Badge>
-                                                </TooltipTrigger>
-                                                <TooltipContent className="max-w-xs">
-                                                    <p className="font-semibold text-destructive">Admin Remark:</p>
-                                                    <p className="text-sm text-muted-foreground">{pos.rejectionRemark}</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    ) : (
-                                        <Badge variant={pos.verificationStatus === 'pending' ? 'secondary' : 'destructive'} className="capitalize">
-                                            {pos.verificationStatus}
-                                        </Badge>
-                                    )}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    {(pos.verificationStatus === 'pending' || pos.verificationStatus === 'rejected') && (
-                                        <div className="flex gap-2 justify-end">
-                                            <Button asChild size="sm" variant="outline">
-                                                <Link href={`/my-contributions/${pos.id}/edit`}>
-                                                    <Edit className="mr-2 h-3.5 w-3.5" />
-                                                    Edit
-                                                </Link>
-                                            </Button>
-                                            {pos.verificationStatus === 'rejected' && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="destructive"
-                                                    onClick={() => {
-                                                        setPositionToDelete(pos);
-                                                        setIsDeleteAlertOpen(true);
-                                                    }}
-                                                >
-                                                    <Trash2 className="mr-2 h-3.5 w-3.5" />
-                                                    Delete
-                                                </Button>
+                                                );
+                                            })()}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            {(pos.verificationStatus === 'pending' || pos.verificationStatus === 'rejected') && (
+                                                <div className="flex gap-2 justify-end">
+                                                    <Button asChild size="sm" variant="outline">
+                                                        <Link href={`/my-contributions/${pos.id}/edit`}>
+                                                            <Edit className="mr-2 h-3.5 w-3.5" />
+                                                            Edit
+                                                        </Link>
+                                                    </Button>
+                                                    {pos.verificationStatus === 'rejected' && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="destructive"
+                                                            onClick={() => {
+                                                                setPositionToDelete(pos);
+                                                                setIsDeleteAlertOpen(true);
+                                                            }}
+                                                        >
+                                                            <Trash2 className="mr-2 h-3.5 w-3.5" />
+                                                            Delete
+                                                        </Button>
+                                                    )}
+                                                </div>
                                             )}
-                                        </div>
+                                        </TableCell>
+                                    </TableRow>
+                                    {isMobile && isRejectedWithRemark && isExpanded && (
+                                        <tr className="bg-destructive/5 border-b border-destructive/10">
+                                            <td colSpan={9} className="px-6 py-4">
+                                                <div className="flex items-start gap-3">
+                                                    <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                                                    <div>
+                                                        <h4 className="font-semibold text-destructive mb-1">Admin Remark</h4>
+                                                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{pos.rejectionRemark}</p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
                                     )}
-                                </TableCell>
-                            </TableRow>
-                        )))
+                                </React.Fragment>
+                            );
+                        }))
                         : (<TableRow><TableCell colSpan={9} className="h-24 text-center">No positions submitted yet.</TableCell></TableRow>)}
                     </TableBody>
                 </Table>
@@ -502,6 +558,17 @@ export default function MyContributionsPage() {
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!remarkInModal} onOpenChange={(open) => !open && setRemarkInModal(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Admin Remark</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 text-sm text-muted-foreground whitespace-pre-wrap">
+            {remarkInModal}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
