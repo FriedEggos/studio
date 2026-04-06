@@ -68,14 +68,14 @@ const getCheckoutTimeClass = (attendance: Attendance) => {
       return '';
     }
     switch (attendance.checkOutStatus) {
-      case 'ok':
-      case 'admin_override':
-        return 'text-green-600 font-semibold';
-      case 'too_early':
-      case 'outside_window':
-      case 'too_short':
-      default:
-        return 'text-red-600 font-semibold';
+        case 'ok':
+        case 'admin_override':
+            return 'text-green-600 font-semibold';
+        case 'too_early':
+        case 'outside_window':
+        case 'too_short':
+        default:
+            return 'text-red-600 font-semibold';
     }
 };
 
@@ -420,19 +420,23 @@ export default function StudentDashboard() {
                       <div className="space-y-4">
                         <p>Are you sure you want to check-out from "{programToCheckout?.title}"?</p>
                         
-                        {programToCheckout?.checkOutOpenTime && (
-                            <div className="text-sm bg-muted p-3 rounded-lg text-foreground">
-                                <p className="font-semibold">Check-out Window:</p>
+                        <div className="text-sm bg-muted p-3 rounded-lg text-foreground">
+                            <p className="font-semibold">Check-out Window:</p>
+                            {programToCheckout?.checkOutOpenTime ? (
+                                <>
                                 <p>
                                     Opens: {format(programToCheckout.checkOutOpenTime.toDate(), 'p, d MMM yyyy')}
                                 </p>
                                 {programToCheckout.checkOutCloseTime && (
-                                     <p>
+                                    <p>
                                         Closes: {format(programToCheckout.checkOutCloseTime.toDate(), 'p, d MMM yyyy')}
                                     </p>
                                 )}
-                            </div>
-                        )}
+                                </>
+                            ) : (
+                                <p>Anytime after check-in.</p>
+                            )}
+                        </div>
                         
                         {programToCheckout?.checkOutOpenTime && now < programToCheckout.checkOutOpenTime.toDate() && (
                             <Alert variant="destructive">
@@ -440,6 +444,16 @@ export default function StudentDashboard() {
                                 <AlertTitle>It's Not Time Yet!</AlertTitle>
                                 <AlertDescription>
                                     The check-out window has not opened. Checking out now will result in an invalid attendance record.
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                        
+                        {programToCheckout?.checkOutCloseTime && now > programToCheckout.checkOutCloseTime.toDate() && (
+                            <Alert variant="destructive">
+                                <AlertTriangle className="h-4 w-4" />
+                                <AlertTitle>Check-out Window Closed</AlertTitle>
+                                <AlertDescription>
+                                    The check-out window has closed. Checking out now will result in an invalid attendance record.
                                 </AlertDescription>
                             </Alert>
                         )}
