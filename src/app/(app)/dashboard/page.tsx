@@ -334,6 +334,7 @@ export default function StudentDashboard() {
                         <Skeleton className="h-8 w-48" />
                         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                           <Card className="rounded-xl"><CardHeader><Skeleton className="h-6 w-3/4" /><Skeleton className="h-4 w-1/2 mt-2" /></CardHeader><CardContent><Skeleton className="h-10 w-full" /></CardContent><CardFooter><Skeleton className="h-10 w-28" /></CardFooter></Card>
+                           <Card className="rounded-xl"><CardHeader><Skeleton className="h-6 w-3/4" /><Skeleton className="h-4 w-1/2 mt-2" /></CardHeader><CardContent><Skeleton className="h-10 w-full" /></CardContent><CardFooter><Skeleton className="h-10 w-28" /></CardFooter></Card>
                         </div>
                       </div>
                     ))}
