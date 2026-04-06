@@ -100,6 +100,7 @@ const positionOptions = [
   "Penolong Setiausaha",
   "Penolong Bendahari",
   "AJK Lain-Lain",
+  "Peserta",
 ];
 
 const peringkatOptions = [
@@ -120,7 +121,8 @@ const classOptions = [
     "DIT2A", "DIT2B", "DIT2C", "DIT2D",
     "DIT3A", "DIT3B", "DIT3C", "DIT3D",
     "DIT4A", "DIT4B", "DIT4C", "DIT4D",
-    "DIT5A", "DIT5B", "DIT5C", "DIT5D"
+    "DIT5A", "DIT5B", "DIT5C", "DIT5D",
+    "Lain-lain"
 ];
 
 
@@ -401,5 +403,3 @@ export default function MyContributionsPage() {
     </>
   );
 }
-
-    
