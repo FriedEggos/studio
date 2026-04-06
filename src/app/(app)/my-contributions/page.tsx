@@ -25,7 +25,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { AlertCircle, PlusCircle, Loader2, Download, BadgeCheck } from "lucide-react";
+import { AlertCircle, PlusCircle, Loader2, Download, BadgeCheck, Edit } from "lucide-react";
 import { useUser, useFirestore, useMemoFirebase, useCollection, useDoc } from "@/firebase";
 import { doc, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -301,7 +301,7 @@ export default function MyContributionsPage() {
                         <AlertCircle className="h-4 w-4" />
                         <AlertTitle>Permohonan anda sedang disemak</AlertTitle>
                         <AlertDescription>
-                           Borang permohonan akan dibuka semula selepas permohonan semasa disahkan.
+                           Borang permohonan akan dibuka semula selepas permohonan semasa disahkan. Anda masih boleh menyunting permohonan yang sedia ada.
                         </AlertDescription>
                     </Alert>
                 ) : (
@@ -364,10 +364,11 @@ export default function MyContributionsPage() {
                             <TableHead>Class</TableHead>
                             <TableHead>Date</TableHead>
                             <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Action</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {isLoadingPositions ? ([...Array(2)].map((_, i) => <TableRow key={i}><TableCell colSpan={8}><Skeleton className="h-5 w-full" /></TableCell></TableRow>))
+                        {isLoadingPositions ? ([...Array(2)].map((_, i) => <TableRow key={i}><TableCell colSpan={9}><Skeleton className="h-5 w-full" /></TableCell></TableRow>))
                         : displayedPositions && displayedPositions.length > 0 ? (displayedPositions.map((pos, index) => (
                             <TableRow key={pos.id}>
                                 <TableCell>{index + 1}</TableCell>
@@ -392,9 +393,19 @@ export default function MyContributionsPage() {
                                         </Badge>
                                     )}
                                 </TableCell>
+                                <TableCell className="text-right">
+                                    {pos.verificationStatus === 'pending' && (
+                                        <Button asChild size="sm" variant="outline">
+                                            <Link href={`/my-contributions/${pos.id}/edit`}>
+                                                <Edit className="mr-2 h-3.5 w-3.5" />
+                                                Edit
+                                            </Link>
+                                        </Button>
+                                    )}
+                                </TableCell>
                             </TableRow>
                         )))
-                        : (<TableRow><TableCell colSpan={8} className="h-24 text-center">No positions submitted yet.</TableCell></TableRow>)}
+                        : (<TableRow><TableCell colSpan={9} className="h-24 text-center">No positions submitted yet.</TableCell></TableRow>)}
                     </TableBody>
                 </Table>
             </CardContent>
