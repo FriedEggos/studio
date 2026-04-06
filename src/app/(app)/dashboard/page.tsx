@@ -71,9 +71,6 @@ const getCheckoutTimeClass = (attendance: Attendance) => {
         case 'ok':
         case 'admin_override':
             return 'text-green-600 font-semibold';
-        case 'too_early':
-        case 'outside_window':
-        case 'too_short':
         default:
             return 'text-red-600 font-semibold';
     }
@@ -98,9 +95,6 @@ const CheckoutStatusBadge = ({ attendance }: { attendance: Attendance }) => {
             return <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100">Checked Out</Badge>;
         case 'admin_override':
             return <Badge className="bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100">Admin Verified</Badge>
-        case 'too_early':
-        case 'outside_window':
-        case 'too_short':
         default:
             return <Badge className="bg-red-100 text-red-800 border-red-200 hover:bg-red-100">Invalid Checkout</Badge>;
     }
@@ -427,14 +421,16 @@ export default function StudentDashboard() {
                                 <p>
                                     Opens: {format(programToCheckout.checkOutOpenTime.toDate(), 'p, d MMM yyyy')}
                                 </p>
-                                {programToCheckout.checkOutCloseTime && (
+                                {programToCheckout.checkOutCloseTime ? (
                                     <p>
                                         Closes: {format(programToCheckout.checkOutCloseTime.toDate(), 'p, d MMM yyyy')}
                                     </p>
+                                ) : (
+                                    <p>No explicit close time is set.</p>
                                 )}
                                 </>
                             ) : (
-                                <p>Anytime after check-in.</p>
+                                programToCheckout && <p>The program ends at {format(programToCheckout.endDateTime.toDate(), 'p, d MMM yyyy')}. Please check out after this time.</p>
                             )}
                         </div>
                         
