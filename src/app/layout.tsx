@@ -3,10 +3,15 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { FirebaseClientProvider } from "@/firebase";
 
+const newDescription = "QR Based Program Participation and Committee Role Verification System - effortlessly track attendance with QR check-ins and build a credible digital portfolio.";
+
 export const metadata: Metadata = {
   title: "JTMK+",
-  description:
-    "A QR-Based Program Participation and Digital Certification System",
+  description: newDescription,
+  openGraph: {
+    title: "JTMK+",
+    description: newDescription,
+  },
 };
 
 export default function RootLayout({
@@ -28,7 +33,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="font-body antialiased">
+      <body className="font-body antialiased" suppressHydrationWarning>
         <FirebaseClientProvider>
           {children}
           <Toaster />
