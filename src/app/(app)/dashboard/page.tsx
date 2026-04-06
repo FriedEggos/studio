@@ -54,6 +54,7 @@ interface Program {
     title: string;
     startDateTime: Timestamp;
     endDateTime: Timestamp;
+    createdAt: Timestamp;
     checkOutOpenTime?: Timestamp;
     checkOutCloseTime?: Timestamp;
 }
@@ -88,8 +89,12 @@ const CheckoutStatusBadge = ({ attendance }: { attendance: Attendance }) => {
 }
 
 const getProgramStatus = (program: Program, now: Date): 'upcoming' | 'ongoing' | 'completed' => {
-    const startTime = (program.startDateTime as Timestamp).toDate();
-    const endTime = (program.endDateTime as Timestamp).toDate();
+    const startTime = program.startDateTime?.toDate();
+    const endTime = program.endDateTime?.toDate();
+
+    if (!startTime || !endTime) {
+        return 'upcoming';
+    }
 
     if (now < startTime) {
         return 'upcoming';
@@ -134,12 +139,12 @@ export default function StudentDashboard() {
         setIsLoading(true);
 
         try {
-            const programsQuery = query(collection(firestore, 'programs'), orderBy('startDateTime', 'desc'));
+            const programsQuery = query(collection(firestore, 'programs'), orderBy('createdAt', 'desc'));
             const attendancesQuery = query(collectionGroup(firestore, 'attendances'), where('email', '==', user.email));
             
             const [programsSnap, attendancesSnap] = await Promise.all([
                 getDocs(programsQuery),
-                getDocs(attendancesSnap)
+                getDocs(attendancesQuery)
             ]);
 
             const allPrograms = programsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Program));
@@ -147,7 +152,9 @@ export default function StudentDashboard() {
             const userAttendances = new Map<string, Attendance>();
             attendancesSnap.forEach(doc => {
                 const att = doc.data();
-                userAttendances.set(att.programId, { id: doc.id, ...att } as Attendance);
+                if (att.programId) {
+                    userAttendances.set(att.programId, { id: doc.id, ...att } as Attendance);
+                }
             });
 
             const combinedPrograms = allPrograms.map(prog => ({
@@ -261,7 +268,7 @@ export default function StudentDashboard() {
 
     const ProgramCard = ({ program }: { program: CombinedProgram }) => {
         const { attendance } = program;
-        const startTime = (program.startDateTime as Timestamp).toDate();
+        const startTime = program.startDateTime?.toDate();
         const programStatus = getProgramStatus(program, now);
 
         return (
@@ -271,10 +278,10 @@ export default function StudentDashboard() {
                         <CardTitle className="font-bold text-lg leading-tight">{program.title}</CardTitle>
                         <ProgramStatusBadge status={programStatus} />
                     </div>
-                    <CardDescription>{format(startTime, 'd MMMM yyyy')}</CardDescription>
+                    <CardDescription>{startTime ? format(startTime, 'd MMMM yyyy') : "Tarikh tidak ditetapkan"}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex-grow space-y-4">
-                    {attendance && (
+                    {attendance && attendance.createdAt && (
                         <div className="grid grid-cols-2 gap-4 text-sm">
                             <div><p className="font-medium text-muted-foreground">Check-in</p><p>{format(attendance.createdAt.toDate(), 'p, d MMM')}</p></div>
                             <div>
@@ -404,12 +411,12 @@ export default function StudentDashboard() {
                         
                         <div className="text-sm bg-muted p-3 rounded-lg text-foreground">
                             <p className="font-semibold">Check-out Window:</p>
-                            {programToCheckout?.checkOutOpenTime ? (
+                            {programToCheckout?.checkOutOpenTime && programToCheckout.checkOutOpenTime.toDate ? (
                                 <>
                                 <p>
                                     Opens: {format(programToCheckout.checkOutOpenTime.toDate(), 'p, d MMM yyyy')}
                                 </p>
-                                {programToCheckout.checkOutCloseTime ? (
+                                {programToCheckout.checkOutCloseTime && programToCheckout.checkOutCloseTime.toDate ? (
                                     <p>
                                         Closes: {format(programToCheckout.checkOutCloseTime.toDate(), 'p, d MMM yyyy')}
                                     </p>
@@ -418,11 +425,11 @@ export default function StudentDashboard() {
                                 )}
                                 </>
                             ) : (
-                                programToCheckout && <p>The program ends at {format(programToCheckout.endDateTime.toDate(), 'p, d MMM yyyy')}. Please check out after this time.</p>
+                                programToCheckout && programToCheckout.endDateTime.toDate && <p>The program ends at {format(programToCheckout.endDateTime.toDate(), 'p, d MMM yyyy')}. Please check out after this time.</p>
                             )}
                         </div>
                         
-                        {programToCheckout?.checkOutOpenTime && now < programToCheckout.checkOutOpenTime.toDate() && (
+                        {programToCheckout?.checkOutOpenTime && programToCheckout.checkOutOpenTime.toDate && now < programToCheckout.checkOutOpenTime.toDate() && (
                             <Alert variant="destructive">
                                 <AlertTriangle className="h-4 w-4" />
                                 <AlertTitle>It's Not Time Yet!</AlertTitle>
@@ -432,7 +439,7 @@ export default function StudentDashboard() {
                             </Alert>
                         )}
                         
-                        {programToCheckout?.checkOutCloseTime && now > programToCheckout.checkOutCloseTime.toDate() && (
+                        {programToCheckout?.checkOutCloseTime && programToCheckout.checkOutCloseTime.toDate && now > programToCheckout.checkOutCloseTime.toDate() && (
                             <Alert variant="destructive">
                                 <AlertTriangle className="h-4 w-4" />
                                 <AlertTitle>Check-out Window Closed</AlertTitle>
