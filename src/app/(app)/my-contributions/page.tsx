@@ -25,9 +25,9 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { AlertCircle, PlusCircle, Loader2, Download, BadgeCheck, Edit } from "lucide-react";
+import { AlertCircle, PlusCircle, Loader2, Download, BadgeCheck, Edit, Trash2 } from "lucide-react";
 import { useUser, useFirestore, useMemoFirebase, useCollection, useDoc } from "@/firebase";
-import { doc, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { doc, collection, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { format } from 'date-fns';
@@ -39,6 +39,16 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { isProfileComplete } from '@/lib/utils';
@@ -70,6 +80,7 @@ interface Position {
     semester: string;
     className: string;
     verificationStatus: 'pending' | 'approved' | 'rejected' | 'awaiting_evidence';
+    rejectionRemark?: string;
     createdAt: { toDate: () => Date };
 }
 
@@ -133,6 +144,10 @@ export default function MyContributionsPage() {
   const router = useRouter();
   const { toast } = useToast();
 
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const [positionToDelete, setPositionToDelete] = useState<Position | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // Data Fetching Hooks
   const userDocRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [user, firestore]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userDocRef);
@@ -152,7 +167,7 @@ export default function MyContributionsPage() {
   const profileComplete = isProfileComplete(userProfile);
   const hasPending = useMemo(() => positions?.some(p => p.verificationStatus === 'pending'), [positions]);
   const approvedPositions = useMemo(() => positions?.filter(p => p.verificationStatus === 'approved') || [], [positions]);
-  const displayedPositions = useMemo(() => positions?.filter(p => p.verificationStatus !== 'rejected' && p.verificationStatus !== 'awaiting_evidence') || [], [positions]);
+  const displayedPositions = useMemo(() => positions?.filter(p => p.verificationStatus !== 'awaiting_evidence') || [], [positions]);
 
   // Effects
   useEffect(() => {
@@ -189,6 +204,31 @@ export default function MyContributionsPage() {
         setIsSubmittingPosition(false);
     }
   };
+
+  const handleConfirmDelete = async () => {
+    if (!user || !positionToDelete || !firestore) return;
+    setIsDeleting(true);
+    const docRef = doc(firestore, 'users', user.uid, 'positions', positionToDelete.id);
+    try {
+        await deleteDoc(docRef);
+        toast({
+            title: 'Success',
+            description: 'The contribution record has been deleted.',
+        });
+    } catch (e) {
+        console.error("Error deleting position:", e);
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Could not delete the record. Please try again.',
+        });
+    } finally {
+        setPositionToDelete(null);
+        setIsDeleteAlertOpen(false);
+        setIsDeleting(false);
+    }
+  };
+
 
   const handleDownloadContributionsPdf = () => {
     if (!approvedPositions || approvedPositions.length === 0) {
@@ -370,7 +410,7 @@ export default function MyContributionsPage() {
                     <TableBody>
                         {isLoadingPositions ? ([...Array(2)].map((_, i) => <TableRow key={i}><TableCell colSpan={9}><Skeleton className="h-5 w-full" /></TableCell></TableRow>))
                         : displayedPositions && displayedPositions.length > 0 ? (displayedPositions.map((pos, index) => (
-                            <TableRow key={pos.id}>
+                            <TableRow key={pos.id} className={pos.verificationStatus === 'rejected' ? 'bg-destructive/5' : ''}>
                                 <TableCell>{index + 1}</TableCell>
                                 <TableCell>{pos.programName}</TableCell>
                                 <TableCell>{pos.peringkat}</TableCell>
@@ -387,6 +427,20 @@ export default function MyContributionsPage() {
                                             <BadgeCheck className="mr-1 h-3.5 w-3.5" />
                                             Approved
                                         </Badge>
+                                    ) : pos.verificationStatus === 'rejected' && pos.rejectionRemark ? (
+                                         <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger>
+                                                    <Badge variant="destructive" className="capitalize cursor-help">
+                                                        Rejected
+                                                    </Badge>
+                                                </TooltipTrigger>
+                                                <TooltipContent className="max-w-xs">
+                                                    <p className="font-semibold text-destructive">Admin Remark:</p>
+                                                    <p className="text-sm text-muted-foreground">{pos.rejectionRemark}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
                                     ) : (
                                         <Badge variant={pos.verificationStatus === 'pending' ? 'secondary' : 'destructive'} className="capitalize">
                                             {pos.verificationStatus}
@@ -394,13 +448,28 @@ export default function MyContributionsPage() {
                                     )}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                    {pos.verificationStatus === 'pending' && (
-                                        <Button asChild size="sm" variant="outline">
-                                            <Link href={`/my-contributions/${pos.id}/edit`}>
-                                                <Edit className="mr-2 h-3.5 w-3.5" />
-                                                Edit
-                                            </Link>
-                                        </Button>
+                                    {(pos.verificationStatus === 'pending' || pos.verificationStatus === 'rejected') && (
+                                        <div className="flex gap-2 justify-end">
+                                            <Button asChild size="sm" variant="outline">
+                                                <Link href={`/my-contributions/${pos.id}/edit`}>
+                                                    <Edit className="mr-2 h-3.5 w-3.5" />
+                                                    Edit
+                                                </Link>
+                                            </Button>
+                                            {pos.verificationStatus === 'rejected' && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="destructive"
+                                                    onClick={() => {
+                                                        setPositionToDelete(pos);
+                                                        setIsDeleteAlertOpen(true);
+                                                    }}
+                                                >
+                                                    <Trash2 className="mr-2 h-3.5 w-3.5" />
+                                                    Delete
+                                                </Button>
+                                            )}
+                                        </div>
                                     )}
                                 </TableCell>
                             </TableRow>
@@ -411,6 +480,28 @@ export default function MyContributionsPage() {
             </CardContent>
         </Card>
       </div>
+
+      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will permanently delete this contribution record for "{positionToDelete?.programName}". This action cannot be undone.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setPositionToDelete(null)} disabled={isDeleting}>Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  className="bg-destructive hover:bg-destructive/90"
+                  onClick={handleConfirmDelete}
+                  disabled={isDeleting}
+                >
+                  {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Delete
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

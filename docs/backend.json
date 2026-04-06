@@ -104,6 +104,10 @@
           "description": "The status of the verification request.",
           "enum": ["pending", "approved", "rejected"]
         },
+        "rejectionRemark": {
+            "type": "string",
+            "description": "The reason provided by an admin for rejecting the position claim."
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time",
@@ -394,5 +398,3 @@
     "reasoning": "This Firestore structure separates core program data from its form configuration and its attendance records. Public data (`programs`, `programConfigs`) is structured to be readable by unauthenticated users on a per-document basis for the QR form page, while sensitive data like attendance lists is nested and protected. A 'positions' sub-collection is added under 'users' to manage role verification requests."
   }
 }
-
-    

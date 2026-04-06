@@ -118,8 +118,8 @@ export default function EditContributionPage() {
       router.push('/login');
     }
     if (positionData) {
-      if (positionData.verificationStatus !== 'pending') {
-        toast({ variant: 'destructive', title: 'Cannot Edit', description: 'This contribution cannot be edited anymore.' });
+      if (positionData.verificationStatus === 'approved') {
+        toast({ variant: 'destructive', title: 'Cannot Edit', description: 'Approved contributions cannot be edited.' });
         router.push('/my-contributions');
         return;
       }
@@ -141,10 +141,12 @@ export default function EditContributionPage() {
       await updateDoc(positionDocRef, {
         ...values,
         semester: parseInt(values.semester),
+        verificationStatus: 'pending', // Re-submit as pending
+        rejectionRemark: '', // Clear old remark on re-submission
       });
       toast({
         title: 'Contribution Updated',
-        description: 'Your changes have been saved and are pending verification.',
+        description: 'Your changes have been saved and sent for verification.',
       });
       router.push('/my-contributions');
     } catch (error) {
@@ -205,7 +207,7 @@ export default function EditContributionPage() {
             <CardHeader>
               <CardTitle>Update Your Submitted Position</CardTitle>
               <CardDescription>
-                Make corrections to your submission below. Changes will be saved upon submission.
+                Make corrections to your submission below. Your submission will be re-sent for verification.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -239,7 +241,7 @@ export default function EditContributionPage() {
             </Button>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save Changes
+              Save & Resubmit
             </Button>
           </div>
         </form>

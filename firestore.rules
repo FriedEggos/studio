@@ -72,10 +72,14 @@ service cloud.firestore {
         allow create: if isOwner(userId) && 
                          request.resource.data.verificationStatus == 'pending' &&
                          isProfileComplete(userId);
-        // Admins can update any position. Students can only update their own if it's pending.
-        allow update: if isAdmin() || (isOwner(userId) && resource.data.verificationStatus == 'pending');
-        // Admins can delete position records if needed.
-        allow delete: if isAdmin();
+        // Admins can update any position. 
+        // Students can only update their own if it's currently pending or rejected, and they are re-submitting it as pending.
+        allow update: if isAdmin() ||
+                         (isOwner(userId) &&
+                          (resource.data.verificationStatus == 'pending' || resource.data.verificationStatus == 'rejected') &&
+                          request.resource.data.verificationStatus == 'pending');
+        // Admins or the owning user can delete position records.
+        allow delete: if isAdmin() || isOwner(userId);
         // Students can read their own positions, admins can read any.
         allow get, list: if isOwner(userId) || isAdmin();
       }
