@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 
 interface DateDropdownPickerProps {
-  value?: Date;
+  value?: Date | null;
   onChange: (date?: Date) => void;
   fromYear?: number;
   toYear?: number;
@@ -20,17 +20,21 @@ export function DateDropdownPicker({
   toYear,
   className,
 }: DateDropdownPickerProps) {
-  // Use passed value or a new Date as a fallback. If no value, we still need a valid date for calculations.
-  const date = value ? new Date(value) : new Date();
+  // If value is null/undefined, use a placeholder state. Otherwise, create a Date object.
+  const date = value ? new Date(value) : null;
 
   const handlePartChange = (part: "year" | "month" | "day", valueStr: string) => {
-    const newDate = new Date(date);
+    // Start with the current date if it exists, otherwise start with today.
+    const newDate = date ? new Date(date) : new Date();
+    // If we're starting fresh, reset day to 1 to avoid month-end issues.
+    if (!date) {
+        newDate.setDate(1);
+    }
     const numValue = parseInt(valueStr, 10);
 
     if (part === "year") {
       newDate.setFullYear(numValue);
     } else if (part === "month") {
-      // When changing month, check if the current day is valid for the new month
       const currentDay = newDate.getDate();
       const daysInNewMonth = new Date(newDate.getFullYear(), numValue + 1, 0).getDate();
       if (currentDay > daysInNewMonth) {
@@ -52,14 +56,15 @@ export function DateDropdownPicker({
     (_, i) => finalFromYear + i
   );
   const months = Array.from({ length: 12 }, (_, i) => i);
-  const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  // If we have a date, calculate days in month. Otherwise, default to 31.
+  const daysInMonth = date ? new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate() : 31;
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
   return (
     <div className={cn("grid grid-cols-3 gap-2", className)}>
       <Select
         onValueChange={(val) => handlePartChange("day", val)}
-        value={date.getDate().toString()}
+        value={date ? date.getDate().toString() : ""}
       >
         <SelectTrigger><SelectValue placeholder="Day" /></SelectTrigger>
         <SelectContent>
@@ -70,7 +75,7 @@ export function DateDropdownPicker({
       </Select>
       <Select
         onValueChange={(val) => handlePartChange("month", val)}
-        value={date.getMonth().toString()}
+        value={date ? date.getMonth().toString() : ""}
       >
         <SelectTrigger><SelectValue placeholder="Month" /></SelectTrigger>
         <SelectContent>
@@ -83,7 +88,7 @@ export function DateDropdownPicker({
       </Select>
       <Select
         onValueChange={(val) => handlePartChange("year", val)}
-        value={date.getFullYear().toString()}
+        value={date ? date.getFullYear().toString() : ""}
       >
         <SelectTrigger><SelectValue placeholder="Year" /></SelectTrigger>
         <SelectContent>
