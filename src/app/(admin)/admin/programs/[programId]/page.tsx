@@ -47,7 +47,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { cn } from "@/lib/utils";
+import { cn, getCheckoutStatusColor } from "@/lib/utils";
 import { manualAdminCheckout } from "@/lib/attendance";
 import { AddAttendanceDialog } from "@/components/admin/AddAttendanceDialog";
 
@@ -253,21 +253,6 @@ export default function ProgramDetailsPage() {
     setSelectedAttendanceForCheckout(null);
   };
 
-  const getCheckoutTimeClass = (att: Attendance) => {
-    if (!att.checkOutAt) {
-      return ''; // Default color for '-' placeholder
-    }
-    
-    switch (att.checkOutStatus) {
-        case 'ok':
-        case 'admin_override':
-            return 'text-green-600 font-semibold';
-        default:
-            return 'text-red-600 font-semibold';
-    }
-  };
-
-
   if (isLoading) {
     return (
       <div className="space-y-6 max-w-4xl mx-auto">
@@ -430,7 +415,7 @@ export default function ProgramDetailsPage() {
                             <TableCell>{att.studentId || '-'}</TableCell>
                             <TableCell>{att.classGroup || '-'}</TableCell>
                             <TableCell>{att.createdAt ? format(att.createdAt.toDate(), 'Pp') : <span className="text-muted-foreground">Syncing...</span>}</TableCell>
-                            <TableCell className={cn(getCheckoutTimeClass(att))}>
+                            <TableCell className={cn(att.checkOutAt ? getCheckoutStatusColor(att.checkOutStatus) : '')}>
                                 {att.checkOutAt ? format(att.checkOutAt.toDate(), 'Pp') : '-'}
                             </TableCell>
                             <TableCell className="text-right">

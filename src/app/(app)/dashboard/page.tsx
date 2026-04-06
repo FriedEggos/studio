@@ -37,7 +37,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
+import { cn, getCheckoutStatusColor } from "@/lib/utils";
 
 // Interfaces for our data structures
 interface Attendance {
@@ -62,19 +62,6 @@ interface Program {
 interface CombinedProgram extends Program {
   attendance?: Attendance;
 }
-
-const getCheckoutTimeClass = (attendance: Attendance) => {
-    if (!attendance.checkOutAt) {
-      return '';
-    }
-    switch (attendance.checkOutStatus) {
-        case 'ok':
-        case 'admin_override':
-            return 'text-green-600 font-semibold';
-        default:
-            return 'text-red-600 font-semibold';
-    }
-};
 
 const ProgramStatusBadge = ({ status }: { status: 'upcoming' | 'ongoing' | 'completed' }) => {
     const colorClasses = {
@@ -152,7 +139,7 @@ export default function StudentDashboard() {
             
             const [programsSnap, attendancesSnap] = await Promise.all([
                 getDocs(programsQuery),
-                getDocs(attendancesQuery)
+                getDocs(attendancesSnap)
             ]);
 
             const allPrograms = programsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Program));
@@ -292,7 +279,7 @@ export default function StudentDashboard() {
                             <div><p className="font-medium text-muted-foreground">Check-in</p><p>{format(attendance.createdAt.toDate(), 'p, d MMM')}</p></div>
                             <div>
                                 <p className="font-medium text-muted-foreground">Check-out</p>
-                                <p className={cn(getCheckoutTimeClass(attendance))}>
+                                <p className={cn(attendance.checkOutAt ? getCheckoutStatusColor(attendance.checkOutStatus) : '')}>
                                     {attendance.checkOutAt ? format(attendance.checkOutAt.toDate(), 'p, d MMM') : '-'}
                                 </p>
                             </div>

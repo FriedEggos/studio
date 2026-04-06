@@ -29,7 +29,7 @@ import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { getInitials, cn } from '@/lib/utils';
+import { getInitials, cn, getCheckoutStatusColor } from '@/lib/utils';
 
 
 // Schemas and Types
@@ -182,22 +182,6 @@ export default function ProfilePage() {
     doc.save(`JTMK_Participation_${userProfile.displayName.replace(' ', '_')}.pdf`);
   };
 
-    const getCheckoutTimeClass = (item: ParticipationHistoryItem) => {
-        if (!item.checkOutAt) {
-            return 'text-muted-foreground font-medium';
-        }
-        switch (item.checkOutStatus) {
-            case 'ok':
-            case 'admin_override':
-                return 'text-green-600 font-semibold';
-            case 'too_early':
-            case 'outside_window':
-            case 'too_short':
-            default:
-                return 'text-red-600 font-semibold';
-        }
-    };
-
   // Loading and Error States
   if (isUserLoading || isProfileLoading || isLoadingHistory || !user || !userProfile) {
     return (
@@ -288,7 +272,7 @@ export default function ProfilePage() {
                                 <TableCell>{index + 1}</TableCell>
                                 <TableCell className="font-medium">{item.programTitle}</TableCell>
                                 <TableCell>{item.createdAt ? format(item.createdAt.toDate(), 'Pp') : '-'}</TableCell>
-                                <TableCell className={cn(getCheckoutTimeClass(item))}>
+                                <TableCell className={cn(item.checkOutAt ? getCheckoutStatusColor(item.checkOutStatus) : 'text-muted-foreground font-medium')}>
                                     {item.checkOutAt ? format(item.checkOutAt.toDate(), 'Pp') : 'No Checkout'}
                                 </TableCell>
                             </TableRow>

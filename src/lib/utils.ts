@@ -29,3 +29,22 @@ export function isProfileComplete(userProfile?: { matricId?: string | null; phon
     const { matricId, phoneNumber, course } = userProfile;
     return !!(matricId && phoneNumber && course);
 }
+
+/**
+ * Returns a Tailwind CSS class string for coloring checkout times based on status.
+ * @param status The checkout status from Firestore.
+ * @returns A string of Tailwind classes.
+ */
+export function getCheckoutStatusColor(
+  status?: 'ok' | 'too_early' | 'outside_window' | 'too_short' | 'admin_override' | null
+): string {
+  switch (status) {
+    case 'ok':
+      return 'text-green-600 font-semibold';
+    case 'admin_override':
+      return 'text-orange-500 font-semibold';
+    default:
+      // This covers 'too_early', 'outside_window', 'too_short', and undefined status
+      return 'text-red-600 font-semibold';
+  }
+}
