@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -38,7 +37,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { QRImageCard } from "@/components/qr-image-card";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -84,6 +84,7 @@ export default function ProgramDetailsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [qrFormUrl, setQrFormUrl] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [selectedAttendanceIdForDelete, setSelectedAttendanceIdForDelete] = useState<string | null>(null);
   const [isCheckoutAlertOpen, setIsCheckoutAlertOpen] = useState(false);
@@ -104,6 +105,14 @@ export default function ProgramDetailsPage() {
   
   const { data: attendances, isLoading: isLoadingAttendances } = useCollection<Attendance>(attendanceQuery);
 
+  const filteredAttendances = useMemo(() => {
+    if (!attendances) return [];
+    if (!searchQuery) return attendances;
+    return attendances.filter(att => 
+      att.studentId?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [attendances, searchQuery]);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
         if(program?.qrSlug) {
@@ -113,7 +122,7 @@ export default function ProgramDetailsPage() {
   }, [program]);
 
    const handleExport = () => {
-    if (!attendances || attendances.length === 0) {
+    if (!filteredAttendances || filteredAttendances.length === 0) {
       toast({
         variant: "destructive",
         title: "No Data",
@@ -121,7 +130,7 @@ export default function ProgramDetailsPage() {
       });
       return;
     }
-    const dataToExport = attendances.map(att => ({
+    const dataToExport = filteredAttendances.map(att => ({
       'Student Name': att.studentName,
       'Student ID': att.studentId,
       'Class': att.classGroup,
@@ -133,7 +142,7 @@ export default function ProgramDetailsPage() {
   };
   
   const handleExportPdf = () => {
-    if (!attendances || attendances.length === 0) {
+    if (!filteredAttendances || filteredAttendances.length === 0) {
       toast({
         variant: "destructive",
         title: "No Data",
@@ -145,7 +154,7 @@ export default function ProgramDetailsPage() {
     const doc = new jsPDF();
     
     const tableColumns = ["Student Name", "Student ID", "Class", "Check-in Time", "Check-out Time"];
-    const tableRows = attendances.map(att => ([
+    const tableRows = filteredAttendances.map(att => ([
       att.studentName || '',
       att.studentId || '-',
       att.classGroup || '-',
@@ -353,35 +362,45 @@ export default function ProgramDetailsPage() {
         </div>
 
         <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                <CardTitle className="font-headline flex items-center gap-2"><Users className="h-5 w-5" /> Attendances</CardTitle>
-                <CardDescription>Total attendees: {isLoadingAttendances ? '...' : attendances?.length ?? 0}</CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" onClick={() => setIsAddModalOpen(true)}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Manual Attendance
-                    </Button>
-                    <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" disabled={isLoadingAttendances || !attendances || attendances.length === 0}>
-                        <Download className="mr-2 h-4 w-4" />
-                        Export Data
-                        <ChevronDown className="ml-2 h-4 w-4" />
+            <CardHeader>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <CardTitle className="font-headline flex items-center gap-2"><Users className="h-5 w-5" /> Attendances</CardTitle>
+                        <CardDescription>
+                          {`Showing ${filteredAttendances.length} of ${attendances?.length ?? 0} records`}
+                        </CardDescription>
+                    </div>
+                    <div className="flex flex-col sm:flex-row items-center gap-2">
+                         <Input
+                            placeholder="Search by Student ID..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full sm:w-auto"
+                        />
+                        <Button variant="outline" onClick={() => setIsAddModalOpen(true)} className="w-full sm:w-auto">
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add Manual
                         </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={handleExport}>
-                        <FileSpreadsheet className="mr-2 h-4 w-4" />
-                        Export as CSV
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleExportPdf}>
-                        <FileText className="mr-2 h-4 w-4" />
-                        Export as PDF
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                    </DropdownMenu>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" disabled={isLoadingAttendances || !filteredAttendances || filteredAttendances.length === 0} className="w-full sm:w-auto">
+                                <Download className="mr-2 h-4 w-4" />
+                                Export
+                                <ChevronDown className="ml-2 h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={handleExport}>
+                                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                                Export as CSV
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleExportPdf}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                Export as PDF
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                 </div>
             </CardHeader>
             <CardContent>
@@ -408,8 +427,8 @@ export default function ProgramDetailsPage() {
                             <TableCell><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                         </TableRow>
                         ))
-                    ) : attendances && attendances.length > 0 ? (
-                        attendances.map((att) => (
+                    ) : filteredAttendances && filteredAttendances.length > 0 ? (
+                        filteredAttendances.map((att) => (
                         <TableRow key={att.id}>
                             <TableCell className="font-medium">{att.studentName}</TableCell>
                             <TableCell>{att.studentId || '-'}</TableCell>
@@ -455,7 +474,7 @@ export default function ProgramDetailsPage() {
                     ) : (
                         <TableRow>
                         <TableCell colSpan={6} className="h-24 text-center">
-                            No attendances recorded yet.
+                            {searchQuery ? "No records found for your search." : "No attendances recorded yet."}
                         </TableCell>
                         </TableRow>
                     )}
