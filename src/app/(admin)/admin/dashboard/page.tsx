@@ -159,8 +159,8 @@ export default function AdminDashboard() {
             // Fetch data in parallel
             const [programsSnapshot, activeStudentsSnapshot, newStudentsSnapshot] = await Promise.all([
                 getDocs(programsQuery),
-                getDocs(activeStudentsQuery),
-                getDocs(newStudentsQuery)
+                getDocs(activeStudentsSnapshot),
+                getDocs(newStudentsSnapshot)
             ]);
             
             // Calculate Total Programs
@@ -351,7 +351,7 @@ export default function AdminDashboard() {
     let finalY = (doc as any).lastAutoTable.finalY || pageHeight - 60;
     let signatureY = finalY + 25;
 
-    if (signatureY > pageHeight - 40) {
+    if (signatureY > pageHeight - 50) {
         doc.addPage();
         signatureY = 40; // Start at top of new page
     }
@@ -359,8 +359,9 @@ export default function AdminDashboard() {
     doc.setFontSize(10);
     doc.text('_______________________________', signatureX, signatureY);
     doc.text('(PENYELARAS KELAB ICT JTMK)', signatureX, signatureY + 6);
-    doc.text('Nama:', signatureX, signatureY + 16);
-    doc.text('Tarikh:', signatureX, signatureY + 22);
+    doc.text('POLITEKNIK KUCHING SARAWAK', signatureX, signatureY + 12);
+    doc.text('Nama:', signatureX, signatureY + 22);
+    doc.text('Tarikh:', signatureX, signatureY + 28);
 
     doc.save(`JTMK_Sumbangan_Pelajar_${new Date().toISOString().split('T')[0]}.pdf`);
   };
