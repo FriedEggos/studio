@@ -24,7 +24,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Eye, Loader2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 import { getInitials } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 
 interface User {
   id: string;
@@ -55,6 +56,7 @@ export default function UsersPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const usersQuery = useMemoFirebase(() => {
     if (!firestore || !currentUser) return null;
@@ -62,6 +64,14 @@ export default function UsersPage() {
   }, [firestore, currentUser]);
 
   const { data: users, isLoading } = useCollection<User>(usersQuery);
+
+  const filteredUsers = useMemo(() => {
+    if (!users) return [];
+    if (!searchQuery) return users;
+    return users.filter(user =>
+      user.displayName?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [users, searchQuery]);
 
   const handleDeleteUser = async () => {
     if (!firestore || !userToDelete) return;
@@ -115,10 +125,20 @@ export default function UsersPage() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>All Users</CardTitle>
-            <CardDescription>
-              Browse and manage all registered users in the system.
-            </CardDescription>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle>All Users</CardTitle>
+                <CardDescription>
+                  Browse and manage all registered users in the system.
+                </CardDescription>
+              </div>
+              <Input
+                placeholder="Search by name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full sm:w-64"
+              />
+            </div>
           </CardHeader>
           <CardContent>
             <Table>
@@ -148,8 +168,8 @@ export default function UsersPage() {
                       <TableCell className="text-right space-x-2"><Skeleton className="h-8 w-20" /><Skeleton className="h-8 w-20" /></TableCell>
                     </TableRow>
                   ))
-                ) : users && users.length > 0 ? (
-                  users.map((user) => (
+                ) : filteredUsers && filteredUsers.length > 0 ? (
+                  filteredUsers.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell>
                         <div className="flex items-center gap-4">
