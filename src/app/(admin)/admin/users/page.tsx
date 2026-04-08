@@ -1,14 +1,14 @@
-
 'use client';
 
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, doc, deleteDoc } from 'firebase/firestore';
+import { useFirestore, useUser } from '@/firebase';
+import { collection, query, doc, deleteDoc, getDocs, limit, orderBy, startAfter, QueryDocumentSnapshot, endBefore } from 'firebase/firestore';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import {
   Table,
@@ -21,10 +21,10 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Eye, Loader2, Trash2 } from 'lucide-react';
+import { Eye, Loader2, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,22 +48,94 @@ interface User {
   photoURL?: string;
 }
 
+const USERS_PER_PAGE = 20;
+
 export default function UsersPage() {
   const firestore = useFirestore();
   const { user: currentUser } = useUser();
   const { toast } = useToast();
 
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const usersQuery = useMemoFirebase(() => {
-    if (!firestore || !currentUser) return null;
-    return query(collection(firestore, 'users'));
-  }, [firestore, currentUser]);
+  // Pagination state
+  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot | null>(null);
+  const [pageHistory, setPageHistory] = useState<(QueryDocumentSnapshot | null)[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(true);
 
-  const { data: users, isLoading } = useCollection<User>(usersQuery);
+  const fetchUsers = useCallback(async (direction: 'next' | 'prev' | 'initial' = 'initial') => {
+    if (!firestore) return;
+    setIsLoading(true);
+
+    const baseQuery = query(collection(firestore, 'users'), orderBy('displayName'), limit(USERS_PER_PAGE));
+    let usersQuery;
+
+    try {
+        if (direction === 'next' && lastVisible) {
+            usersQuery = query(collection(firestore, 'users'), orderBy('displayName'), startAfter(lastVisible), limit(USERS_PER_PAGE));
+        } else if (direction === 'prev' && page > 1) {
+            const prevPageLastVisible = pageHistory[page - 2] || null;
+            if(prevPageLastVisible) {
+                usersQuery = query(collection(firestore, 'users'), orderBy('displayName'), startAfter(prevPageLastVisible), limit(USERS_PER_PAGE));
+            } else {
+                 usersQuery = baseQuery; // First page
+            }
+        } else {
+            usersQuery = baseQuery;
+        }
+
+        const documentSnapshots = await getDocs(usersQuery);
+        const fetchedUsers = documentSnapshots.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+
+        if (!documentSnapshots.empty) {
+            setUsers(fetchedUsers);
+            const newLastVisible = documentSnapshots.docs[documentSnapshots.docs.length - 1];
+            setLastVisible(newLastVisible);
+
+            if (direction === 'next') {
+              setPageHistory(prev => [...prev, newLastVisible]);
+            }
+            if (direction === 'prev') {
+              setPageHistory(prev => prev.slice(0, -1));
+            }
+        }
+        
+        setHasNextPage(fetchedUsers.length === USERS_PER_PAGE);
+
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      toast({ variant: "destructive", title: "Failed to load users" });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [firestore, toast, lastVisible, page, pageHistory]);
+
+  useEffect(() => {
+    if (!searchQuery) {
+        setPage(1);
+        setPageHistory([]);
+        setLastVisible(null);
+        fetchUsers('initial');
+    }
+  }, [searchQuery, fetchUsers]);
+
+  const handleNextPage = () => {
+      setPage(p => p + 1);
+      fetchUsers('next');
+  };
+
+  const handlePrevPage = () => {
+      if (page > 1) {
+          setPage(p => p - 1);
+          fetchUsers('prev');
+      }
+  };
 
   const filteredUsers = useMemo(() => {
     if (!users) return [];
@@ -78,27 +150,23 @@ export default function UsersPage() {
     setIsDeleting(true);
 
     try {
-      // Admins cannot delete themselves
       if (currentUser?.uid === userToDelete.id) {
           toast({
               variant: "destructive",
               title: "Action Not Allowed",
               description: "You cannot delete your own account.",
           });
-          setIsDeleting(false);
-          setIsDeleteDialogOpen(false);
-          setUserToDelete(null);
           return;
       }
       
       const userDocRef = doc(firestore, 'users', userToDelete.id);
       await deleteDoc(userDocRef);
-      // The onUserDeleted Cloud Function will trigger to clean up attendance records.
       
       toast({
         title: "User Deleted",
         description: `User "${userToDelete.displayName}" has been removed.`,
       });
+      fetchUsers('initial'); // Refresh data
 
     } catch (error) {
       console.error("Error deleting user:", error);
@@ -165,7 +233,7 @@ export default function UsersPage() {
                       </TableCell>
                       <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-48" /></TableCell>
-                      <TableCell className="text-right space-x-2"><Skeleton className="h-8 w-20" /><Skeleton className="h-8 w-20" /></TableCell>
+                      <TableCell className="text-right space-x-2"><Skeleton className="h-8 w-20 inline-block" /><Skeleton className="h-8 w-20 inline-block" /></TableCell>
                     </TableRow>
                   ))
                 ) : filteredUsers && filteredUsers.length > 0 ? (
@@ -217,6 +285,21 @@ export default function UsersPage() {
               </TableBody>
             </Table>
           </CardContent>
+          <CardFooter className="flex items-center justify-between border-t pt-6">
+            <span className="text-sm text-muted-foreground">
+              Page {page}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button onClick={handlePrevPage} disabled={page <= 1} variant="outline" size="sm">
+                <ChevronLeft className="mr-1 h-4 w-4" />
+                Previous
+              </Button>
+              <Button onClick={handleNextPage} disabled={!hasNextPage} variant="outline" size="sm">
+                Next
+                <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            </div>
+          </CardFooter>
         </Card>
       </div>
 
