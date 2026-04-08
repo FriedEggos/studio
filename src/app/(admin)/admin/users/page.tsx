@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useFirestore, useUser } from '@/firebase';
@@ -64,9 +65,9 @@ export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
   // Pagination state
+  const [page, setPage] = useState(1);
   const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot | null>(null);
   const [pageHistory, setPageHistory] = useState<(QueryDocumentSnapshot | null)[]>([]);
-  const [page, setPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(true);
 
   const fetchUsers = useCallback(async (direction: 'next' | 'prev' | 'initial' = 'initial') => {
@@ -104,6 +105,8 @@ export default function UsersPage() {
             if (direction === 'prev') {
               setPageHistory(prev => prev.slice(0, -1));
             }
+        } else {
+            setUsers([]);
         }
         
         setHasNextPage(fetchedUsers.length === USERS_PER_PAGE);
@@ -116,24 +119,35 @@ export default function UsersPage() {
     }
   }, [firestore, toast, lastVisible, page, pageHistory]);
 
+  // Effect to reset pagination and trigger fetch when search is cleared
   useEffect(() => {
     if (!searchQuery) {
         setPage(1);
         setPageHistory([]);
         setLastVisible(null);
-        fetchUsers('initial');
     }
-  }, [searchQuery, fetchUsers]);
+  }, [searchQuery]);
+
+  // Effect to fetch users when page state changes
+  useEffect(() => {
+      if(page === 1 && pageHistory.length === 0){
+        fetchUsers('initial');
+      } else if (page > pageHistory.length) {
+        fetchUsers('next');
+      } else {
+        fetchUsers('prev');
+      }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
+
 
   const handleNextPage = () => {
       setPage(p => p + 1);
-      fetchUsers('next');
   };
 
   const handlePrevPage = () => {
       if (page > 1) {
           setPage(p => p - 1);
-          fetchUsers('prev');
       }
   };
 
@@ -166,7 +180,12 @@ export default function UsersPage() {
         title: "User Deleted",
         description: `User "${userToDelete.displayName}" has been removed.`,
       });
-      fetchUsers('initial'); // Refresh data
+      
+      // Reset to first page after deletion
+      setPage(1);
+      setPageHistory([]);
+      setLastVisible(null);
+      if(page === 1) fetchUsers('initial'); // Manually trigger if already on page 1
 
     } catch (error) {
       console.error("Error deleting user:", error);
