@@ -2,7 +2,7 @@
 'use client';
 
 import { useFirestore, useUser } from '@/firebase';
-import { collection, query, doc, deleteDoc, getDocs, limit, orderBy, startAfter, QueryDocumentSnapshot, endBefore } from 'firebase/firestore';
+import { collection, query, doc, deleteDoc, getDocs, limit, orderBy, startAfter, where, QueryDocumentSnapshot, Query, DocumentData } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -62,87 +62,83 @@ export default function UsersPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 
   // Pagination state
   const [page, setPage] = useState(1);
-  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot | null>(null);
-  const [pageHistory, setPageHistory] = useState<(QueryDocumentSnapshot | null)[]>([]);
-  const [hasNextPage, setHasNextPage] = useState(true);
+  const [pageCursors, setPageCursors] = useState<(QueryDocumentSnapshot | null)[]>([null]);
+  const [hasNextPage, setHasNextPage] = useState(false);
 
-  const fetchUsers = useCallback(async (direction: 'next' | 'prev' | 'initial' = 'initial') => {
+  // Debounce search input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setPage(1);
+      setPageCursors([null]);
+    }, 500);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchQuery]);
+
+
+  const fetchUsers = useCallback(async () => {
     if (!firestore) return;
     setIsLoading(true);
-
-    const baseQuery = query(collection(firestore, 'users'), orderBy('displayName'), limit(USERS_PER_PAGE));
-    let usersQuery;
-
+    
     try {
-        if (direction === 'next' && lastVisible) {
-            usersQuery = query(collection(firestore, 'users'), orderBy('displayName'), startAfter(lastVisible), limit(USERS_PER_PAGE));
-        } else if (direction === 'prev' && page > 1) {
-            const prevPageLastVisible = pageHistory[page - 2] || null;
-            if(prevPageLastVisible) {
-                usersQuery = query(collection(firestore, 'users'), orderBy('displayName'), startAfter(prevPageLastVisible), limit(USERS_PER_PAGE));
-            } else {
-                 usersQuery = baseQuery; // First page
-            }
-        } else {
-            usersQuery = baseQuery;
-        }
-
-        const documentSnapshots = await getDocs(usersQuery);
-        const fetchedUsers = documentSnapshots.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-
-        if (!documentSnapshots.empty) {
-            setUsers(fetchedUsers);
-            const newLastVisible = documentSnapshots.docs[documentSnapshots.docs.length - 1];
-            setLastVisible(newLastVisible);
-
-            if (direction === 'next') {
-              setPageHistory(prev => [...prev, newLastVisible]);
-            }
-            if (direction === 'prev') {
-              setPageHistory(prev => prev.slice(0, -1));
-            }
-        } else {
-            setUsers([]);
-        }
+        let q: Query<DocumentData> = query(collection(firestore, 'users'), orderBy('displayName'));
         
-        setHasNextPage(fetchedUsers.length === USERS_PER_PAGE);
+        if (debouncedSearchQuery) {
+            const queryUpper = debouncedSearchQuery.toUpperCase();
+            q = query(q, 
+                where('displayName', '>=', queryUpper),
+                where('displayName', '<=', queryUpper + '\uf8ff')
+            );
+        }
 
+        const cursor = pageCursors[page - 1];
+        if (cursor) {
+            q = query(q, startAfter(cursor));
+        }
+
+        q = query(q, limit(USERS_PER_PAGE + 1)); // Fetch one extra to check for next page
+
+        const documentSnapshots = await getDocs(q);
+        const fetchedUsers = documentSnapshots.docs.slice(0, USERS_PER_PAGE).map(doc => ({ id: doc.id, ...doc.data() } as User));
+
+        setUsers(fetchedUsers);
+        
+        const hasMore = documentSnapshots.docs.length > USERS_PER_PAGE;
+        setHasNextPage(hasMore);
+
+        if (hasMore) {
+            const lastVisibleDoc = documentSnapshots.docs[USERS_PER_PAGE - 1];
+            // Update cursor for the current page if it doesn't exist
+            if (page > pageCursors.length - 1) {
+                setPageCursors(prev => [...prev, lastVisibleDoc]);
+            }
+        }
     } catch (error) {
       console.error("Error fetching users:", error);
       toast({ variant: "destructive", title: "Failed to load users" });
     } finally {
       setIsLoading(false);
     }
-  }, [firestore, toast, lastVisible, page, pageHistory]);
+  }, [firestore, toast, page, debouncedSearchQuery, pageCursors]);
 
-  // Effect to reset pagination and trigger fetch when search is cleared
   useEffect(() => {
-    if (!searchQuery) {
-        setPage(1);
-        setPageHistory([]);
-        setLastVisible(null);
-    }
-  }, [searchQuery]);
-
-  // Effect to fetch users when page state changes
-  useEffect(() => {
-      if(page === 1 && pageHistory.length === 0){
-        fetchUsers('initial');
-      } else if (page > pageHistory.length) {
-        fetchUsers('next');
-      } else {
-        fetchUsers('prev');
-      }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+    fetchUsers();
+  }, [fetchUsers]);
 
 
   const handleNextPage = () => {
-      setPage(p => p + 1);
+      if (hasNextPage) {
+          setPage(p => p + 1);
+      }
   };
 
   const handlePrevPage = () => {
@@ -150,14 +146,6 @@ export default function UsersPage() {
           setPage(p => p - 1);
       }
   };
-
-  const filteredUsers = useMemo(() => {
-    if (!users) return [];
-    if (!searchQuery) return users;
-    return users.filter(user =>
-      user.displayName?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [users, searchQuery]);
 
   const handleDeleteUser = async () => {
     if (!firestore || !userToDelete) return;
@@ -181,11 +169,9 @@ export default function UsersPage() {
         description: `User "${userToDelete.displayName}" has been removed.`,
       });
       
-      // Reset to first page after deletion
+      // Reset to first page after deletion to ensure data consistency
       setPage(1);
-      setPageHistory([]);
-      setLastVisible(null);
-      if(page === 1) fetchUsers('initial'); // Manually trigger if already on page 1
+      setPageCursors([null]);
 
     } catch (error) {
       console.error("Error deleting user:", error);
@@ -255,8 +241,8 @@ export default function UsersPage() {
                       <TableCell className="text-right space-x-2"><Skeleton className="h-8 w-20 inline-block" /><Skeleton className="h-8 w-20 inline-block" /></TableCell>
                     </TableRow>
                   ))
-                ) : filteredUsers && filteredUsers.length > 0 ? (
-                  filteredUsers.map((user) => (
+                ) : users && users.length > 0 ? (
+                  users.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell>
                         <div className="flex items-center gap-4">
@@ -306,14 +292,14 @@ export default function UsersPage() {
           </CardContent>
           <CardFooter className="flex items-center justify-between border-t pt-6">
             <span className="text-sm text-muted-foreground">
-              Page {page}
+              {`Showing ${users.length} users on page ${page}`}
             </span>
             <div className="flex items-center gap-2">
-              <Button onClick={handlePrevPage} disabled={page <= 1} variant="outline" size="sm">
+              <Button onClick={handlePrevPage} disabled={page <= 1 || isLoading} variant="outline" size="sm">
                 <ChevronLeft className="mr-1 h-4 w-4" />
                 Previous
               </Button>
-              <Button onClick={handleNextPage} disabled={!hasNextPage} variant="outline" size="sm">
+              <Button onClick={handleNextPage} disabled={!hasNextPage || isLoading} variant="outline" size="sm">
                 Next
                 <ChevronRight className="ml-1 h-4 w-4" />
               </Button>
@@ -350,3 +336,5 @@ export default function UsersPage() {
     </>
   );
 }
+
+    
