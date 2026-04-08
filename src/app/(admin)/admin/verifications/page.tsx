@@ -72,6 +72,17 @@ export default function VerificationsPage() {
 
   const handleVerification = async (position: Position, newStatus: 'approved' | 'rejected', remark?: string) => {
     if (!firestore) return;
+    
+    if (!position.userId || !position.id) {
+        console.error("Invalid position data received:", position);
+        toast({
+            variant: "destructive",
+            title: "Invalid Data",
+            description: "Cannot process verification due to missing user or position ID.",
+        });
+        return;
+    }
+
     setIsSubmitting(true);
     const positionDocRef = doc(firestore, `users/${position.userId}/positions`, position.id);
     
@@ -88,12 +99,16 @@ export default function VerificationsPage() {
         title: `Position ${newStatus === 'approved' ? 'Approved' : 'Rejected'}`,
         description: `The position for ${position.userName} has been updated.`,
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Verification update failed:', err);
+      let description = 'Could not update the position status.';
+      if (err.code === 'not-found') {
+        description = 'The position may have been deleted or modified. The list will refresh.';
+      }
       toast({
         variant: 'destructive',
         title: 'Update Failed',
-        description: 'Could not update the position status.',
+        description: description,
       });
     } finally {
       setIsSubmitting(false);
