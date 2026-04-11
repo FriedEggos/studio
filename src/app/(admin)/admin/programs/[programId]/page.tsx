@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { doc, collection, deleteDoc, Timestamp, query, orderBy, limit, startAfter, getDocs, where, QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
+import { doc, collection, deleteDoc, Timestamp, query, orderBy, limit, startAfter, getDocs, where, QueryDocumentSnapshot, DocumentData, Query } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Calendar, MapPin, Users, Download, Trash2, ChevronDown, FileSpreadsheet, FileText, MoreHorizontal, Clock, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
@@ -134,16 +134,20 @@ export default function ProgramDetailsPage() {
       setIsLoadingAttendances(true);
       
       try {
-          let q: Query<DocumentData> = query(
-              collection(firestore, 'programs', programId, 'attendances'), 
-              orderBy('createdAt', 'desc')
-          );
+          let q: Query<DocumentData>;
 
           if (debouncedSearchQuery) {
               const searchQueryUpper = debouncedSearchQuery.toUpperCase();
-              q = query(q, 
+              q = query(
+                  collection(firestore, 'programs', programId, 'attendances'),
+                  orderBy('studentId'),
                   where('studentId', '>=', searchQueryUpper),
                   where('studentId', '<=', searchQueryUpper + '\uf8ff')
+              );
+          } else {
+              q = query(
+                  collection(firestore, 'programs', programId, 'attendances'), 
+                  orderBy('createdAt', 'desc')
               );
           }
           
