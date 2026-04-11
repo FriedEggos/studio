@@ -2,7 +2,7 @@
 'use client';
 
 import { useFirestore, useUser } from '@/firebase';
-import { collection, query, doc, deleteDoc, getDocs, limit, orderBy, startAfter, where, QueryDocumentSnapshot, Query, DocumentData } from 'firebase/firestore';
+import { collection, query, doc, deleteDoc, getDocs, limit, orderBy, startAfter, where, QueryDocumentSnapshot, Query, DocumentData, onSnapshot } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -85,54 +85,49 @@ export default function UsersPage() {
   }, [searchQuery]);
 
 
-  const fetchUsers = useCallback(async () => {
+  useEffect(() => {
     if (!firestore) return;
     setIsLoading(true);
     
-    try {
-        let q: Query<DocumentData> = query(collection(firestore, 'users'), orderBy('displayName'));
-        
-        if (debouncedSearchQuery) {
-            const queryUpper = debouncedSearchQuery.toUpperCase();
-            q = query(q, 
-                where('displayName', '>=', queryUpper),
-                where('displayName', '<=', queryUpper + '\uf8ff')
-            );
-        }
+    let q: Query<DocumentData> = query(collection(firestore, 'users'), orderBy('displayName'));
+    
+    if (debouncedSearchQuery) {
+        const queryUpper = debouncedSearchQuery.toUpperCase();
+        q = query(q, 
+            where('displayName', '>=', queryUpper),
+            where('displayName', '<=', queryUpper + '\uf8ff')
+        );
+    }
 
-        const cursor = pageCursors[page - 1];
-        if (cursor) {
-            q = query(q, startAfter(cursor));
-        }
+    const cursor = pageCursors[page - 1];
+    if (cursor) {
+        q = query(q, startAfter(cursor));
+    }
 
-        q = query(q, limit(USERS_PER_PAGE + 1)); // Fetch one extra to check for next page
+    q = query(q, limit(USERS_PER_PAGE + 1));
 
-        const documentSnapshots = await getDocs(q);
-        const fetchedUsers = documentSnapshots.docs.slice(0, USERS_PER_PAGE).map(doc => ({ id: doc.id, ...doc.data() } as User));
-
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetchedUsers = snapshot.docs.slice(0, USERS_PER_PAGE).map(doc => ({ id: doc.id, ...doc.data() } as User));
         setUsers(fetchedUsers);
         
-        const hasMore = documentSnapshots.docs.length > USERS_PER_PAGE;
+        const hasMore = snapshot.docs.length > USERS_PER_PAGE;
         setHasNextPage(hasMore);
 
         if (hasMore) {
-            const lastVisibleDoc = documentSnapshots.docs[USERS_PER_PAGE - 1];
-            // Update cursor for the current page if it doesn't exist
-            if (page > pageCursors.length - 1) {
-                setPageCursors(prev => [...prev, lastVisibleDoc]);
+            const lastVisibleDoc = snapshot.docs[USERS_PER_PAGE - 1];
+            if (page >= pageCursors.length) {
+                 setPageCursors(prev => [...prev, lastVisibleDoc]);
             }
         }
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      toast({ variant: "destructive", title: "Failed to load users" });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [firestore, toast, page, debouncedSearchQuery, pageCursors]);
+        setIsLoading(false);
+    }, (error) => {
+        console.error("Error fetching users:", error);
+        toast({ variant: "destructive", title: "Failed to load users" });
+        setIsLoading(false);
+    });
 
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    return () => unsubscribe();
+  }, [firestore, toast, page, debouncedSearchQuery, pageCursors]);
 
 
   const handleNextPage = () => {
@@ -336,5 +331,3 @@ export default function UsersPage() {
     </>
   );
 }
-
-    

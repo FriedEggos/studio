@@ -44,12 +44,21 @@ interface UserProfile {
     photoURL?: string;
 }
 
-interface ParticipationHistoryItem {
+interface Program {
     id: string;
-    programTitle: string;
+    title: string;
+}
+
+interface AttendanceRecord {
+    id: string;
+    programId: string;
     createdAt: { toDate: () => Date };
     checkOutAt?: { toDate: () => Date };
     checkOutStatus?: 'ok' | 'too_early' | 'outside_window' | 'too_short' | 'admin_override';
+}
+
+interface ParticipationHistoryItem extends AttendanceRecord {
+    programTitle: string;
 }
 
 interface Position {
@@ -78,10 +87,20 @@ export default function ProfilePage() {
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userDocRef);
 
   const [history, setHistory] = useState<ParticipationHistoryItem[]>([]);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
-
+  
   const positionsQuery = useMemoFirebase(() => user ? collection(firestore, `users/${user.uid}/positions`) : null, [user, firestore]);
-  const { data: positions } = useCollection<Position>(positionsQuery);
+  const { data: positions, isLoading: isLoadingPositions } = useCollection<Position>(positionsQuery);
+
+  const allProgramsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'programs') : null, [firestore]);
+  const { data: allPrograms, isLoading: isLoadingPrograms } = useCollection<Program>(allProgramsQuery);
+
+  const userAttendancesQuery = useMemoFirebase(() => {
+    if (!user?.email || !firestore) return null;
+    return query(collectionGroup(firestore, 'attendances'), where('email', '==', user.email));
+  }, [user, firestore]);
+  const { data: userAttendances, isLoading: isLoadingAttendances } = useCollection<AttendanceRecord>(userAttendancesQuery);
+
+  const isLoading = isUserLoading || isProfileLoading || isLoadingPositions || isLoadingPrograms || isLoadingAttendances;
 
   const approvedPositions = useMemo(() => positions?.filter(p => p.verificationStatus === 'approved') || [], [positions]);
 
@@ -91,26 +110,23 @@ export default function ProfilePage() {
   }, [isUserLoading, user, router]);
 
   useEffect(() => {
-    if (!user?.email || !firestore) return;
-    const fetchHistory = async () => {
-        setIsLoadingHistory(true);
-        try {
-            const programsSnap = await getDocs(collection(firestore, 'programs'));
-            const programsMap = new Map(programsSnap.docs.map(d => [d.id, d.data().title]));
-            const attendancesSnap = await getDocs(query(collectionGroup(firestore, 'attendances'), where('email', '==', user.email)));
-            const participationHistory = attendancesSnap.docs
-                .map(d => ({ id: `${d.ref.parent.parent?.id}_${d.id}`, programTitle: programsMap.get(d.ref.parent.parent?.id) || 'Unknown Program', ...d.data() }))
-                .sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
-            setHistory(participationHistory as ParticipationHistoryItem[]);
-        } catch (error) {
-            console.error("Error fetching participation history:", error);
-            toast({ variant: "destructive", title: "Could not load history" });
-        } finally {
-            setIsLoadingHistory(false);
-        }
+    if (!allPrograms || !userAttendances) {
+        setHistory([]);
+        return;
     };
-    fetchHistory();
-  }, [user, firestore, toast]);
+
+    const programsMap = new Map(allPrograms.map(p => [p.id, p.title]));
+    
+    const participationHistory = userAttendances
+        .map(att => ({
+            ...att,
+            programTitle: programsMap.get(att.programId) || 'Unknown Program',
+        }))
+        .sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
+    
+    setHistory(participationHistory);
+
+  }, [allPrograms, userAttendances]);
 
   const handleDownloadParticipationPdf = () => {
     if (!history || history.length === 0) {
@@ -183,7 +199,7 @@ export default function ProfilePage() {
   };
 
   // Loading and Error States
-  if (isUserLoading || isProfileLoading || isLoadingHistory || !user || !userProfile) {
+  if (isLoading || !user || !userProfile) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">My Profile</h1>
@@ -266,7 +282,7 @@ export default function ProfilePage() {
                 <Table>
                     <TableHeader><TableRow><TableHead>#</TableHead><TableHead>Program Name</TableHead><TableHead>Date Joined</TableHead><TableHead>Check-out Time</TableHead></TableRow></TableHeader>
                     <TableBody>
-                        {isLoadingHistory ? ([...Array(3)].map((_, i) => <TableRow key={i}><TableCell colSpan={4}><Skeleton className="h-5 w-full" /></TableCell></TableRow>))
+                        {isLoading ? ([...Array(3)].map((_, i) => <TableRow key={i}><TableCell colSpan={4}><Skeleton className="h-5 w-full" /></TableCell></TableRow>))
                         : history.length > 0 ? (history.map((item, index) => (
                             <TableRow key={item.id}>
                                 <TableCell>{index + 1}</TableCell>
@@ -286,5 +302,3 @@ export default function ProfilePage() {
     </>
   );
 }
-
-    

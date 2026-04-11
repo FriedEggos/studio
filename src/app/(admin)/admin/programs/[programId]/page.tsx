@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { doc, collection, deleteDoc, Timestamp, query, orderBy, limit, startAfter, getDocs, where, QueryDocumentSnapshot, DocumentData, Query } from "firebase/firestore";
+import { doc, collection, deleteDoc, Timestamp, query, orderBy, limit, startAfter, getDocs, where, QueryDocumentSnapshot, DocumentData, Query, onSnapshot } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Calendar, MapPin, Users, Download, Trash2, ChevronDown, FileSpreadsheet, FileText, MoreHorizontal, Clock, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
@@ -136,39 +136,38 @@ export default function ProgramDetailsPage() {
     };
   }, [searchQuery]);
 
-  const fetchAttendances = useCallback(async () => {
+  useEffect(() => {
       if (!firestore || !programId) return;
+
       setIsLoadingAttendances(true);
       
-      try {
-          let q: Query<DocumentData>;
-          const baseCollectionRef = collection(firestore, 'programs', programId, 'attendances');
+      let q: Query<DocumentData>;
+      const baseCollectionRef = collection(firestore, 'programs', programId, 'attendances');
 
-          if (debouncedSearchQuery) {
-              const searchQueryUpper = debouncedSearchQuery.toUpperCase();
-              q = query(
-                  baseCollectionRef,
-                  orderBy('studentId'),
-                  where('studentId', '>=', searchQueryUpper),
-                  where('studentId', '<=', searchQueryUpper + '\uf8ff')
-              );
-          } else {
-              q = query(
-                  baseCollectionRef, 
-                  orderBy('createdAt', 'desc')
-              );
-          }
-          
-          const cursor = pageCursors[page - 1];
-          if (cursor) {
-              q = query(q, startAfter(cursor));
-          }
+      if (debouncedSearchQuery) {
+          const searchQueryUpper = debouncedSearchQuery.toUpperCase();
+          q = query(
+              baseCollectionRef,
+              orderBy('studentId'), // Order by the field we are filtering on
+              where('studentId', '>=', searchQueryUpper),
+              where('studentId', '<=', searchQueryUpper + '\uf8ff')
+          );
+      } else {
+          q = query(
+              baseCollectionRef, 
+              orderBy('createdAt', 'desc')
+          );
+      }
+      
+      const cursor = pageCursors[page - 1];
+      if (cursor) {
+          q = query(q, startAfter(cursor));
+      }
 
-          q = query(q, limit(ATTENDANCES_PER_PAGE + 1));
-
-          const snapshot = await getDocs(q);
+      q = query(q, limit(ATTENDANCES_PER_PAGE + 1));
+      
+      const unsubscribe = onSnapshot(q, (snapshot) => {
           const fetchedAttendances = snapshot.docs.slice(0, ATTENDANCES_PER_PAGE).map(doc => ({ id: doc.id, ...doc.data() } as Attendance));
-          
           setAttendances(fetchedAttendances);
 
           const hasMore = snapshot.docs.length > ATTENDANCES_PER_PAGE;
@@ -180,29 +179,34 @@ export default function ProgramDetailsPage() {
                   setPageCursors(prev => [...prev, lastVisible]);
               }
           }
-          
-          if(page === 1 && !debouncedSearchQuery) {
-              const totalSnapshot = await getDocs(collection(firestore, 'programs', programId, 'attendances'));
-              setTotalRecords(totalSnapshot.size);
-          } else if (debouncedSearchQuery) {
-              setTotalRecords(fetchedAttendances.length + (hasMore ? 1 : 0));
+          setIsLoadingAttendances(false);
+
+          // Update total records count only on first load or on new search
+          if (page === 1) {
+              if (!debouncedSearchQuery) {
+                  getDocs(collection(firestore, 'programs', programId, 'attendances')).then(totalSnapshot => {
+                      setTotalRecords(totalSnapshot.size);
+                  });
+              } else {
+                  // For search, we can estimate or perform a count query if needed,
+                  // but for simplicity, we'll show the current page's count.
+                   setTotalRecords(fetchedAttendances.length);
+              }
           }
 
-      } catch (error: any) {
+      }, (error) => {
           console.error("Error fetching attendances:", error);
           let errorMessage = "Failed to load attendances.";
-          if (error.code === 'failed-precondition') {
+          if ((error as any).code === 'failed-precondition') {
             errorMessage = "A database index is required for this query. Please check your Firestore indexes.";
           }
           toast({ variant: "destructive", title: "Error", description: errorMessage });
-      } finally {
           setIsLoadingAttendances(false);
-      }
-  }, [firestore, programId, page, debouncedSearchQuery, pageCursors, toast]);
+      });
+      
+      return () => unsubscribe(); // Cleanup listener on component unmount or when dependencies change
 
-  useEffect(() => {
-      fetchAttendances();
-  }, [fetchAttendances]);
+  }, [firestore, programId, page, debouncedSearchQuery, pageCursors, toast]);
 
 
   useEffect(() => {
@@ -313,7 +317,7 @@ export default function ProgramDetailsPage() {
             title: 'Attendance Deleted',
             description: 'The attendance record has been successfully removed.',
         });
-        fetchAttendances(); // Re-fetch data after deletion
+        // UI will update automatically via onSnapshot
     } catch (error) {
         console.error("Error deleting attendance: ", error);
         toast({
@@ -336,7 +340,7 @@ export default function ProgramDetailsPage() {
         title: 'Success!',
         description: result.message,
       });
-       fetchAttendances(); // Re-fetch to show update
+       // UI will update automatically via onSnapshot
     } else {
       toast({
         variant: 'destructive',
@@ -463,7 +467,7 @@ export default function ProgramDetailsPage() {
                     <div>
                         <CardTitle className="font-headline flex items-center gap-2"><Users className="h-5 w-5" /> Attendances</CardTitle>
                         <CardDescription>
-                          {searchQuery ? `Found ${attendances.length} matching records` : `Showing ${attendances.length} of ${totalRecords} records`}
+                          {debouncedSearchQuery ? `Found ${attendances.length} matching records` : `Showing ${attendances.length} of ${totalRecords} records`}
                         </CardDescription>
                     </div>
                     <div className="flex flex-col sm:flex-row items-center gap-2">
@@ -638,7 +642,7 @@ export default function ProgramDetailsPage() {
             programId={programId}
             isOpen={isAddModalOpen}
             onOpenChange={setIsAddModalOpen}
-            onRecordAdded={fetchAttendances}
+            onRecordAdded={() => { /* Re-fetch is now handled by onSnapshot */ }}
         />
     </>
   );

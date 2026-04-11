@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useUser, useFirestore } from "@/firebase";
+import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { getDocs, collection, doc, getDoc, Timestamp, updateDoc, query, orderBy, collectionGroup, where } from "firebase/firestore";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { format } from "date-fns";
@@ -111,7 +111,6 @@ export default function StudentDashboard() {
     const { toast } = useToast();
 
     const [programs, setPrograms] = useState<CombinedProgram[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
     const [isCheckingOut, setIsCheckingOut] = useState<string | null>(null);
     const [now, setNow] = useState(new Date());
 
@@ -131,45 +130,38 @@ export default function StudentDashboard() {
       return () => clearInterval(timer);
     }, []);
 
-    const fetchProgramsAndAttendance = useCallback(async () => {
-        if (!user || !firestore || !user.email) {
-            setIsLoading(false);
-            return;
-        }
-        setIsLoading(true);
+    const programsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'programs'), orderBy('createdAt', 'desc'));
+    }, [firestore]);
+    const { data: allPrograms, isLoading: isLoadingPrograms } = useCollection<Program>(programsQuery);
 
-        try {
-            const programsQuery = query(collection(firestore, 'programs'), orderBy('createdAt', 'desc'));
-            const attendancesQuery = query(collectionGroup(firestore, 'attendances'), where('email', '==', user.email));
-            
-            const [programsSnap, attendancesSnap] = await Promise.all([
-                getDocs(programsQuery),
-                getDocs(attendancesQuery)
-            ]);
+    const attendancesQuery = useMemoFirebase(() => {
+        if (!user?.email || !firestore) return null;
+        return query(collectionGroup(firestore, 'attendances'), where('email', '==', user.email));
+    }, [user, firestore]);
+    const { data: userAttendances, isLoading: isLoadingAttendances } = useCollection<Attendance>(attendancesQuery);
+    
+    const isLoading = isLoadingPrograms || isLoadingAttendances || isUserLoading || isProfileLoading;
 
-            const allPrograms = programsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Program));
-            
-            const userAttendances = new Map<string, Attendance>();
-            attendancesSnap.forEach(doc => {
-                const att = doc.data();
-                if (att.programId) {
-                    userAttendances.set(att.programId, { id: doc.id, ...att } as Attendance);
-                }
-            });
+    useEffect(() => {
+        if (!allPrograms || !userAttendances) return;
 
-            const combinedPrograms = allPrograms.map(prog => ({
-                ...prog,
-                attendance: userAttendances.get(prog.id),
-            }));
+        const attendancesMap = new Map<string, Attendance>();
+        userAttendances.forEach(att => {
+            if (att.programId) {
+                attendancesMap.set(att.programId, att);
+            }
+        });
 
-            setPrograms(combinedPrograms);
-        } catch (error) {
-            console.error("Error fetching programs and attendance:", error);
-            toast({ variant: "destructive", title: "Error", description: "Could not load program data." });
-        } finally {
-            setIsLoading(false);
-        }
-    }, [user, firestore, toast]);
+        const combinedPrograms = allPrograms.map(prog => ({
+            ...prog,
+            attendance: attendancesMap.get(prog.id),
+        }));
+
+        setPrograms(combinedPrograms);
+
+    }, [allPrograms, userAttendances]);
 
     const fetchUserProfile = useCallback(async () => {
         if (!user || !firestore) {
@@ -191,10 +183,9 @@ export default function StudentDashboard() {
 
     useEffect(() => {
         if (user && !isUserLoading) {
-            fetchProgramsAndAttendance();
             fetchUserProfile();
         }
-    }, [user, isUserLoading, fetchProgramsAndAttendance, fetchUserProfile]);
+    }, [user, isUserLoading, fetchUserProfile]);
 
     const handleCheckout = async (programId: string) => {
         if (!firestore || !user || !user.email) return;
@@ -247,7 +238,7 @@ export default function StudentDashboard() {
             if (checkOutStatus === 'ok') { toast({ title: 'Success!', description: 'Check-out berjaya dan disahkan.' }); } 
             else { toast({ variant: 'destructive', title: 'Check-out Recorded with Warning', description: 'Your check-out was recorded, but flagged as invalid. Contact an admin if you believe this is an error.' }); }
 
-            fetchProgramsAndAttendance();
+            // No need to fetch manually, onSnapshot will update the UI
         } catch (error: any) {
             console.error("Checkout error:", error);
             toast({ variant: 'destructive', title: 'Error', description: error.message || 'An error occurred during checkout.' });
@@ -333,7 +324,7 @@ export default function StudentDashboard() {
     };
 
     const renderContent = () => {
-        if (isLoading || isUserLoading || isProfileLoading) {
+        if (isLoading) {
             return (
                 <div className="space-y-8">
                     {[...Array(3)].map((_, i) => (
