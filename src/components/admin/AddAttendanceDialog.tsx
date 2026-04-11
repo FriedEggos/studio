@@ -46,12 +46,14 @@ interface AddAttendanceDialogProps {
   programId: string;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
+  onRecordAdded: () => void; // Callback to re-fetch data
 }
 
 export function AddAttendanceDialog({
   programId,
   isOpen,
   onOpenChange,
+  onRecordAdded,
 }: AddAttendanceDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const firestore = useFirestore();
@@ -119,6 +121,7 @@ export function AddAttendanceDialog({
       });
       form.reset();
       onOpenChange(false);
+      onRecordAdded(); // Trigger re-fetch
     } catch (error) {
       console.error('Error adding attendance:', error);
       toast({

@@ -4,13 +4,14 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, collection, deleteDoc, Timestamp } from "firebase/firestore";
+import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import { doc, collection, deleteDoc, Timestamp, query, orderBy, limit, startAfter, getDocs, where, QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Calendar, MapPin, Users, Download, Trash2, ChevronDown, FileSpreadsheet, FileText, MoreHorizontal, Clock, Plus } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Users, Download, Trash2, ChevronDown, FileSpreadsheet, FileText, MoreHorizontal, Clock, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -37,7 +38,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { QRImageCard } from "@/components/qr-image-card";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -78,18 +79,35 @@ interface Attendance {
     checkOutStatus?: 'ok' | 'too_early' | 'outside_window' | 'too_short' | 'admin_override';
 }
 
+const ATTENDANCES_PER_PAGE = 20;
+
 export default function ProgramDetailsPage() {
   const params = useParams();
   const programId = params.programId as string;
   const firestore = useFirestore();
   const { toast } = useToast();
+  
+  // Program Data state
   const [qrFormUrl, setQrFormUrl] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Modals and Alerts state
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [selectedAttendanceIdForDelete, setSelectedAttendanceIdForDelete] = useState<string | null>(null);
   const [isCheckoutAlertOpen, setIsCheckoutAlertOpen] = useState(false);
   const [selectedAttendanceForCheckout, setSelectedAttendanceForCheckout] = useState<Attendance | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  // Attendance table state
+  const [attendances, setAttendances] = useState<Attendance[]>([]);
+  const [isLoadingAttendances, setIsLoadingAttendances] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [pageCursors, setPageCursors] = useState<(QueryDocumentSnapshot | null)[]>([null]);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [totalRecords, setTotalRecords] = useState(0);
 
   const programDocRef = useMemoFirebase(() => {
     if (!programId || !firestore) return null;
@@ -98,20 +116,82 @@ export default function ProgramDetailsPage() {
 
   const { data: program, isLoading } = useDoc<Program>(programDocRef);
   
-  const attendanceQuery = useMemoFirebase(() => {
-      if (!programId || !firestore) return null;
-      return collection(firestore, 'programs', programId, 'attendances');
-  }, [programId, firestore]);
-  
-  const { data: attendances, isLoading: isLoadingAttendances } = useCollection<Attendance>(attendanceQuery);
+  // Debounce search input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setPage(1); // Reset page when search query changes
+      setPageCursors([null]);
+    }, 500);
 
-  const filteredAttendances = useMemo(() => {
-    if (!attendances) return [];
-    if (!searchQuery) return attendances;
-    return attendances.filter(att => 
-      att.studentId?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [attendances, searchQuery]);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchQuery]);
+
+  const fetchAttendances = useCallback(async () => {
+      if (!firestore || !programId) return;
+      setIsLoadingAttendances(true);
+      
+      try {
+          let q: Query<DocumentData> = query(
+              collection(firestore, 'programs', programId, 'attendances'), 
+              orderBy('createdAt', 'desc')
+          );
+
+          if (debouncedSearchQuery) {
+              const searchQueryUpper = debouncedSearchQuery.toUpperCase();
+              q = query(q, 
+                  where('studentId', '>=', searchQueryUpper),
+                  where('studentId', '<=', searchQueryUpper + '\uf8ff')
+              );
+          }
+          
+          const cursor = pageCursors[page - 1];
+          if (cursor) {
+              q = query(q, startAfter(cursor));
+          }
+
+          q = query(q, limit(ATTENDANCES_PER_PAGE + 1));
+
+          const snapshot = await getDocs(q);
+          const fetchedAttendances = snapshot.docs.slice(0, ATTENDANCES_PER_PAGE).map(doc => ({ id: doc.id, ...doc.data() } as Attendance));
+          
+          setAttendances(fetchedAttendances);
+
+          const hasMore = snapshot.docs.length > ATTENDANCES_PER_PAGE;
+          setHasNextPage(hasMore);
+
+          if (hasMore) {
+              const lastVisible = snapshot.docs[ATTENDANCES_PER_PAGE - 1];
+              if (page >= pageCursors.length) {
+                  setPageCursors(prev => [...prev, lastVisible]);
+              }
+          }
+          
+          if(page === 1 && !debouncedSearchQuery) {
+              const totalSnapshot = await getDocs(collection(firestore, 'programs', programId, 'attendances'));
+              setTotalRecords(totalSnapshot.size);
+          } else if (debouncedSearchQuery) {
+              setTotalRecords(fetchedAttendances.length + (hasMore ? 1 : 0));
+          }
+
+      } catch (error: any) {
+          console.error("Error fetching attendances:", error);
+          let errorMessage = "Failed to load attendances.";
+          if (error.code === 'failed-precondition') {
+            errorMessage = "A database index is required for this query. Please check your Firestore indexes.";
+          }
+          toast({ variant: "destructive", title: "Error", description: errorMessage });
+      } finally {
+          setIsLoadingAttendances(false);
+      }
+  }, [firestore, programId, page, debouncedSearchQuery, pageCursors, toast]);
+
+  useEffect(() => {
+      fetchAttendances();
+  }, [fetchAttendances]);
+
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -121,16 +201,24 @@ export default function ProgramDetailsPage() {
     }
   }, [program]);
 
+  const handlePageChange = (direction: 'next' | 'prev') => {
+    if (direction === 'next' && hasNextPage) {
+        setPage(p => p + 1);
+    } else if (direction === 'prev' && page > 1) {
+        setPage(p => p - 1);
+    }
+  };
+
    const handleExport = () => {
-    if (!filteredAttendances || filteredAttendances.length === 0) {
+    if (!attendances || attendances.length === 0) {
       toast({
         variant: "destructive",
         title: "No Data",
-        description: "There is no attendance data to export.",
+        description: "There is no attendance data to export on this page.",
       });
       return;
     }
-    const dataToExport = filteredAttendances.map(att => ({
+    const dataToExport = attendances.map(att => ({
       'Student Name': att.studentName,
       'Student ID': att.studentId,
       'Class': att.classGroup,
@@ -142,7 +230,7 @@ export default function ProgramDetailsPage() {
   };
   
   const handleExportPdf = () => {
-    if (!filteredAttendances || filteredAttendances.length === 0) {
+    if (!attendances || attendances.length === 0) {
       toast({
         variant: "destructive",
         title: "No Data",
@@ -154,7 +242,7 @@ export default function ProgramDetailsPage() {
     const doc = new jsPDF();
     
     const tableColumns = ["Student Name", "Student ID", "Class", "Check-in Time", "Check-out Time"];
-    const tableRows = filteredAttendances.map(att => ([
+    const tableRows = attendances.map(att => ([
       att.studentName || '',
       att.studentId || '-',
       att.classGroup || '-',
@@ -177,34 +265,28 @@ export default function ProgramDetailsPage() {
       },
     });
 
-    const finalY = (doc as any).lastAutoTable.finalY || 100; // Get Y position after table
+    const finalY = (doc as any).lastAutoTable.finalY || 100;
 
-    // Signature block logic
     const addSignatureBlock = (startY: number) => {
         doc.setFontSize(12);
         doc.text('Pengesahan Kehadiran Program', 14, startY);
-        
         doc.setFontSize(10);
-
-        // Signature 1: Pengarah Program
         const signatureY = startY + 20;
         doc.text('_______________________________', 14, signatureY);
         doc.text('Pengarah Program', 14, signatureY + 5);
         doc.text('Nama:', 14, signatureY + 10);
         doc.text('Tarikh:', 14, signatureY + 15);
-
-        // Signature 2: Penyelaras Kelab ICT JTMK
         doc.text('_______________________________', 115, signatureY);
         doc.text('Penyelaras Kelab ICT JTMK', 115, signatureY + 5);
         doc.text('Nama:', 115, signatureY + 10);
         doc.text('Tarikh:', 115, signatureY + 15);
     };
 
-    if (finalY > 220) { // If table is too long, add a new page for signatures
+    if (finalY > 220) {
         doc.addPage();
-        addSignatureBlock(20); // Add block at the top of the new page
+        addSignatureBlock(20);
     } else {
-        addSignatureBlock(finalY + 15); // Add block after the table on the same page
+        addSignatureBlock(finalY + 15);
     }
 
     doc.save(`attendance_${program?.title.replace(/\s+/g, '_') ?? 'export'}.pdf`);
@@ -219,6 +301,7 @@ export default function ProgramDetailsPage() {
             title: 'Attendance Deleted',
             description: 'The attendance record has been successfully removed.',
         });
+        fetchAttendances(); // Re-fetch data after deletion
     } catch (error) {
         console.error("Error deleting attendance: ", error);
         toast({
@@ -241,6 +324,7 @@ export default function ProgramDetailsPage() {
         title: 'Success!',
         description: result.message,
       });
+       fetchAttendances(); // Re-fetch to show update
     } else {
       toast({
         variant: 'destructive',
@@ -348,7 +432,7 @@ export default function ProgramDetailsPage() {
                     <div>
                         <CardTitle className="font-headline flex items-center gap-2"><Users className="h-5 w-5" /> Attendances</CardTitle>
                         <CardDescription>
-                          {`Showing ${filteredAttendances.length} of ${attendances?.length ?? 0} records`}
+                          {searchQuery ? `Found ${attendances.length} matching records` : `Showing ${attendances.length} of ${totalRecords} records`}
                         </CardDescription>
                     </div>
                     <div className="flex flex-col sm:flex-row items-center gap-2">
@@ -364,7 +448,7 @@ export default function ProgramDetailsPage() {
                         </Button>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="outline" disabled={isLoadingAttendances || !filteredAttendances || filteredAttendances.length === 0} className="w-full sm:w-auto">
+                                <Button variant="outline" disabled={isLoadingAttendances || !attendances || attendances.length === 0} className="w-full sm:w-auto">
                                 <Download className="mr-2 h-4 w-4" />
                                 Export
                                 <ChevronDown className="ml-2 h-4 w-4" />
@@ -398,7 +482,7 @@ export default function ProgramDetailsPage() {
                     </TableHeader>
                     <TableBody>
                     {isLoadingAttendances ? (
-                        [...Array(3)].map((_, i) => (
+                        [...Array(5)].map((_, i) => (
                         <TableRow key={i}>
                             <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                             <TableCell><Skeleton className="h-5 w-24" /></TableCell>
@@ -408,8 +492,8 @@ export default function ProgramDetailsPage() {
                             <TableCell><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                         </TableRow>
                         ))
-                    ) : filteredAttendances && filteredAttendances.length > 0 ? (
-                        filteredAttendances.map((att) => (
+                    ) : attendances && attendances.length > 0 ? (
+                        attendances.map((att) => (
                         <TableRow key={att.id}>
                             <TableCell className="font-medium">{att.studentName}</TableCell>
                             <TableCell>{att.studentId || '-'}</TableCell>
@@ -462,6 +546,21 @@ export default function ProgramDetailsPage() {
                     </TableBody>
                 </Table>
             </CardContent>
+            <CardFooter className="flex items-center justify-between border-t pt-6">
+              <span className="text-sm text-muted-foreground">
+                Page {page}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button onClick={() => handlePageChange('prev')} disabled={page <= 1 || isLoadingAttendances} variant="outline" size="sm">
+                  <ChevronLeft className="mr-1 h-4 w-4" />
+                  Previous
+                </Button>
+                <Button onClick={() => handlePageChange('next')} disabled={!hasNextPage || isLoadingAttendances} variant="outline" size="sm">
+                  Next
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+              </div>
+            </CardFooter>
         </Card>
 
         <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
@@ -508,6 +607,7 @@ export default function ProgramDetailsPage() {
             programId={programId}
             isOpen={isAddModalOpen}
             onOpenChange={setIsAddModalOpen}
+            onRecordAdded={fetchAttendances}
         />
     </>
   );
