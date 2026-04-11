@@ -87,6 +87,8 @@ export default function ProgramDetailsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   
+  const [now, setNow] = useState(new Date());
+
   // Program Data state
   const [qrFormUrl, setQrFormUrl] = useState('');
   
@@ -116,6 +118,11 @@ export default function ProgramDetailsPage() {
 
   const { data: program, isLoading } = useDoc<Program>(programDocRef);
   
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000); // Update time every minute for status check
+    return () => clearInterval(timer);
+  }, []);
+
   // Debounce search input
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -135,18 +142,19 @@ export default function ProgramDetailsPage() {
       
       try {
           let q: Query<DocumentData>;
+          const baseCollectionRef = collection(firestore, 'programs', programId, 'attendances');
 
           if (debouncedSearchQuery) {
               const searchQueryUpper = debouncedSearchQuery.toUpperCase();
               q = query(
-                  collection(firestore, 'programs', programId, 'attendances'),
+                  baseCollectionRef,
                   orderBy('studentId'),
                   where('studentId', '>=', searchQueryUpper),
                   where('studentId', '<=', searchQueryUpper + '\uf8ff')
               );
           } else {
               q = query(
-                  collection(firestore, 'programs', programId, 'attendances'), 
+                  baseCollectionRef, 
                   orderBy('createdAt', 'desc')
               );
           }
@@ -341,6 +349,23 @@ export default function ProgramDetailsPage() {
     setSelectedAttendanceForCheckout(null);
   };
 
+  const getProgramStatus = (program: Program): 'upcoming' | 'ongoing' | 'completed' => {
+      const startTime = program.startDateTime?.toDate();
+      const endTime = program.endDateTime?.toDate();
+
+      if (!startTime || !endTime) {
+          return 'upcoming';
+      }
+
+      if (now < startTime) {
+          return 'upcoming';
+      }
+      if (now > endTime) {
+          return 'completed';
+      }
+      return 'ongoing';
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6 max-w-4xl mx-auto">
@@ -367,6 +392,8 @@ export default function ProgramDetailsPage() {
       )
   }
 
+  const dynamicStatus = getProgramStatus(program);
+
   return (
     <>
         <div className="space-y-6 max-w-5xl mx-auto">
@@ -383,7 +410,7 @@ export default function ProgramDetailsPage() {
             <CardHeader>
             <CardTitle className="font-headline text-3xl">{program.title}</CardTitle>
             <CardDescription className="flex items-center gap-4 pt-2">
-                <Badge variant={program.status === 'completed' ? 'outline' : program.status === 'ongoing' ? 'default' : 'secondary'} className="capitalize">{program.status}</Badge>
+                <Badge variant={dynamicStatus === 'completed' ? 'outline' : dynamicStatus === 'ongoing' ? 'default' : 'secondary'} className="capitalize">{dynamicStatus}</Badge>
             </CardDescription>
             </CardHeader>
             <CardContent className="grid md:grid-cols-3 gap-8 pt-6">
