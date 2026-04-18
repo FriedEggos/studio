@@ -140,6 +140,7 @@ export default function EditContributionPage() {
     try {
       await updateDoc(positionDocRef, {
         ...values,
+        programName: values.programName.toUpperCase(),
         semester: parseInt(values.semester),
         verificationStatus: 'pending', // Re-submit as pending
         rejectionRemark: '', // Clear old remark on re-submission

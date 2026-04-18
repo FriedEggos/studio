@@ -222,7 +222,7 @@ export default function MyContributionsPage() {
             userName: userProfile.displayName,
             matricId: userProfile.matricId,
             course: userProfile.course,
-            programName: values.programName,
+            programName: values.programName.toUpperCase(),
             peringkat: values.peringkat,
             positionName: values.positionName,
             customPositionDetail: values.customPositionDetail || "",
@@ -636,5 +636,3 @@ export default function MyContributionsPage() {
     </>
   );
 }
-
-    
