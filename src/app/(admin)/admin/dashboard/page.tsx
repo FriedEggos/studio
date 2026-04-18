@@ -137,23 +137,28 @@ export default function AdminDashboard() {
     const fetchStats = async () => {
         setIsLoadingStats(true);
         try {
+            // Get start of current month for active students
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const startOfMonthTimestamp = Timestamp.fromDate(startOfMonth);
+
+            // Get start of last 30 days for new student growth
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
             const thirtyDaysAgoTimestamp = Timestamp.fromDate(thirtyDaysAgo);
 
             // Define queries
             const programsQuery = collection(firestore, 'programs');
+            
             const activeStudentsQuery = query(
-              collectionGroup(firestore, 'positions'), 
-              where('verificationStatus', '==', 'approved'), 
-              where('createdAt', '>=', thirtyDaysAgoTimestamp),
-              orderBy('createdAt', 'desc')
+              collectionGroup(firestore, 'attendances'), 
+              where('createdAt', '>=', startOfMonthTimestamp)
             );
+
             const newStudentsQuery = query(
               collection(firestore, 'users'), 
               where('role', '==', 'student'), 
-              where('createdAt', '>=', thirtyDaysAgoTimestamp),
-              orderBy('createdAt', 'desc')
+              where('createdAt', '>=', thirtyDaysAgoTimestamp)
             );
 
             // Fetch data in parallel
@@ -166,15 +171,15 @@ export default function AdminDashboard() {
             // Calculate Total Programs
             const totalPrograms = programsSnapshot.size;
 
-            // Calculate Monthly Active Students from approved positions
-            const activeMatricIds = new Set<string>();
+            // Calculate Monthly Active Students from attendances
+            const activeEmails = new Set<string>();
             activeStudentsSnapshot.forEach(doc => {
                 const data = doc.data();
-                if (data.matricId) {
-                    activeMatricIds.add(data.matricId);
+                if (data.email) {
+                    activeEmails.add(data.email);
                 }
             });
-            const monthlyActive = activeMatricIds.size;
+            const monthlyActive = activeEmails.size;
 
             // Calculate New Student Growth
             const newStudents = newStudentsSnapshot.size;
@@ -427,7 +432,7 @@ export default function AdminDashboard() {
             icon={Users}
             value={stats.monthlyActive}
             isLoading={isLoadingStats}
-            description="Unique students in the last 30 days."
+            description="Unique students this month."
           />
           <StatCard
             title="New Student Growth"
