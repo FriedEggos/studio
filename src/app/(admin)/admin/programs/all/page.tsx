@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -44,6 +43,7 @@ import { collection, query, orderBy, writeBatch, getDocs, doc, Timestamp } from 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
+import { Input } from "@/components/ui/input";
 
 type Program = {
     id: string;
@@ -63,6 +63,7 @@ export default function AllProgramsPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [programToDelete, setProgramToDelete] = useState<Program | null>(null);
   const [now, setNow] = useState(new Date());
+  const [searchQuery, setSearchQuery] = useState("");
 
   const programsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -109,6 +110,21 @@ export default function AllProgramsPage() {
       return 0;
     });
   }, [programs, now]);
+
+  const filteredPrograms = useMemo(() => {
+    if (!sortedPrograms) return [];
+    if (!searchQuery) return sortedPrograms;
+
+    const lowercasedQuery = searchQuery.toLowerCase();
+
+    return sortedPrograms.filter(program => {
+        const titleMatch = program.title.toLowerCase().includes(lowercasedQuery);
+        const monthMatch = program.startDateTime
+            ? format(program.startDateTime.toDate(), "MMMM").toLowerCase().includes(lowercasedQuery)
+            : false;
+        return titleMatch || monthMatch;
+    });
+  }, [sortedPrograms, searchQuery]);
 
   const handleDeleteProgram = async () => {
     if (!firestore || !programToDelete) return;
@@ -166,10 +182,20 @@ export default function AllProgramsPage() {
         </div>
           <Card>
               <CardHeader>
-                <CardTitle className="font-headline">Full Program History</CardTitle>
-                <CardDescription>
-                  Browse and manage all programs ever created.
-                </CardDescription>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <CardTitle className="font-headline">Full Program History</CardTitle>
+                        <CardDescription>
+                          Browse and manage all programs. Search by title or month.
+                        </CardDescription>
+                    </div>
+                    <Input
+                        placeholder="Search by title or month..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full sm:w-64"
+                    />
+                </div>
               </CardHeader>
               <CardContent>
                   <Table>
@@ -189,15 +215,15 @@ export default function AllProgramsPage() {
                               <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                               </TableRow>
                           ))
-                          ) : sortedPrograms && sortedPrograms.length > 0 ? (
-                          sortedPrograms.map((program) => {
+                          ) : filteredPrograms && filteredPrograms.length > 0 ? (
+                          filteredPrograms.map((program) => {
                             const dynamicStatus = getProgramStatus(program);
                             return (
                               <TableRow key={program.id}>
                                   <TableCell>
                                   <div className="font-medium">{program.title}</div>
                                   <div className="text-sm text-muted-foreground hidden md:inline">
-                                      {program.startDateTime ? format(program.startDateTime.toDate(), "d MMM yyyy @ HH:mm") : 'Invalid Date'}
+                                      {program.startDateTime ? format(program.startDateTime.toDate(), "d MMMM yyyy @ HH:mm") : 'Invalid Date'}
                                   </div>
                                   </TableCell>
                                   <TableCell>
@@ -243,7 +269,7 @@ export default function AllProgramsPage() {
                           ) : (
                           <TableRow>
                               <TableCell colSpan={3} className="h-24 text-center">
-                              No programs found.
+                              No programs found for your search.
                               </TableCell>
                           </TableRow>
                           )}
