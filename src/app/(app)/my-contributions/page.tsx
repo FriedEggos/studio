@@ -91,7 +91,7 @@ interface Position {
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ACCEPTED_IMAGE_TYPES = ["image/jpeg"];
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
 const positionSchema = z.object({
   programName: z.string().min(1, "Nama program diperlukan."),
@@ -105,7 +105,7 @@ const positionSchema = z.object({
     .refine((files) => files?.[0]?.size <= MAX_FILE_SIZE, `Saiz fail maksimum ialah 10MB.`)
     .refine(
       (files) => ACCEPTED_IMAGE_TYPES.includes(files?.[0]?.type),
-      "Hanya format .jpeg diterima."
+      "Hanya format .jpeg, .jpg, .png, and .webp diterima."
     ),
 }).refine(data => {
     if (data.positionName === "AJK Lain-Lain") {
@@ -428,11 +428,11 @@ export default function MyContributionsPage() {
                                     name="evidence"
                                     render={({ field }) => (
                                         <FormItem className="md:col-span-2">
-                                        <FormLabel>Bukti (Gambar JPEG, Max 10MB)</FormLabel>
+                                        <FormLabel>Bukti (Gambar, Max 10MB)</FormLabel>
                                         <FormControl>
                                             <Input 
                                                 type="file" 
-                                                accept="image/jpeg"
+                                                accept="image/*"
                                                 disabled={!profileComplete}
                                                 onChange={(e) => field.onChange(e.target.files)}
                                             />
