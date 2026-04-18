@@ -57,6 +57,7 @@ import autoTable from 'jspdf-autotable';
 import { isProfileComplete } from '@/lib/utils';
 import Link from 'next/link';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 
 // Schemas and Types
@@ -100,13 +101,10 @@ const positionSchema = z.object({
   customPositionDetail: z.string().optional(),
   semester: z.string().min(1, "Semester diperlukan."),
   className: z.string().min(1, "Kelas diperlukan."),
-  evidence: z.any()
-    .refine((files) => files && files.length === 1, "Satu fail bukti diperlukan.")
-    .refine((files) => files?.[0]?.size <= MAX_FILE_SIZE, `Saiz fail maksimum ialah 10MB.`)
-    .refine(
-      (files) => ACCEPTED_IMAGE_TYPES.includes(files?.[0]?.type),
-      "Hanya format .jpeg, .jpg, .png, and .webp diterima."
-    ),
+  submissionType: z.enum(['with_photo', 'no_photo'], {
+    required_error: "Sila pilih jenis penghantaran.",
+  }),
+  evidence: z.any().optional(),
 }).refine(data => {
     if (data.positionName === "AJK Lain-Lain") {
         return !!data.customPositionDetail && data.customPositionDetail.length > 0;
@@ -115,6 +113,32 @@ const positionSchema = z.object({
 }, {
     message: "Details are required for 'AJK Lain-Lain'.",
     path: ['customPositionDetail'],
+}).superRefine((data, ctx) => {
+    if (data.submissionType === 'with_photo') {
+        const { evidence } = data;
+        if (!evidence || evidence.length === 0) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Satu fail bukti diperlukan.",
+                path: ['evidence'],
+            });
+            return;
+        }
+        if (evidence[0].size > MAX_FILE_SIZE) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `Saiz fail maksimum ialah 10MB.`,
+                path: ['evidence'],
+            });
+        }
+        if (!ACCEPTED_IMAGE_TYPES.includes(evidence[0].type)) {
+             ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Hanya format .jpeg, .jpg, .png, and .webp diterima.",
+                path: ['evidence'],
+            });
+        }
+    }
 });
 
 const positionOptions = [
@@ -185,9 +209,10 @@ export default function MyContributionsPage() {
   // Form Management
   const form = useForm<z.infer<typeof positionSchema>>({
     resolver: zodResolver(positionSchema),
-    defaultValues: { programName: '', peringkat: '', positionName: '', customPositionDetail: '', semester: '', className: '', evidence: undefined },
+    defaultValues: { programName: '', peringkat: '', positionName: '', customPositionDetail: '', semester: '', className: '' },
   });
   const watchPositionName = form.watch('positionName');
+  const watchSubmissionType = form.watch('submissionType');
   const [isSubmittingPosition, setIsSubmittingPosition] = useState(false);
 
   // Derived state for UI logic
@@ -205,16 +230,21 @@ export default function MyContributionsPage() {
   const onPositionSubmit = async (values: z.infer<typeof positionSchema>) => {
     if (!user || !userProfile || !positionsQuery || !storage) return;
     setIsSubmittingPosition(true);
-
-    const file = values.evidence[0] as File;
+    
     const newPositionRef = doc(collection(firestore, 'users', user.uid, 'positions'));
     const positionId = newPositionRef.id;
-    const filePath = `contributions/${user.uid}/${positionId}/${file.name}`;
-    const fileRef = storageRef(storage, filePath);
+    let evidenceUrl = "";
+    let filePath = "";
 
     try {
-        await uploadBytes(fileRef, file);
-        const evidenceUrl = await getDownloadURL(fileRef);
+        if (values.submissionType === 'with_photo' && values.evidence && values.evidence.length > 0) {
+            const file = values.evidence[0] as File;
+            filePath = `contributions/${user.uid}/${positionId}/${file.name}`;
+            const fileRef = storageRef(storage, filePath);
+            
+            await uploadBytes(fileRef, file);
+            evidenceUrl = await getDownloadURL(fileRef);
+        }
 
         await setDoc(newPositionRef, {
             id: positionId,
@@ -228,8 +258,8 @@ export default function MyContributionsPage() {
             customPositionDetail: values.customPositionDetail || "",
             semester: parseInt(values.semester),
             className: values.className,
-            evidenceUrl,
-            evidenceStoragePath: filePath,
+            evidenceUrl: evidenceUrl, // This will be empty if no photo
+            evidenceStoragePath: filePath, // This will be empty if no photo
             verificationStatus: 'pending',
             createdAt: serverTimestamp(),
         });
@@ -423,24 +453,55 @@ export default function MyContributionsPage() {
                                 <FormField control={form.control} name="className" render={({ field }) => (
                                     <FormItem><FormLabel>Kelas</FormLabel><Select onValueChange={field.onChange} value={field.value} disabled={!profileComplete}><FormControl><SelectTrigger><SelectValue placeholder="Pilih kelas" /></SelectTrigger></FormControl><SelectContent>{classOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                                 )} />
+                                
                                 <FormField
                                     control={form.control}
-                                    name="evidence"
+                                    name="submissionType"
                                     render={({ field }) => (
-                                        <FormItem className="md:col-span-2">
-                                        <FormLabel>Bukti (Gambar, Max 10MB)</FormLabel>
+                                    <FormItem className="space-y-3 md:col-span-2">
+                                        <FormLabel>Jenis Bukti</FormLabel>
                                         <FormControl>
-                                            <Input 
-                                                type="file" 
-                                                accept="image/*"
-                                                disabled={!profileComplete}
-                                                onChange={(e) => field.onChange(e.target.files)}
-                                            />
+                                        <RadioGroup
+                                            onValueChange={field.onChange}
+                                            defaultValue={field.value}
+                                            className="flex items-center space-x-4 pt-2"
+                                            disabled={!profileComplete}
+                                        >
+                                            <FormItem className="flex items-center space-x-2 space-y-0">
+                                                <FormControl><RadioGroupItem value="with_photo" id="with_photo" /></FormControl>
+                                                <FormLabel htmlFor="with_photo" className="font-normal cursor-pointer">Dengan Gambar</FormLabel>
+                                            </FormItem>
+                                            <FormItem className="flex items-center space-x-2 space-y-0">
+                                                <FormControl><RadioGroupItem value="no_photo" id="no_photo" /></FormControl>
+                                                <FormLabel htmlFor="no_photo" className="font-normal cursor-pointer">Tanpa Gambar</FormLabel>
+                                            </FormItem>
+                                        </RadioGroup>
                                         </FormControl>
                                         <FormMessage />
-                                        </FormItem>
+                                    </FormItem>
                                     )}
                                 />
+
+                                {watchSubmissionType === 'with_photo' && (
+                                    <FormField
+                                        control={form.control}
+                                        name="evidence"
+                                        render={({ field }) => (
+                                            <FormItem className="md:col-span-2">
+                                            <FormLabel>Fail Bukti (Gambar, Max 10MB)</FormLabel>
+                                            <FormControl>
+                                                <Input 
+                                                    type="file" 
+                                                    accept="image/png, image/jpeg, image/webp"
+                                                    disabled={!profileComplete}
+                                                    onChange={(e) => field.onChange(e.target.files)}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                )}
                             </div>
 
                              <TooltipProvider>
