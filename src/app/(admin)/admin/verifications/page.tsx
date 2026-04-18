@@ -7,6 +7,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import {
   Table,
@@ -17,13 +18,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collectionGroup, doc, query, updateDoc, where, orderBy } from "firebase/firestore";
+import { useFirestore } from "@/firebase";
+import { collectionGroup, doc, query, updateDoc, where, orderBy, onSnapshot, limit, startAfter, getDocs, type Query, type QueryDocumentSnapshot, type DocumentData } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { Check, X, Loader2, Eye } from "lucide-react";
-import { useState } from "react";
+import { Check, X, Loader2, Eye, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,6 +54,8 @@ interface Position {
   evidenceUrl?: string;
 }
 
+const POSITIONS_PER_PAGE = 20;
+
 export default function VerificationsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -61,18 +64,68 @@ export default function VerificationsPage() {
   const [positionToReject, setPositionToReject] = useState<Position | null>(null);
   const [rejectionRemark, setRejectionRemark] = useState("");
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  
+  // Data State
+  const [pendingPositions, setPendingPositions] = useState<Position[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [pageCursors, setPageCursors] = useState<(QueryDocumentSnapshot | null)[]>([null]);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [totalRecords, setTotalRecords] = useState(0);
 
+  useEffect(() => {
+    if (!firestore) return;
 
-  const pendingQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(
-      collectionGroup(firestore, 'positions'),
-      where('verificationStatus', '==', 'pending'),
-      orderBy('createdAt', 'desc')
+    setIsLoading(true);
+
+    const baseQuery = query(
+        collectionGroup(firestore, 'positions'),
+        where('verificationStatus', '==', 'pending'),
+        orderBy('createdAt', 'desc')
     );
-  }, [firestore]);
+    
+    let q: Query<DocumentData> = baseQuery;
+    
+    const cursor = pageCursors[page - 1];
+    if (cursor) {
+      q = query(q, startAfter(cursor));
+    }
+    
+    q = query(q, limit(POSITIONS_PER_PAGE + 1));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedPositions = snapshot.docs.slice(0, POSITIONS_PER_PAGE).map(doc => ({ id: doc.id, ...doc.data() } as Position));
+      setPendingPositions(fetchedPositions);
+      
+      const hasMore = snapshot.docs.length > POSITIONS_PER_PAGE;
+      setHasNextPage(hasMore);
 
-  const { data: pendingPositions, isLoading, error } = useCollection<Position>(pendingQuery);
+      if (hasMore) {
+        const lastVisibleDoc = snapshot.docs[POSITIONS_PER_PAGE - 1];
+        if (page >= pageCursors.length) {
+            setPageCursors(prev => [...prev, lastVisibleDoc]);
+        }
+      }
+      setIsLoading(false);
+      setError(null);
+    }, (err) => {
+      console.error("Error fetching pending verifications:", err);
+      setError(err);
+      toast({ variant: "destructive", title: "Failed to load verifications." });
+      setIsLoading(false);
+    });
+
+    // Also get total count for display
+    getDocs(baseQuery).then(totalSnapshot => {
+        setTotalRecords(totalSnapshot.size);
+    });
+    
+    return () => unsubscribe();
+  }, [firestore, toast, page, pageCursors]);
+
 
   const handleVerification = async (position: Position, newStatus: 'approved' | 'rejected', remark?: string) => {
     if (!firestore) return;
@@ -120,6 +173,15 @@ export default function VerificationsPage() {
       setRejectionRemark("");
     }
   };
+  
+  const handlePageChange = (direction: 'next' | 'prev') => {
+    if (direction === 'next' && hasNextPage) {
+        setPage(p => p + 1);
+    } else if (direction === 'prev' && page > 1) {
+        setPage(p => p - 1);
+    }
+  };
+
 
   return (
     <>
@@ -169,7 +231,7 @@ export default function VerificationsPage() {
                 ) : pendingPositions && pendingPositions.length > 0 ? (
                   pendingPositions.map((pos, index) => (
                     <TableRow key={pos.id}>
-                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>{((page - 1) * POSITIONS_PER_PAGE) + index + 1}</TableCell>
                       <TableCell className="font-medium">{pos.userName}</TableCell>
                       <TableCell>{pos.programName}</TableCell>
                       <TableCell>
@@ -225,6 +287,21 @@ export default function VerificationsPage() {
               </TableBody>
             </Table>
           </CardContent>
+          <CardFooter className="flex items-center justify-between border-t pt-6">
+            <span className="text-sm text-muted-foreground">
+                Page {page}
+            </span>
+            <div className="flex items-center gap-2">
+                <Button onClick={() => handlePageChange('prev')} disabled={page <= 1 || isLoading} variant="outline" size="sm">
+                <ChevronLeft className="mr-1 h-4 w-4" />
+                Previous
+                </Button>
+                <Button onClick={() => handlePageChange('next')} disabled={!hasNextPage || isLoading} variant="outline" size="sm">
+                Next
+                <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+            </div>
+          </CardFooter>
         </Card>
       </div>
 
