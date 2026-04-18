@@ -22,7 +22,7 @@ import { collectionGroup, doc, query, updateDoc, where, orderBy } from "firebase
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { Check, X, Loader2 } from "lucide-react";
+import { Check, X, Loader2, Eye } from "lucide-react";
 import { useState } from "react";
 import {
   AlertDialog,
@@ -34,6 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 
@@ -49,6 +50,7 @@ interface Position {
   className?: string;
   verificationStatus: 'pending' | 'approved' | 'rejected';
   createdAt: { toDate: () => Date };
+  evidenceUrl?: string;
 }
 
 export default function VerificationsPage() {
@@ -58,6 +60,8 @@ export default function VerificationsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [positionToReject, setPositionToReject] = useState<Position | null>(null);
   const [rejectionRemark, setRejectionRemark] = useState("");
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+
 
   const pendingQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -137,10 +141,8 @@ export default function VerificationsPage() {
                   <TableHead>No.</TableHead>
                   <TableHead>Student</TableHead>
                   <TableHead>Program</TableHead>
-                  <TableHead>Level</TableHead>
                   <TableHead>Position</TableHead>
-                  <TableHead>Semester</TableHead>
-                  <TableHead>Class</TableHead>
+                  <TableHead>Proof</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -153,16 +155,14 @@ export default function VerificationsPage() {
                       <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-40" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                      <TableCell><Skeleton className="h-9 w-20" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                       <TableCell className="text-right space-x-2"><Skeleton className="h-8 w-8 inline-block" /><Skeleton className="h-8 w-8 inline-block" /></TableCell>
                     </TableRow>
                   ))
                 ) : error ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="h-24 text-center text-destructive">
+                    <TableCell colSpan={7} className="h-24 text-center text-destructive">
                       Error loading verifications. Please try again.
                     </TableCell>
                   </TableRow>
@@ -172,15 +172,22 @@ export default function VerificationsPage() {
                       <TableCell>{index + 1}</TableCell>
                       <TableCell className="font-medium">{pos.userName}</TableCell>
                       <TableCell>{pos.programName}</TableCell>
-                      <TableCell>{pos.peringkat || 'N/A'}</TableCell>
                       <TableCell>
                         {pos.positionName}
                         {pos.positionName === "AJK Lain-Lain" && pos.customPositionDetail && (
                           <span className="text-muted-foreground ml-2">({pos.customPositionDetail})</span>
                         )}
                       </TableCell>
-                      <TableCell>{pos.semester || 'N/A'}</TableCell>
-                      <TableCell>{pos.className || 'N/A'}</TableCell>
+                      <TableCell>
+                        {pos.evidenceUrl ? (
+                            <Button variant="outline" size="sm" onClick={() => setPreviewImageUrl(pos.evidenceUrl!)}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View
+                            </Button>
+                        ) : (
+                            'N/A'
+                        )}
+                      </TableCell>
                       <TableCell>
                         {pos.createdAt ? format(pos.createdAt.toDate(), 'dd/MM/yyyy') : ''}
                       </TableCell>
@@ -210,7 +217,7 @@ export default function VerificationsPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={9} className="h-24 text-center">
+                    <TableCell colSpan={7} className="h-24 text-center">
                       No pending verifications found.
                     </TableCell>
                   </TableRow>
@@ -256,6 +263,19 @@ export default function VerificationsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      <Dialog open={!!previewImageUrl} onOpenChange={(open) => !open && setPreviewImageUrl(null)}>
+        <DialogContent className="max-w-3xl">
+            <DialogHeader>
+                <DialogTitle>Proof of Contribution</DialogTitle>
+            </DialogHeader>
+            <div className="py-4 -mx-6 px-6 max-h-[80vh] overflow-y-auto">
+                <img src={previewImageUrl || ''} alt="Proof of contribution" className="w-full h-auto rounded-md object-contain" />
+            </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
+
+    

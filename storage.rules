@@ -14,5 +14,24 @@ service firebase.storage {
                     && request.resource.size < 2 * 1024 * 1024
                     && request.resource.contentType.matches('image/.*');
     }
+
+    // Rules for contribution evidence
+    match /contributions/{userId}/{positionId}/{fileName} {
+      // Allow read access to anyone with the link (admins, the user).
+      allow read;
+
+      // Allow a user to create/update their own contribution evidence.
+      // They must be authenticated and the owner of the record.
+      // File must be a JPEG and under 10MB.
+      allow write: if request.auth != null 
+                    && request.auth.uid == userId
+                    && request.resource.size < 10 * 1024 * 1024
+                    && request.resource.contentType.matches('image/jpeg');
+      
+      // Allow the user who uploaded it to delete it.
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
   }
 }
+
+    

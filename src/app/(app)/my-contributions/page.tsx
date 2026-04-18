@@ -25,9 +25,10 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { AlertCircle, PlusCircle, Loader2, Download, BadgeCheck, Edit, Trash2 } from "lucide-react";
-import { useUser, useFirestore, useMemoFirebase, useCollection, useDoc } from "@/firebase";
-import { doc, collection, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
+import { AlertCircle, PlusCircle, Loader2, Download, BadgeCheck, Edit, Trash2, Eye } from "lucide-react";
+import { useUser, useFirestore, useMemoFirebase, useCollection, useDoc, useStorage } from "@/firebase";
+import { doc, collection, addDoc, serverTimestamp, deleteDoc, setDoc } from "firebase/firestore";
+import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { format } from 'date-fns';
@@ -85,7 +86,12 @@ interface Position {
     verificationStatus: 'pending' | 'approved' | 'rejected' | 'awaiting_evidence';
     rejectionRemark?: string;
     createdAt: { toDate: () => Date };
+    evidenceUrl?: string;
+    evidenceStoragePath?: string;
 }
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg"];
 
 const positionSchema = z.object({
   programName: z.string().min(1, "Nama program diperlukan."),
@@ -94,6 +100,13 @@ const positionSchema = z.object({
   customPositionDetail: z.string().optional(),
   semester: z.string().min(1, "Semester diperlukan."),
   className: z.string().min(1, "Kelas diperlukan."),
+  evidence: z.any()
+    .refine((files) => files && files.length === 1, "Satu fail bukti diperlukan.")
+    .refine((files) => files?.[0]?.size <= MAX_FILE_SIZE, `Saiz fail maksimum ialah 10MB.`)
+    .refine(
+      (files) => ACCEPTED_IMAGE_TYPES.includes(files?.[0]?.type),
+      "Hanya format .jpeg diterima."
+    ),
 }).refine(data => {
     if (data.positionName === "AJK Lain-Lain") {
         return !!data.customPositionDetail && data.customPositionDetail.length > 0;
@@ -144,6 +157,7 @@ const classOptions = [
 export default function MyContributionsPage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
+  const storage = useStorage();
   const router = useRouter();
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -171,7 +185,7 @@ export default function MyContributionsPage() {
   // Form Management
   const form = useForm<z.infer<typeof positionSchema>>({
     resolver: zodResolver(positionSchema),
-    defaultValues: { programName: '', peringkat: '', positionName: '', customPositionDetail: '', semester: '', className: '' },
+    defaultValues: { programName: '', peringkat: '', positionName: '', customPositionDetail: '', semester: '', className: '', evidence: undefined },
   });
   const watchPositionName = form.watch('positionName');
   const [isSubmittingPosition, setIsSubmittingPosition] = useState(false);
@@ -189,19 +203,37 @@ export default function MyContributionsPage() {
 
   // Form Submission
   const onPositionSubmit = async (values: z.infer<typeof positionSchema>) => {
-    if (!user || !userProfile || !positionsQuery) return;
+    if (!user || !userProfile || !positionsQuery || !storage) return;
     setIsSubmittingPosition(true);
+
+    const file = values.evidence[0] as File;
+    const newPositionRef = doc(collection(firestore, 'users', user.uid, 'positions'));
+    const positionId = newPositionRef.id;
+    const filePath = `contributions/${user.uid}/${positionId}/${file.name}`;
+    const fileRef = storageRef(storage, filePath);
+
     try {
-        await addDoc(positionsQuery, {
+        await uploadBytes(fileRef, file);
+        const evidenceUrl = await getDownloadURL(fileRef);
+
+        await setDoc(newPositionRef, {
+            id: positionId,
             userId: user.uid,
             userName: userProfile.displayName,
             matricId: userProfile.matricId,
             course: userProfile.course,
-            ...values,
+            programName: values.programName,
+            peringkat: values.peringkat,
+            positionName: values.positionName,
+            customPositionDetail: values.customPositionDetail || "",
             semester: parseInt(values.semester),
+            className: values.className,
+            evidenceUrl,
+            evidenceStoragePath: filePath,
             verificationStatus: 'pending',
             createdAt: serverTimestamp(),
         });
+
         toast({ title: 'Success!', description: 'Your position has been submitted for verification.' });
         form.reset();
     } catch (error: any) {
@@ -219,14 +251,24 @@ export default function MyContributionsPage() {
   };
 
   const handleConfirmDelete = async () => {
-    if (!user || !positionToDelete || !firestore) return;
+    if (!user || !positionToDelete || !firestore || !storage) return;
     setIsDeleting(true);
+    
     const docRef = doc(firestore, 'users', user.uid, 'positions', positionToDelete.id);
+
     try {
+        // First, delete the document from Firestore
         await deleteDoc(docRef);
+
+        // If that succeeds, delete the file from Storage
+        if (positionToDelete.evidenceStoragePath) {
+            const fileRef = storageRef(storage, positionToDelete.evidenceStoragePath);
+            await deleteObject(fileRef);
+        }
+
         toast({
             title: 'Success',
-            description: 'The contribution record has been deleted.',
+            description: 'The contribution record and its proof have been deleted.',
         });
     } catch (e) {
         console.error("Error deleting position:", e);
@@ -381,6 +423,24 @@ export default function MyContributionsPage() {
                                 <FormField control={form.control} name="className" render={({ field }) => (
                                     <FormItem><FormLabel>Kelas</FormLabel><Select onValueChange={field.onChange} value={field.value} disabled={!profileComplete}><FormControl><SelectTrigger><SelectValue placeholder="Pilih kelas" /></SelectTrigger></FormControl><SelectContent>{classOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                                 )} />
+                                <FormField
+                                    control={form.control}
+                                    name="evidence"
+                                    render={({ field }) => (
+                                        <FormItem className="md:col-span-2">
+                                        <FormLabel>Bukti (Gambar JPEG, Max 10MB)</FormLabel>
+                                        <FormControl>
+                                            <Input 
+                                                type="file" 
+                                                accept="image/jpeg"
+                                                disabled={!profileComplete}
+                                                onChange={(e) => field.onChange(e.target.files)}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
                             </div>
 
                              <TooltipProvider>
@@ -413,15 +473,13 @@ export default function MyContributionsPage() {
                             <TableHead>Program</TableHead>
                             <TableHead>Level</TableHead>
                             <TableHead>Position</TableHead>
-                            <TableHead>Semester</TableHead>
-                            <TableHead>Class</TableHead>
-                            <TableHead>Date</TableHead>
+                            <TableHead>Proof</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-right">Action</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {isLoadingPositions ? ([...Array(2)].map((_, i) => <TableRow key={i}><TableCell colSpan={9}><Skeleton className="h-5 w-full" /></TableCell></TableRow>))
+                        {isLoadingPositions ? ([...Array(2)].map((_, i) => <TableRow key={i}><TableCell colSpan={7}><Skeleton className="h-5 w-full" /></TableCell></TableRow>))
                         : displayedPositions && displayedPositions.length > 0 ? (displayedPositions.map((pos, index) => {
                             const isRejectedWithRemark = pos.verificationStatus === 'rejected' && pos.rejectionRemark;
                             const isExpanded = expandedRemarks[pos.id] || false;
@@ -437,9 +495,17 @@ export default function MyContributionsPage() {
                                           {pos.positionName}
                                           {pos.customPositionDetail && <span className="text-muted-foreground text-xs ml-2">({pos.customPositionDetail})</span>}
                                         </TableCell>
-                                        <TableCell>{pos.semester}</TableCell>
-                                        <TableCell>{pos.className}</TableCell>
-                                        <TableCell>{pos.createdAt ? format(pos.createdAt.toDate(), 'dd/MM/yyyy') : ''}</TableCell>
+                                        <TableCell>
+                                            {pos.evidenceUrl ? (
+                                                <Button variant="outline" size="icon" className="h-8 w-8" asChild>
+                                                    <Link href={pos.evidenceUrl} target="_blank" rel="noopener noreferrer">
+                                                        <Eye className="h-4 w-4" />
+                                                    </Link>
+                                                </Button>
+                                            ) : (
+                                                'N/A'
+                                            )}
+                                        </TableCell>
                                         <TableCell>
                                             {(() => {
                                                 if (pos.verificationStatus === 'approved') {
@@ -497,26 +563,24 @@ export default function MyContributionsPage() {
                                                             Edit
                                                         </Link>
                                                     </Button>
-                                                    {pos.verificationStatus === 'rejected' && (
-                                                        <Button
-                                                            size="sm"
-                                                            variant="destructive"
-                                                            onClick={() => {
-                                                                setPositionToDelete(pos);
-                                                                setIsDeleteAlertOpen(true);
-                                                            }}
-                                                        >
-                                                            <Trash2 className="mr-2 h-3.5 w-3.5" />
-                                                            Delete
-                                                        </Button>
-                                                    )}
+                                                    <Button
+                                                        size="sm"
+                                                        variant="destructive"
+                                                        onClick={() => {
+                                                            setPositionToDelete(pos);
+                                                            setIsDeleteAlertOpen(true);
+                                                        }}
+                                                    >
+                                                        <Trash2 className="mr-2 h-3.5 w-3.5" />
+                                                        Delete
+                                                    </Button>
                                                 </div>
                                             )}
                                         </TableCell>
                                     </TableRow>
                                     {isMobile && isRejectedWithRemark && isExpanded && (
                                         <tr className="bg-destructive/5 border-b border-destructive/10">
-                                            <td colSpan={9} className="px-6 py-4">
+                                            <td colSpan={7} className="px-6 py-4">
                                                 <div className="flex items-start gap-3">
                                                     <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
                                                     <div>
@@ -530,7 +594,7 @@ export default function MyContributionsPage() {
                                 </React.Fragment>
                             );
                         }))
-                        : (<TableRow><TableCell colSpan={9} className="h-24 text-center">No positions submitted yet.</TableCell></TableRow>)}
+                        : (<TableRow><TableCell colSpan={7} className="h-24 text-center">No positions submitted yet.</TableCell></TableRow>)}
                     </TableBody>
                 </Table>
             </CardContent>
@@ -572,3 +636,5 @@ export default function MyContributionsPage() {
     </>
   );
 }
+
+    

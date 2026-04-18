@@ -108,6 +108,14 @@
             "type": "string",
             "description": "The reason provided by an admin for rejecting the position claim."
         },
+        "evidenceUrl": {
+            "type": "string",
+            "description": "Public URL to the uploaded evidence image."
+        },
+        "evidenceStoragePath": {
+            "type": "string",
+            "description": "The path to the evidence image in Firebase Storage."
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time",
@@ -398,3 +406,5 @@
     "reasoning": "This Firestore structure separates core program data from its form configuration and its attendance records. Public data (`programs`, `programConfigs`) is structured to be readable by unauthenticated users on a per-document basis for the QR form page, while sensitive data like attendance lists is nested and protected. A 'positions' sub-collection is added under 'users' to manage role verification requests."
   }
 }
+
+    
