@@ -270,12 +270,10 @@ export default function VerificationsPage() {
                 <DialogTitle>Proof of Contribution</DialogTitle>
             </DialogHeader>
             <div className="py-4 -mx-6 px-6 max-h-[80vh] overflow-y-auto">
-                <img src={previewImageUrl || ''} alt="Proof of contribution" className="w-full h-auto rounded-md object-contain" />
+                {previewImageUrl && <img src={previewImageUrl} alt="Proof of contribution" className="w-full h-auto rounded-md object-contain" />}
             </div>
         </DialogContent>
       </Dialog>
     </>
   );
 }
-
-    
