@@ -124,10 +124,52 @@ This section specifies what the system itself shall do to meet the user requirem
 *   **4.1.2 Session Management:** User sessions are securely managed by the Firebase Authentication SDK.
 
 ### 4.2 Authorization & Access Control
-*   **4.2.1 Role-Based Access Control (RBAC):** The system enforces a strict RBAC model defined in `firestore.rules`.
-*   **4.2.2 Student Permissions:** Students can only read and write to their own user profile and their own sub-collections (e.g., `positions`). They cannot access or modify data belonging to other users.
-*   **4.2.3 Admin Permissions:** Administrators have broader permissions, allowing them to read/write all user profiles, manage all programs, and approve/reject contributions.
-*   **4.2.4 Public Access:** Unauthenticated access is limited to specific, designated public pages (e.g., the QR attendance form page) and read-only access to specific Firestore documents required for those pages (`/qrSlugs/{slug}`, `/programs/{programId}`).
+
+The system's API is primarily defined by the client-side Firebase SDKs for Firestore, Authentication, and Storage. All data access is governed by a strict Role-Based Access Control (RBAC) model, which is enforced on the server-side by security rules (`firestore.rules` and `storage.rules`).
+
+#### 4.2.1 Role Definitions
+*   **Unauthenticated User:** Any visitor who is not logged in.
+*   **Student:** An authenticated user with the `student` role.
+*   **Administrator (Admin):** An authenticated user with the `admin` role.
+
+#### 4.2.2 User Control Matrix (Firestore)
+
+The following matrix details the permissions for each major data entity in Firestore:
+
+| Collection Path                                | Action          | Unauthenticated | Student (Owner) | Student (Other) | Admin     | Notes                                                              |
+| ---------------------------------------------- | --------------- | --------------- | --------------- | --------------- | --------- | ------------------------------------------------------------------ |
+| `/users/{userId}`                              | **Read (Get)**  | Deny            | Allow           | Deny            | Allow     | Admins can view any profile, students only their own.              |
+|                                                | **List**        | Deny            | Deny            | Deny            | Allow     | Only admins can list all users.                                    |
+|                                                | **Create**      | Deny            | Allow           | Deny            | (Allow)   | Users create their own profile on sign-up.                         |
+|                                                | **Update**      | Deny            | Allow           | Deny            | Allow     | Students can edit their own profile.                               |
+|                                                | **Delete**      | Deny            | Deny            | Deny            | Allow     | Only admins can delete user accounts.                              |
+| `/users/{userId}/positions/{positionId}`       | **Read/List**   | Deny            | Allow           | Deny            | Allow     | Students see their own submissions; admins see all.                |
+|                                                | **Create**      | Deny            | Allow           | Deny            | Deny      | Student must have a complete profile. Status must be `pending`.    |
+|                                                | **Update**      | Deny            | Allow           | Deny            | Allow     | Student can only edit if status is `pending` or `rejected`.        |
+|                                                | **Delete**      | Deny            | Allow           | Deny            | Allow     |                                                                    |
+| `/programs/{programId}`                        | **Read (Get)**  | Allow           | Allow           | Allow           | Allow     | Publicly readable for QR form pages.                               |
+|                                                | **List**        | Deny            | Allow           | Allow           | Allow     | Any authenticated user can list programs.                          |
+|                                                | **Create/Update/Delete** | Deny            | Deny            | Deny            | Allow     | Only admins can manage programs.                                   |
+| `/programs/{programId}/attendances/{attendanceId}` | **Read (Get)**  | Deny            | Allow           | Deny            | Allow     | Student can read their own attendance (doc ID is their email).     |
+|                                                | **Create**      | Allow           | Allow           | Allow           | Allow     | Open to public for check-in via QR form.                           |
+|                                                | **Update**      | Deny            | Allow           | Deny            | Allow     | Limited to check-out fields (`checkOutAt`, `duration`, `status`).  |
+|                                                | **Delete**      | Deny            | Deny            | Deny            | Allow     | Only admins can delete attendance records.                         |
+| `/qrSlugs/{slug}`                              | **Read (Get)**  | Allow           | Allow           | Allow           | Allow     | Publicly readable to map QR code to program.                       |
+|                                                | **Write**       | Deny            | Deny            | Deny            | Allow     | Only admins can create/update slugs.                               |
+| `/matricIds/{matricId}`                        | **Read (Get)**  | Allow           | Allow           | Allow           | Allow     | Publicly readable to check for uniqueness on registration.         |
+|                                                | **Create**      | Deny            | Allow           | Deny            | (Allow)   | Created atomically during user registration.                       |
+
+#### 4.2.3 User Control (Storage)
+
+File uploads are governed by `storage.rules`:
+
+| Storage Path                               | Action | Unauthenticated | Student (Owner) | Admin | Notes                                                    |
+| ------------------------------------------ | ------ | --------------- | --------------- | ----- | -------------------------------------------------------- |
+| `/contributions/{userId}/{posId}/{file}` | **Read**   | Allow           | Allow           | Allow | Anyone with the link can read.                           |
+|                                            | **Create** | Deny            | Allow           | Allow | Max 10MB image files (`image/*`).                          |
+|                                            | **Update** | Deny            | Deny            | Deny  | Prevents evidence from being changed after submission.   |
+|                                            | **Delete** | Deny            | Allow           | Allow | The owner or an admin can delete the file.             |
+
 
 ### 4.3 Data Integrity
 *   **4.3.1 Input Validation:** All user input is validated on the client-side using Zod schemas to ensure data correctness before submission.
