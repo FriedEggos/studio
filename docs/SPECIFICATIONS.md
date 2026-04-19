@@ -1,7 +1,7 @@
 # System Requirement Specification
 
 ## 1.0 Introduction
-This document outlines the functional requirements for the JTMK+ System, a QR-based program participation and committee role verification system.
+This document outlines the functional, non-functional, and security requirements for the JTMK+ System, a QR-based program participation and committee role verification system.
 
 ## 2.0 Functional Requirements
 
@@ -55,3 +55,54 @@ This document outlines the functional requirements for the JTMK+ System, a QR-ba
 
 #### 2.2.4 Admin Profile
 *   **2.2.4.1 Profile Management:** Admin must be able to view their own profile and edit their personal information, such as their display name.
+
+---
+
+## 3.0 Non-Functional Requirements
+
+### 3.1 Performance
+*   **3.1.1 Real-Time Updates:** The system uses real-time listeners (Firestore onSnapshot) to ensure that data on dashboards and lists (such as attendance, verification queues) updates automatically without requiring a manual page refresh.
+*   **3.1.2 Fast Page Loads:** Pages load quickly, achieved through Next.js server-side rendering and efficient client-side data fetching.
+*   **3.1.3 Efficient Queries:** Backend queries are optimized. Pagination is implemented for all potentially large datasets (e.g., users, attendances, programs) to prevent fetching excessive data at once.
+
+### 3.2 Scalability
+*   **3.2.1 Cloud-Based Backend:** The system leverages Firebase services (Firestore, Auth, Storage, Functions), which are designed to scale automatically with user load.
+*   **3.2.2 Paginated Data:** All lists that can grow indefinitely (e.g., user lists, program lists, attendance records) are paginated to ensure the application remains performant as data volume increases.
+
+### 3.3 Usability
+*   **3.3.1 Role-Based Interfaces:** The system provides distinct, intuitive user interfaces tailored to the roles of "Student" and "Admin".
+*   **3.3.2 Responsive Design:** The user interface is fully responsive and functional across various devices, including desktops, tablets, and mobile phones.
+*   **3.3.3 Clear Feedback:** The system provides immediate and clear feedback for user actions, such as success messages (toasts) for successful submissions and descriptive error messages for failures.
+
+### 3.4 Reliability
+*   **3.4.1 High Availability:** The system relies on Google Cloud's Firebase infrastructure, which provides high uptime and reliability.
+*   **3.4.2 Error Handling:** The application gracefully handles errors (e.g., network failures, permission errors) and provides informative feedback to the user.
+
+### 3.5 Maintainability
+*   **3.5.1 Modular Architecture:** The frontend code is organized into a modular structure using reusable React components, hooks, and utility functions.
+*   **3.5.2 Typed Codebase:** The project uses TypeScript to ensure type safety, reducing bugs and improving developer experience.
+*   **3.5.3 Consistent Styling:** The UI is built using Tailwind CSS and ShadCN UI components, ensuring a consistent design system that is easy to maintain and extend.
+
+---
+
+## 4.0 Security Requirements
+
+### 4.1 Authentication
+*   **4.1.1 Secure Login:** All users must authenticate via a secure email and password mechanism provided by Firebase Authentication.
+*   **4.1.2 Session Management:** User sessions are securely managed by the Firebase Authentication SDK.
+
+### 4.2 Authorization & Access Control
+*   **4.2.1 Role-Based Access Control (RBAC):** The system enforces a strict RBAC model defined in `firestore.rules`.
+*   **4.2.2 Student Permissions:** Students can only read and write to their own user profile and their own sub-collections (e.g., `positions`). They cannot access or modify data belonging to other users.
+*   **4.2.3 Admin Permissions:** Administrators have broader permissions, allowing them to read/write all user profiles, manage all programs, and approve/reject contributions.
+*   **4.2.4 Public Access:** Unauthenticated access is limited to specific, designated public pages (e.g., the QR attendance form page) and read-only access to specific Firestore documents required for those pages (`/qrSlugs/{slug}`, `/programs/{programId}`).
+
+### 4.3 Data Integrity
+*   **4.3.1 Input Validation:** All user input is validated on the client-side using Zod schemas to ensure data correctness before submission.
+*   **4.3.2 Server-Side Validation:** Firestore security rules provide a second layer of server-side validation to ensure that only properly structured and valid data can be written to the database.
+*   **4.3.3 Unique Constraints:** Uniqueness for critical fields like matriculation IDs is enforced through a dedicated Firestore collection (`/matricIds/{matricId}`) and security rules that prevent overwrites.
+
+### 4.4 Data Protection
+*   **4.4.1 Secure Data Transmission:** All data exchanged between the client and Firebase services is encrypted in transit using HTTPS.
+*   **4.4.2 Secure File Storage:** Uploaded files (e.g., contribution evidence) are stored in Firebase Storage. Access is controlled by Storage Security Rules (`storage.rules`), which restrict who can upload, view, and delete files based on their user ID.
+*   **4.4.3 Data Cleanup:** When a user account is deleted, a Cloud Function (`onUserDeleted`) is triggered to perform a full cleanup of all associated user data, including their contributions, attendance records, and unique matric ID reservation, to prevent orphaned data.
