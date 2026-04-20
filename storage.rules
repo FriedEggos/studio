@@ -2,37 +2,36 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Rules for user profile pictures
-    match /profile-pictures/{userId}/{allPaths=**} {
-      // Allow anyone to read profile pictures, which is common for avatars.
-      allow read;
 
-      // Allow a user to write to their own profile picture path only.
-      // They must be authenticated, the file must be an image, and under 2MB.
-      allow write: if request.auth != null 
-                    && request.auth.uid == userId
-                    && request.resource.size < 2 * 1024 * 1024
-                    && request.resource.contentType.matches('image/.*');
+    // Helper function to check if the requesting user is an admin by reading their role from Firestore.
+    function isAdmin() {
+      return request.auth != null && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Rules for contribution evidence
+    // Rules for contribution evidence files
     match /contributions/{userId}/{positionId}/{fileName} {
-      // Allow read access to anyone with the link (admins, the user).
+      
+      // PUBLIC READ: 
+      // Allow anyone with the unguessable URL to read the evidence file.
+      // This is necessary for the current app implementation where image URLs are used directly in `<img>` tags by admins for verification.
       allow read;
 
-      // Allow a user to CREATE their own contribution evidence.
-      // They must be authenticated and the owner of the record.
+      // CREATE: 
+      // Allow a student to upload their own evidence.
       // File must be an image and under 10MB.
       allow create: if request.auth != null 
                     && request.auth.uid == userId
                     && request.resource.size < 10 * 1024 * 1024
                     && request.resource.contentType.matches('image/.*');
       
-      // Do not allow client-side updates to prevent overwriting evidence.
+      // UPDATE: 
+      // Disallow client-side updates to prevent evidence tampering after submission.
       allow update: if false;
       
-      // Allow the user who uploaded it to delete it.
-      allow delete: if request.auth != null && request.auth.uid == userId;
+      // DELETE: 
+      // Allow the file's owner (the student) or an admin to delete the file.
+      allow delete: if request.auth != null && (request.auth.uid == userId || isAdmin());
     }
   }
 }
