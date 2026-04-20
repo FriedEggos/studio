@@ -9,6 +9,9 @@
   "functions": {
     "source": "functions"
   },
+  "storage": {
+    "rules": "storage.rules"
+  },
   "apphosting": {
     "backendId": "studio",
     "rootDir": ".",
