@@ -82,7 +82,7 @@ interface Position {
     customPositionDetail?: string;
     programName: string;
     peringkat: string;
-    semester: string;
+    semester: number;
     className: string;
     verificationStatus: 'pending' | 'approved' | 'rejected' | 'awaiting_evidence';
     rejectionRemark?: string;
@@ -544,7 +544,7 @@ export default function MyContributionsPage() {
                         : displayedPositions && displayedPositions.length > 0 ? (displayedPositions.map((pos, index) => {
                             const isRejectedWithRemark = pos.verificationStatus === 'rejected' && pos.rejectionRemark;
                             const isExpanded = expandedRemarks[pos.id] || false;
-                            const isLongRemark = isRejectedWithRemark && pos.rejectionRemark && pos.rejectionRemark.length > 100;
+                            const isLongRemark = isRejectedWithRemark && (pos.rejectionRemark?.length ?? 0) > 100;
                             
                             return (
                                 <React.Fragment key={pos.id}>
@@ -589,7 +589,7 @@ export default function MyContributionsPage() {
                                                         <div className="flex items-center gap-1">
                                                             <Badge variant="destructive" className="capitalize">Rejected</Badge>
                                                             {isLongRemark ? (
-                                                                <Button variant="ghost" size="icon" className="h-6 w-6 cursor-pointer" onClick={() => setRemarkInModal(pos.rejectionRemark!)}>
+                                                                <Button variant="ghost" size="icon" className="h-6 w-6 cursor-pointer" onClick={() => setRemarkInModal(pos.rejectionRemark ?? "")}>
                                                                     <AlertCircle className="h-4 w-4 text-destructive" />
                                                                 </Button>
                                                             ) : (
