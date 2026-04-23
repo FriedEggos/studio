@@ -544,7 +544,7 @@ export default function MyContributionsPage() {
                         : displayedPositions && displayedPositions.length > 0 ? (displayedPositions.map((pos, index) => {
                             const isRejectedWithRemark = pos.verificationStatus === 'rejected' && pos.rejectionRemark;
                             const isExpanded = expandedRemarks[pos.id] || false;
-                            const isLongRemark = isRejectedWithRemark && pos.rejectionRemark ? pos.rejectionRemark.length > 100 : false;
+                            const isLongRemark = isRejectedWithRemark && pos.rejectionRemark && pos.rejectionRemark.length > 100;
                             
                             return (
                                 <React.Fragment key={pos.id}>
