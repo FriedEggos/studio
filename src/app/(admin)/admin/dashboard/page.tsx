@@ -6,6 +6,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -18,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { List, MoreHorizontal, Trash2, Loader2, UserPlus, Users, Download, ArrowRight } from "lucide-react";
+import { List, MoreHorizontal, Trash2, Loader2, UserPlus, Users, Download, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useState, useMemo, useEffect } from "react";
 import {
@@ -40,7 +41,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase";
-import { collection, query, orderBy, writeBatch, getDocs, doc, Timestamp, collectionGroup, where, limit, deleteDoc } from "firebase/firestore";
+import { collection, query, orderBy, writeBatch, getDocs, doc, Timestamp, collectionGroup, where, limit, deleteDoc, startAfter, Query, DocumentData, QueryDocumentSnapshot, onSnapshot } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
@@ -74,6 +75,7 @@ type Position = {
   createdAt: { toDate: () => Date };
 };
 
+const POSITIONS_PER_PAGE = 20;
 
 export default function AdminDashboard() {
   const firestore = useFirestore();
@@ -104,32 +106,100 @@ export default function AdminDashboard() {
   });
   const [isLoadingStats, setIsLoadingStats] = useState(true);
 
-  // New state for contribution history
+  // State for contribution history
+  const [historyPositions, setHistoryPositions] = useState<Position[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  
+  // Pagination state for history
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageCursors, setHistoryPageCursors] = useState<(QueryDocumentSnapshot | null)[]>([null]);
+  const [historyHasNextPage, setHistoryHasNextPage] = useState(false);
 
-  const approvedPositionsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(
-      collectionGroup(firestore, 'positions'),
-      where('verificationStatus', '==', 'approved'),
-      orderBy('createdAt', 'desc')
-    );
-  }, [firestore]);
-
-  const { data: approvedPositions, isLoading: isLoadingApproved } = useCollection<Position>(approvedPositionsQuery);
-
-  const filteredPositions = useMemo(() => {
-    if (!approvedPositions) return [];
-    if (!searchQuery) return approvedPositions;
-    return approvedPositions.filter(pos =>
-      pos.matricId?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [approvedPositions, searchQuery]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000); // Update every minute
     return () => clearInterval(timer);
   }, []);
+
+  // Debounce search input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setHistoryPage(1); // Reset page on new search
+      setHistoryPageCursors([null]);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  // Data fetching for contribution history
+  useEffect(() => {
+    if (!firestore) return;
+    setIsLoadingHistory(true);
+
+    const baseCollectionRef = collectionGroup(firestore, 'positions');
+    let q: Query<DocumentData>;
+
+    if (debouncedSearchQuery) {
+        const searchQueryUpper = debouncedSearchQuery.toUpperCase();
+        q = query(
+            baseCollectionRef,
+            where('verificationStatus', '==', 'approved'),
+            orderBy('matricId'),
+            where('matricId', '>=', searchQueryUpper),
+            where('matricId', '<=', searchQueryUpper + '\uf8ff'),
+            orderBy('createdAt', 'desc')
+        );
+    } else {
+        q = query(
+            baseCollectionRef,
+            where('verificationStatus', '==', 'approved'),
+            orderBy('createdAt', 'desc')
+        );
+    }
+
+    const cursor = historyPageCursors[historyPage - 1];
+    if (cursor) {
+        q = query(q, startAfter(cursor));
+    }
+
+    q = query(q, limit(POSITIONS_PER_PAGE + 1));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetchedPositions = snapshot.docs.slice(0, POSITIONS_PER_PAGE).map(doc => ({ id: doc.id, ...doc.data() } as Position));
+        setHistoryPositions(fetchedPositions);
+
+        const hasMore = snapshot.docs.length > POSITIONS_PER_PAGE;
+        setHistoryHasNextPage(hasMore);
+
+        if (hasMore) {
+            const lastVisible = snapshot.docs[POSITIONS_PER_PAGE - 1];
+            if (historyPage >= historyPageCursors.length) {
+                setHistoryPageCursors(prev => [...prev, lastVisible]);
+            }
+        }
+        setIsLoadingHistory(false);
+    }, (error) => {
+        console.error("Error fetching contribution history:", error);
+        let errorMessage = "Failed to load contribution history.";
+        if ((error as any).code === 'failed-precondition') {
+            errorMessage = "A database index is required for this query. Please check your Firestore indexes.";
+        }
+        toast({ variant: "destructive", title: "Error", description: errorMessage });
+        setIsLoadingHistory(false);
+    });
+
+    return () => unsubscribe();
+  }, [firestore, historyPage, debouncedSearchQuery, historyPageCursors, toast]);
+
+  const handleHistoryPageChange = (direction: 'next' | 'prev') => {
+    if (direction === 'next' && historyHasNextPage) {
+        setHistoryPage(p => p + 1);
+    } else if (direction === 'prev' && historyPage > 1) {
+        setHistoryPage(p => p - 1);
+    }
+  };
 
   useEffect(() => {
     if (!firestore) return;
@@ -137,41 +207,28 @@ export default function AdminDashboard() {
     const fetchStats = async () => {
         setIsLoadingStats(true);
         try {
-            // Get start of current month for active students
             const now = new Date();
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
             const startOfMonthTimestamp = Timestamp.fromDate(startOfMonth);
-
-            // Get start of last 30 days for new student growth
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
             const thirtyDaysAgoTimestamp = Timestamp.fromDate(thirtyDaysAgo);
-
-            // Define queries
             const programsQuery = collection(firestore, 'programs');
-            
             const activeStudentsQuery = query(
               collectionGroup(firestore, 'attendances'), 
               where('createdAt', '>=', startOfMonthTimestamp)
             );
-
             const newStudentsQuery = query(
               collection(firestore, 'users'), 
               where('role', '==', 'student'), 
               where('createdAt', '>=', thirtyDaysAgoTimestamp)
             );
-
-            // Fetch data in parallel
             const [programsSnapshot, activeStudentsSnapshot, newStudentsSnapshot] = await Promise.all([
                 getDocs(programsQuery),
                 getDocs(activeStudentsQuery),
                 getDocs(newStudentsQuery)
             ]);
-            
-            // Calculate Total Programs
             const totalPrograms = programsSnapshot.size;
-
-            // Calculate Monthly Active Students from attendances
             const activeEmails = new Set<string>();
             activeStudentsSnapshot.forEach(doc => {
                 const data = doc.data();
@@ -180,16 +237,8 @@ export default function AdminDashboard() {
                 }
             });
             const monthlyActive = activeEmails.size;
-
-            // Calculate New Student Growth
             const newStudents = newStudentsSnapshot.size;
-
-            setStats({
-                totalPrograms,
-                monthlyActive,
-                newStudents,
-            });
-
+            setStats({ totalPrograms, monthlyActive, newStudents });
         } catch (error) {
             console.error("Error fetching dashboard stats:", error);
             toast({
@@ -212,33 +261,22 @@ export default function AdminDashboard() {
 
     try {
       const batch = writeBatch(firestore);
-
-      // Delete attendances subcollection
       const attendancesColRef = collection(firestore, 'programs', programToDelete.id, 'attendances');
       const attendancesSnapshot = await getDocs(attendancesColRef);
       attendancesSnapshot.forEach((doc) => batch.delete(doc.ref));
-
-      // Delete program config
       const configDocRef = doc(firestore, 'programConfigs', programToDelete.id);
       batch.delete(configDocRef);
-
-      // Delete QR slug mapping
       if (programToDelete.qrSlug) {
         const slugDocRef = doc(firestore, 'qrSlugs', programToDelete.qrSlug);
         batch.delete(slugDocRef);
       }
-      
-      // Delete the main program document
       const programDocRef = doc(firestore, 'programs', programToDelete.id);
       batch.delete(programDocRef);
-
       await batch.commit();
-
       toast({
         title: "Program Deleted",
         description: `"${programToDelete.title}" and all its data have been removed.`,
       });
-
     } catch (error) {
       console.error("Error deleting program:", error);
       toast({
@@ -260,7 +298,6 @@ export default function AdminDashboard() {
     try {
         const positionDocRef = doc(firestore, 'users', positionToDelete.userId, 'positions', positionToDelete.id);
         await deleteDoc(positionDocRef);
-
         toast({
             title: "Contribution Deleted",
             description: "The contribution record has been successfully removed.",
@@ -280,95 +317,119 @@ export default function AdminDashboard() {
   };
 
 
-  const handleDownloadPdf = () => {
-    if (!filteredPositions || filteredPositions.length === 0) {
+  const handleDownloadPdf = async () => {
+    if (!firestore) return;
+  
+    const doc = new jsPDF();
+    let positionsToExport: Position[];
+  
+    try {
+      if (searchQuery) {
+        const searchQueryUpper = searchQuery.toUpperCase();
+        const allSearchedQuery = query(
+          collectionGroup(firestore, 'positions'),
+          where('verificationStatus', '==', 'approved'),
+          orderBy('matricId'),
+          where('matricId', '>=', searchQueryUpper),
+          where('matricId', '<=', searchQueryUpper + '\uf8ff'),
+          orderBy('createdAt', 'desc')
+        );
+        const querySnapshot = await getDocs(allSearchedQuery);
+        positionsToExport = querySnapshot.docs.map(d => d.data() as Position);
+      } else {
+        const allApprovedQuery = query(
+          collectionGroup(firestore, 'positions'),
+          where('verificationStatus', '==', 'approved'),
+          orderBy('createdAt', 'desc')
+        );
+        const querySnapshot = await getDocs(allApprovedQuery);
+        positionsToExport = querySnapshot.docs.map(d => d.data() as Position);
+      }
+  
+      if (positionsToExport.length === 0) {
+        toast({
+          variant: "destructive",
+          title: "No Data",
+          description: "There are no records to export for this query.",
+        });
+        return;
+      }
+  
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const signatureX = 14;
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text('REKOD SUMBANGAN PELAJAR JTMK', doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      let startY = 35;
+  
+      if (searchQuery && positionsToExport.length > 0) {
+        const student = positionsToExport[0];
+        doc.text(`Nama Pelajar: ${student.userName}`, 14, startY);
+        doc.text(`ID Matrik: ${student.matricId}`, 14, startY + 6);
+        startY += 15;
+        autoTable(doc, {
+          startY: startY,
+          head: [['No.', 'Program', 'Peringkat', 'Jawatan', 'Semester', 'Class', 'Tarikh']],
+          body: positionsToExport.map((p, index) => [
+            index + 1,
+            p.programName,
+            p.peringkat,
+            p.positionName === 'AJK Lain-Lain' && p.customPositionDetail
+              ? `${p.positionName} (${p.customPositionDetail})`
+              : p.positionName,
+            p.semester,
+            p.className,
+            p.createdAt ? format(p.createdAt.toDate(), 'dd/MM/yyyy') : 'N/A',
+          ]),
+          theme: 'grid',
+          headStyles: { fillColor: [37, 51, 89] },
+        });
+      } else {
+        autoTable(doc, {
+          startY: startY,
+          head: [['No.', 'Student', 'Matric ID', 'Program', 'Level', 'Position', 'Semester', 'Class', 'Date']],
+          body: positionsToExport.map((p, index) => [
+            index + 1,
+            p.userName,
+            p.matricId,
+            p.programName,
+            p.peringkat,
+            p.positionName === 'AJK Lain-Lain' && p.customPositionDetail
+              ? `${p.positionName} (${p.customPositionDetail})`
+              : p.positionName,
+            p.semester,
+            p.className,
+            p.createdAt ? format(p.createdAt.toDate(), 'dd/MM/yyyy') : 'N/A',
+          ]),
+          theme: 'grid',
+          headStyles: { fillColor: [37, 51, 89] },
+        });
+      }
+  
+      let finalY = (doc as any).lastAutoTable.finalY || pageHeight - 60;
+      let signatureY = finalY + 25;
+      if (signatureY > pageHeight - 50) {
+        doc.addPage();
+        signatureY = 40;
+      }
+      doc.setFontSize(10);
+      doc.text('_______________________________', signatureX, signatureY);
+      doc.text('(PENYELARAS KELAB ICT JTMK)', signatureX, signatureY + 6);
+      doc.text('POLITEKNIK KUCHING SARAWAK', signatureX, signatureY + 12);
+      doc.text('Nama:', signatureX, signatureY + 22);
+      doc.text('Tarikh:', signatureX, signatureY + 28);
+      doc.save(`JTMK_Sumbangan_Pelajar_${new Date().toISOString().split('T')[0]}.pdf`);
+  
+    } catch (pdfError) {
+      console.error("Error generating PDF:", pdfError);
       toast({
         variant: "destructive",
-        title: "No Data",
-        description: "There are no records to export.",
-      });
-      return;
-    }
-
-    const doc = new jsPDF();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const signatureX = 14;
-
-    // PDF Title
-    doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
-    doc.text('REKOD SUMBANGAN PELAJAR JTMK', doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
-    
-    let startY = 35;
-    
-    // Conditional logic for PDF content
-    if (searchQuery && filteredPositions.length > 0) {
-      // ** STUDENT-SPECIFIC REPORT **
-      const student = filteredPositions[0];
-      doc.text(`Nama Pelajar: ${student.userName}`, 14, startY);
-      doc.text(`ID Matrik: ${student.matricId}`, 14, startY + 6);
-      startY += 15;
-      
-      autoTable(doc, {
-        startY: startY,
-        head: [['No.', 'Program', 'Peringkat', 'Jawatan', 'Semester', 'Class', 'Tarikh']],
-        body: filteredPositions.map((p, index) => [
-          index + 1,
-          p.programName,
-          p.peringkat,
-          p.positionName === 'AJK Lain-Lain' && p.customPositionDetail
-            ? `${p.positionName} (${p.customPositionDetail})`
-            : p.positionName,
-          p.semester,
-          p.className,
-          p.createdAt ? format(p.createdAt.toDate(), 'dd/MM/yyyy') : 'N/A',
-        ]),
-        theme: 'grid',
-        headStyles: { fillColor: [37, 51, 89] },
-      });
-
-    } else {
-      // ** "ALL" REPORT **
-      autoTable(doc, {
-        startY: startY,
-        head: [['No.', 'Student', 'Matric ID', 'Program', 'Level', 'Position', 'Semester', 'Class', 'Date']],
-        body: filteredPositions.map((p, index) => [
-          index + 1,
-          p.userName,
-          p.matricId,
-          p.programName,
-          p.peringkat,
-          p.positionName === 'AJK Lain-Lain' && p.customPositionDetail
-            ? `${p.positionName} (${p.customPositionDetail})`
-            : p.positionName,
-          p.semester,
-          p.className,
-          p.createdAt ? format(p.createdAt.toDate(), 'dd/MM/yyyy') : 'N/A',
-        ]),
-        theme: 'grid',
-        headStyles: { fillColor: [37, 51, 89] },
+        title: "PDF Export Failed",
+        description: "An error occurred while generating the PDF.",
       });
     }
-
-    // Signature Section
-    let finalY = (doc as any).lastAutoTable.finalY || pageHeight - 60;
-    let signatureY = finalY + 25;
-
-    if (signatureY > pageHeight - 50) {
-        doc.addPage();
-        signatureY = 40; // Start at top of new page
-    }
-    
-    doc.setFontSize(10);
-    doc.text('_______________________________', signatureX, signatureY);
-    doc.text('(PENYELARAS KELAB ICT JTMK)', signatureX, signatureY + 6);
-    doc.text('POLITEKNIK KUCHING SARAWAK', signatureX, signatureY + 12);
-    doc.text('Nama:', signatureX, signatureY + 22);
-    doc.text('Tarikh:', signatureX, signatureY + 28);
-
-    doc.save(`JTMK_Sumbangan_Pelajar_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   const StatCard = ({ title, icon: Icon, value, isLoading, description }: { title: string, icon: React.ElementType, value: React.ReactNode, isLoading: boolean, description: string }) => (
@@ -554,7 +615,7 @@ export default function AdminDashboard() {
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full sm:w-64"
                     />
-                    <Button onClick={handleDownloadPdf} variant="outline" size="sm" disabled={!filteredPositions || filteredPositions.length === 0}>
+                    <Button onClick={handleDownloadPdf} variant="outline" size="sm" disabled={isLoadingHistory}>
                       <Download className="mr-2 h-4 w-4" />
                       PDF
                     </Button>
@@ -578,7 +639,7 @@ export default function AdminDashboard() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {isLoadingApproved ? (
+                        {isLoadingHistory ? (
                             [...Array(5)].map((_, i) => (
                                 <TableRow key={i}>
                                     <TableCell><Skeleton className="h-5 w-6" /></TableCell>
@@ -593,10 +654,10 @@ export default function AdminDashboard() {
                                     <TableCell className="text-right"><Skeleton className="h-9 w-9" /></TableCell>
                                 </TableRow>
                             ))
-                        ) : filteredPositions && filteredPositions.length > 0 ? (
-                            filteredPositions.map((pos, index) => (
+                        ) : historyPositions && historyPositions.length > 0 ? (
+                            historyPositions.map((pos, index) => (
                             <TableRow key={pos.id}>
-                                <TableCell>{index + 1}</TableCell>
+                                <TableCell>{((historyPage - 1) * POSITIONS_PER_PAGE) + index + 1}</TableCell>
                                 <TableCell className="font-medium">{pos.userName}</TableCell>
                                 <TableCell>{pos.matricId}</TableCell>
                                 <TableCell>{pos.programName}</TableCell>
@@ -638,6 +699,21 @@ export default function AdminDashboard() {
                     </TableBody>
                 </Table>
             </CardContent>
+             <CardFooter className="flex items-center justify-between border-t pt-6">
+              <span className="text-sm text-muted-foreground">
+                Page {historyPage}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button onClick={() => handleHistoryPageChange('prev')} disabled={historyPage <= 1 || isLoadingHistory} variant="outline" size="sm">
+                  <ChevronLeft className="mr-1 h-4 w-4" />
+                  Previous
+                </Button>
+                <Button onClick={() => handleHistoryPageChange('next')} disabled={!historyHasNextPage || isLoadingHistory} variant="outline" size="sm">
+                  Next
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+              </div>
+            </CardFooter>
           </Card>
         </div>
       </div>
