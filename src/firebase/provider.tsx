@@ -6,7 +6,7 @@ import { FirebaseApp } from 'firebase/app';
 import { Firestore } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { Functions } from 'firebase/functions';
-import { Storage } from 'firebase/storage';
+import { FirebaseStorage } from 'firebase/storage';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
 
 interface FirebaseProviderProps {
@@ -15,7 +15,7 @@ interface FirebaseProviderProps {
   firestore: Firestore;
   auth: Auth;
   functions: Functions;
-  storage: Storage;
+  storage: FirebaseStorage;
 }
 
 // Internal state for user authentication
@@ -32,7 +32,7 @@ export interface FirebaseContextState {
   firestore: Firestore | null;
   auth: Auth | null; // The Auth service instance
   functions: Functions | null;
-  storage: Storage | null;
+  storage: FirebaseStorage | null;
   // User authentication state
   user: User | null;
   isUserLoading: boolean; // True during initial auth check
@@ -45,7 +45,7 @@ export interface FirebaseServicesAndUser {
   firestore: Firestore;
   auth: Auth;
   functions: Functions;
-  storage: Storage;
+  storage: FirebaseStorage;
   user: User | null;
   isUserLoading: boolean;
   userError: Error | null;
@@ -176,7 +176,7 @@ export const useFunctions = (): Functions => {
 };
 
 /** Hook to access Firebase Storage instance. */
-export const useStorage = (): Storage => {
+export const useStorage = (): FirebaseStorage => {
   const { storage } = useFirebase();
   return storage;
 };
