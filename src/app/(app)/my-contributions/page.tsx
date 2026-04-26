@@ -25,9 +25,9 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { AlertCircle, PlusCircle, Loader2, Download, BadgeCheck, Edit, Trash2, Eye } from "lucide-react";
+import { AlertCircle, PlusCircle, Loader2, Download, BadgeCheck, Edit, Trash2, Eye, Check, ChevronsUpDown } from "lucide-react";
 import { useUser, useFirestore, useMemoFirebase, useCollection, useDoc, useStorage } from "@/firebase";
-import { doc, collection, addDoc, serverTimestamp, deleteDoc, setDoc } from "firebase/firestore";
+import { doc, collection, addDoc, serverTimestamp, deleteDoc, setDoc, query, orderBy } from "firebase/firestore";
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -54,10 +54,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { isProfileComplete } from '@/lib/utils';
+import { isProfileComplete, cn } from '@/lib/utils';
 import Link from 'next/link';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 // Schemas and Types
@@ -89,6 +90,11 @@ interface Position {
     createdAt: { toDate: () => Date };
     evidenceUrl?: string;
     evidenceStoragePath?: string;
+}
+
+interface Program {
+    id: string;
+    title: string;
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -191,6 +197,9 @@ export default function MyContributionsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [expandedRemarks, setExpandedRemarks] = useState<Record<string, boolean>>({});
   const [remarkInModal, setRemarkInModal] = useState<string | null>(null);
+  
+  const [openProgramCombobox, setOpenProgramCombobox] = useState(false);
+  const [programSearch, setProgramSearch] = useState('');
 
   const toggleRemark = (positionId: string) => {
     setExpandedRemarks(prev => ({
@@ -205,6 +214,10 @@ export default function MyContributionsPage() {
 
   const positionsQuery = useMemoFirebase(() => user ? collection(firestore, `users/${user.uid}/positions`) : null, [user, firestore]);
   const { data: positions, isLoading: isLoadingPositions } = useCollection<Position>(positionsQuery);
+  
+  const programsCollectionQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'programs'), orderBy('title', 'asc')) : null, [firestore]);
+  const { data: programsData, isLoading: isLoadingPrograms } = useCollection<Program>(programsCollectionQuery);
+
 
   // Form Management
   const form = useForm<z.infer<typeof positionSchema>>({
@@ -220,6 +233,13 @@ export default function MyContributionsPage() {
   const hasPending = useMemo(() => positions?.some(p => p.verificationStatus === 'pending'), [positions]);
   const approvedPositions = useMemo(() => positions?.filter(p => p.verificationStatus === 'approved') || [], [positions]);
   const displayedPositions = useMemo(() => positions?.filter(p => p.verificationStatus !== 'awaiting_evidence') || [], [positions]);
+
+  const filteredPrograms = useMemo(() => {
+    if (!programsData) return [];
+    if (!programSearch) return programsData;
+    return programsData.filter(p => p.title.toLowerCase().includes(programSearch.toLowerCase()));
+  }, [programsData, programSearch]);
+
 
   // Effects
   useEffect(() => {
@@ -433,9 +453,74 @@ export default function MyContributionsPage() {
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onPositionSubmit)} className="space-y-4 p-4 border rounded-lg mb-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField control={form.control} name="programName" render={({ field }) => (
-                                    <FormItem><FormLabel>Nama Program</FormLabel><FormControl><Input placeholder="Nama penuh program" {...field} disabled={!profileComplete} /></FormControl><FormMessage /></FormItem>
-                                )} />
+                                <FormField
+                                    control={form.control}
+                                    name="programName"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-col">
+                                            <FormLabel>Nama Program</FormLabel>
+                                            <Popover open={openProgramCombobox} onOpenChange={setOpenProgramCombobox}>
+                                                <PopoverTrigger asChild>
+                                                    <FormControl>
+                                                        <Button
+                                                            variant="outline"
+                                                            role="combobox"
+                                                            className={cn(
+                                                                "w-full justify-between",
+                                                                !field.value && "text-muted-foreground"
+                                                            )}
+                                                            disabled={!profileComplete || isLoadingPrograms}
+                                                        >
+                                                            {isLoadingPrograms ? "Loading..." : field.value
+                                                                ? programsData?.find(
+                                                                    (program) => program.title === field.value
+                                                                )?.title
+                                                                : "Pilih program"}
+                                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                        </Button>
+                                                    </FormControl>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                                    <Input
+                                                        placeholder="Cari program..."
+                                                        className="h-9 rounded-b-none border-x-0 border-t-0"
+                                                        onChange={(e) => setProgramSearch(e.target.value)}
+                                                        autoFocus
+                                                    />
+                                                    <ScrollArea className="h-72">
+                                                        {isLoadingPrograms && <div className="p-4 text-center text-sm text-muted-foreground">Loading...</div>}
+                                                        {filteredPrograms.map((program) => (
+                                                            <div
+                                                                key={program.id}
+                                                                className="text-sm p-2 hover:bg-accent cursor-pointer flex items-center"
+                                                                onClick={() => {
+                                                                    form.setValue("programName", program.title, { shouldValidate: true })
+                                                                    setOpenProgramCombobox(false)
+                                                                }}
+                                                            >
+                                                                <Check
+                                                                    className={cn(
+                                                                        "mr-2 h-4 w-4",
+                                                                        program.title === field.value
+                                                                            ? "opacity-100"
+                                                                            : "opacity-0"
+                                                                    )}
+                                                                />
+                                                                {program.title}
+                                                            </div>
+                                                        ))}
+                                                        {!isLoadingPrograms && filteredPrograms.length === 0 && (
+                                                            <p className="p-4 text-center text-sm text-muted-foreground">
+                                                                No program found.
+                                                            </p>
+                                                        )}
+                                                    </ScrollArea>
+                                                </PopoverContent>
+                                            </Popover>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
                                 <FormField control={form.control} name="peringkat" render={({ field }) => (
                                     <FormItem><FormLabel>Peringkat</FormLabel><Select onValueChange={field.onChange} value={field.value} disabled={!profileComplete}><FormControl><SelectTrigger><SelectValue placeholder="Pilih peringkat" /></SelectTrigger></FormControl><SelectContent>{peringkatOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                                 )} />
