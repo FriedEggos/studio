@@ -38,7 +38,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { QRImageCard } from "@/components/qr-image-card";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -65,6 +65,18 @@ interface Program {
   redirectUrl?: string;
 }
 
+interface ProgramConfig {
+  copywriting?: string;
+  fields: {
+    requireStudentId?: boolean;
+    requireEmail?: boolean;
+    customInput1Enabled?: boolean;
+    customInput1Label?: string;
+    customInput2Enabled?: boolean;
+    customInput2Label?: string;
+  };
+}
+
 interface Attendance {
     id: string; // This is the student's email
     studentName: string;
@@ -77,6 +89,8 @@ interface Attendance {
         toDate: () => Date;
     } | null;
     checkOutStatus?: 'ok' | 'too_early' | 'outside_window' | 'too_short' | 'admin_override';
+    customInput1?: string;
+    customInput2?: string;
 }
 
 const ATTENDANCES_PER_PAGE = 20;
@@ -115,9 +129,17 @@ export default function ProgramDetailsPage() {
     if (!programId || !firestore) return null;
     return doc(firestore, 'programs', programId);
   }, [programId, firestore]);
-
-  const { data: program, isLoading } = useDoc<Program>(programDocRef);
   
+  const configDocRef = useMemoFirebase(() => {
+    if (!programId || !firestore) return null;
+    return doc(firestore, 'programConfigs', programId);
+  }, [programId, firestore]);
+
+  const { data: program, isLoading: isLoadingProgram } = useDoc<Program>(programDocRef);
+  const { data: programConfig, isLoading: isLoadingConfig } = useDoc<ProgramConfig>(configDocRef);
+  
+  const isLoading = isLoadingProgram || isLoadingConfig;
+
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000); // Update time every minute for status check
     return () => clearInterval(timer);
@@ -234,13 +256,23 @@ export default function ProgramDetailsPage() {
       });
       return;
     }
-    const dataToExport = attendances.map(att => ({
-      'Student Name': att.studentName,
-      'Student ID': att.studentId,
-      'Class': att.classGroup,
-      'Check-in Time': att.createdAt ? format(att.createdAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A',
-      'Check-out Time': att.checkOutAt ? format(att.checkOutAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A',
-    }));
+    const dataToExport = attendances.map(att => {
+      const record: {[key: string]: any} = {
+          'Student Name': att.studentName,
+          'Student ID': att.studentId,
+          'Class': att.classGroup,
+      };
+      if (programConfig?.fields?.customInput1Enabled) {
+          record[programConfig.fields.customInput1Label || 'Custom 1'] = att.customInput1 || '-';
+      }
+      if (programConfig?.fields?.customInput2Enabled) {
+          record[programConfig.fields.customInput2Label || 'Custom 2'] = att.customInput2 || '-';
+      }
+      record['Check-in Time'] = att.createdAt ? format(att.createdAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A';
+      record['Check-out Time'] = att.checkOutAt ? format(att.checkOutAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A';
+      
+      return record;
+    });
     
     exportToCsv(`attendance_${program?.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`, dataToExport);
   };
@@ -257,14 +289,33 @@ export default function ProgramDetailsPage() {
     
     const doc = new jsPDF();
     
-    const tableColumns = ["Student Name", "Student ID", "Class", "Check-in Time", "Check-out Time"];
-    const tableRows = attendances.map(att => ([
-      att.studentName || '',
-      att.studentId || '-',
-      att.classGroup || '-',
-      att.createdAt ? format(att.createdAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A',
-      att.checkOutAt ? format(att.checkOutAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A',
-    ]));
+    const tableColumns = ["Student Name", "Student ID", "Class"];
+    if (programConfig?.fields?.customInput1Enabled) {
+        tableColumns.push(programConfig.fields.customInput1Label || 'Custom 1');
+    }
+    if (programConfig?.fields?.customInput2Enabled) {
+        tableColumns.push(programConfig.fields.customInput2Label || 'Custom 2');
+    }
+    tableColumns.push("Check-in Time", "Check-out Time");
+
+    const tableRows = attendances.map(att => {
+        const row = [
+            att.studentName || '',
+            att.studentId || '-',
+            att.classGroup || '-',
+        ];
+        if (programConfig?.fields?.customInput1Enabled) {
+            row.push(att.customInput1 || '-');
+        }
+        if (programConfig?.fields?.customInput2Enabled) {
+            row.push(att.customInput2 || '-');
+        }
+        row.push(
+            att.createdAt ? format(att.createdAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A',
+            att.checkOutAt ? format(att.checkOutAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A'
+        );
+        return row;
+    });
 
     doc.setFontSize(18);
     doc.text(`Attendances: ${program?.title || 'Program'}`, 14, 22);
@@ -398,6 +449,8 @@ export default function ProgramDetailsPage() {
 
   const dynamicStatus = getProgramStatus(program);
 
+  const tableColSpan = 6 + (programConfig?.fields?.customInput1Enabled ? 1 : 0) + (programConfig?.fields?.customInput2Enabled ? 1 : 0);
+
   return (
     <>
         <div className="space-y-6 max-w-5xl mx-auto">
@@ -510,18 +563,22 @@ export default function ProgramDetailsPage() {
                         <TableHead>Student Name</TableHead>
                         <TableHead>Student ID</TableHead>
                         <TableHead>Class</TableHead>
+                        {programConfig?.fields?.customInput1Enabled && <TableHead>{programConfig.fields.customInput1Label || 'Custom 1'}</TableHead>}
+                        {programConfig?.fields?.customInput2Enabled && <TableHead>{programConfig.fields.customInput2Label || 'Custom 2'}</TableHead>}
                         <TableHead>Check-in Time</TableHead>
                         <TableHead>Check-out Time</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {isLoadingAttendances ? (
+                    {isLoadingAttendances || isLoadingConfig ? (
                         [...Array(5)].map((_, i) => (
                         <TableRow key={i}>
                             <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                             <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                             <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                            {programConfig?.fields?.customInput1Enabled && <TableCell><Skeleton className="h-5 w-24" /></TableCell>}
+                            {programConfig?.fields?.customInput2Enabled && <TableCell><Skeleton className="h-5 w-24" /></TableCell>}
                             <TableCell><Skeleton className="h-5 w-28" /></TableCell>
                             <TableCell><Skeleton className="h-5 w-28" /></TableCell>
                             <TableCell><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
@@ -533,6 +590,8 @@ export default function ProgramDetailsPage() {
                             <TableCell className="font-medium">{att.studentName}</TableCell>
                             <TableCell>{att.studentId || '-'}</TableCell>
                             <TableCell>{att.classGroup || '-'}</TableCell>
+                            {programConfig?.fields.customInput1Enabled && <TableCell>{att.customInput1 || '-'}</TableCell>}
+                            {programConfig?.fields.customInput2Enabled && <TableCell>{att.customInput2 || '-'}</TableCell>}
                             <TableCell>{att.createdAt ? format(att.createdAt.toDate(), 'Pp') : <span className="text-muted-foreground">Syncing...</span>}</TableCell>
                             <TableCell className={cn(att.checkOutAt ? getCheckoutStatusColor(att.checkOutStatus) : '')}>
                                 {att.checkOutAt ? format(att.checkOutAt.toDate(), 'Pp') : '-'}
@@ -573,7 +632,7 @@ export default function ProgramDetailsPage() {
                         ))
                     ) : (
                         <TableRow>
-                        <TableCell colSpan={6} className="h-24 text-center">
+                        <TableCell colSpan={tableColSpan} className="h-24 text-center">
                             {searchQuery ? "No records found for your search." : "No attendances recorded yet."}
                         </TableCell>
                         </TableRow>
