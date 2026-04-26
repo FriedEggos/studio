@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { UserNav } from "@/components/user-nav";
+import { VerificationNavLink } from "@/components/admin/VerificationNavLink";
 
 
 const navLinks = [
@@ -39,16 +40,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           <div className="flex-1">
             <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-              {navLinks.map(({ href, label, icon: Icon }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
-                >
-                  <Icon className="h-4 w-4" />
-                  {label}
-                </Link>
-              ))}
+              {navLinks.map(({ href, label, icon: Icon }) =>
+                label === "Verifications" ? (
+                  <VerificationNavLink key={href} />
+                ) : (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+                  >
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </Link>
+                )
+              )}
             </nav>
           </div>
         </div>
@@ -70,16 +75,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6 mb-4">
                     <Logo href="/admin/dashboard" />
                 </div>
-                {navLinks.map(({ href, label, icon: Icon }) => (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
-                  >
-                    <Icon className="h-5 w-5" />
-                    {label}
-                  </Link>
-                ))}
+                {navLinks.map(({ href, label, icon: Icon }) =>
+                  label === "Verifications" ? (
+                    <VerificationNavLink
+                      key={href}
+                      className="text-lg"
+                      iconClassName="h-5 w-5"
+                    />
+                  ) : (
+                    <Link
+                      key={href}
+                      href={href}
+                      className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+                    >
+                      <Icon className="h-5 w-5" />
+                      {label}
+                    </Link>
+                  )
+                )}
               </nav>
             </SheetContent>
           </Sheet>
@@ -93,5 +106,3 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     </div>
   );
 }
-
-    
