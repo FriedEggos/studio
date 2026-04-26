@@ -102,6 +102,7 @@ const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/web
 
 const positionSchema = z.object({
   programName: z.string().min(1, "Nama program diperlukan."),
+  customProgramName: z.string().optional(),
   peringkat: z.string().min(1, "Peringkat diperlukan."),
   positionName: z.string().min(1, "Jawatan diperlukan."),
   customPositionDetail: z.string().optional(),
@@ -119,6 +120,14 @@ const positionSchema = z.object({
 }, {
     message: "Details are required for 'AJK Lain-Lain'.",
     path: ['customPositionDetail'],
+}).refine(data => {
+    if (data.programName === "Lain-lain") {
+        return !!data.customProgramName && data.customProgramName.length > 0;
+    }
+    return true;
+}, {
+    message: "Sila nyatakan nama program.",
+    path: ['customProgramName'],
 }).superRefine((data, ctx) => {
     if (data.submissionType === 'with_photo') {
         const { evidence } = data;
@@ -212,7 +221,7 @@ export default function MyContributionsPage() {
   const userDocRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [user, firestore]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userDocRef);
 
-  const positionsQuery = useMemoFirebase(() => user ? collection(firestore, `users/${user.uid}/positions`) : null, [user, firestore]);
+  const positionsQuery = useMemoFirebase(() => user ? query(collection(firestore, `users/${user.uid}/positions`), orderBy('createdAt', 'desc')) : null, [user, firestore]);
   const { data: positions, isLoading: isLoadingPositions } = useCollection<Position>(positionsQuery);
   
   const programsCollectionQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'programs'), orderBy('title', 'asc')) : null, [firestore]);
@@ -222,9 +231,10 @@ export default function MyContributionsPage() {
   // Form Management
   const form = useForm<z.infer<typeof positionSchema>>({
     resolver: zodResolver(positionSchema),
-    defaultValues: { programName: '', peringkat: '', positionName: '', customPositionDetail: '', semester: '', className: '' },
+    defaultValues: { programName: '', customProgramName: '', peringkat: '', positionName: '', customPositionDetail: '', semester: '', className: '' },
   });
   const watchPositionName = form.watch('positionName');
+  const watchProgramName = form.watch('programName');
   const watchSubmissionType = form.watch('submissionType');
   const [isSubmittingPosition, setIsSubmittingPosition] = useState(false);
 
@@ -240,6 +250,11 @@ export default function MyContributionsPage() {
     return programsData.filter(p => p.title.toLowerCase().includes(programSearch.toLowerCase()));
   }, [programsData, programSearch]);
 
+  const programsForCombobox = useMemo(() => {
+      const otherOption: Program = { id: 'lain-lain', title: 'Lain-lain' };
+      return [otherOption, ...filteredPrograms];
+  }, [filteredPrograms]);
+
 
   // Effects
   useEffect(() => {
@@ -251,6 +266,10 @@ export default function MyContributionsPage() {
     if (!user || !userProfile || !positionsQuery || !storage) return;
     setIsSubmittingPosition(true);
     
+    const finalProgramName = values.programName === 'Lain-lain' && values.customProgramName
+        ? values.customProgramName.toUpperCase()
+        : values.programName.toUpperCase();
+
     const newPositionRef = doc(collection(firestore, 'users', user.uid, 'positions'));
     const positionId = newPositionRef.id;
     let evidenceUrl = "";
@@ -272,7 +291,7 @@ export default function MyContributionsPage() {
             userName: userProfile.displayName,
             matricId: userProfile.matricId,
             course: userProfile.course,
-            programName: values.programName.toUpperCase(),
+            programName: finalProgramName,
             peringkat: values.peringkat,
             positionName: values.positionName,
             customPositionDetail: values.customPositionDetail || "",
@@ -472,7 +491,7 @@ export default function MyContributionsPage() {
                                                             disabled={!profileComplete || isLoadingPrograms}
                                                         >
                                                             {isLoadingPrograms ? "Loading..." : field.value
-                                                                ? programsData?.find(
+                                                                ? programsForCombobox.find(
                                                                     (program) => program.title === field.value
                                                                 )?.title
                                                                 : "Pilih program"}
@@ -489,7 +508,7 @@ export default function MyContributionsPage() {
                                                     />
                                                     <ScrollArea className="h-72">
                                                         {isLoadingPrograms && <div className="p-4 text-center text-sm text-muted-foreground">Loading...</div>}
-                                                        {filteredPrograms.map((program) => (
+                                                        {programsForCombobox.map((program) => (
                                                             <div
                                                                 key={program.id}
                                                                 className="text-sm p-2 hover:bg-accent cursor-pointer flex items-center"
@@ -509,7 +528,7 @@ export default function MyContributionsPage() {
                                                                 {program.title}
                                                             </div>
                                                         ))}
-                                                        {!isLoadingPrograms && filteredPrograms.length === 0 && (
+                                                        {!isLoadingPrograms && programsForCombobox.length <= 1 && (
                                                             <p className="p-4 text-center text-sm text-muted-foreground">
                                                                 No program found.
                                                             </p>
@@ -521,6 +540,23 @@ export default function MyContributionsPage() {
                                         </FormItem>
                                     )}
                                 />
+
+                                {watchProgramName === 'Lain-lain' && (
+                                    <FormField
+                                        control={form.control}
+                                        name="customProgramName"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Nama Program (Lain-lain)</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="Sila nyatakan nama program" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                )}
+
                                 <FormField control={form.control} name="peringkat" render={({ field }) => (
                                     <FormItem><FormLabel>Peringkat</FormLabel><Select onValueChange={field.onChange} value={field.value} disabled={!profileComplete}><FormControl><SelectTrigger><SelectValue placeholder="Pilih peringkat" /></SelectTrigger></FormControl><SelectContent>{peringkatOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                                 )} />
