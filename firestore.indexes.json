@@ -27,6 +27,22 @@
       ]
     },
     {
+      "collectionGroup": "positions",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "verificationStatus", "order": "ASCENDING" },
+        { "fieldPath": "className", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "positions",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "verificationStatus", "order": "ASCENDING" },
+        { "fieldPath": "semester", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "programs",
       "queryScope": "COLLECTION",
       "fields": [
