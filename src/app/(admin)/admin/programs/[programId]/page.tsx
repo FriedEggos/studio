@@ -11,7 +11,7 @@ import {
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, collection, deleteDoc, Timestamp, query, orderBy, limit, startAfter, getDocs, where, QueryDocumentSnapshot, DocumentData, Query, onSnapshot } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Calendar, MapPin, Users, Download, Trash2, ChevronDown, FileSpreadsheet, FileText, MoreHorizontal, Clock, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Users, Download, Trash2, ChevronDown, FileSpreadsheet, FileText, MoreHorizontal, Clock, Plus, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -118,6 +118,7 @@ export default function ProgramDetailsPage() {
   const [isLoadingAttendances, setIsLoadingAttendances] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
   
   // Pagination state
   const [page, setPage] = useState(1);
@@ -247,117 +248,106 @@ export default function ProgramDetailsPage() {
     }
   };
 
-   const handleExport = () => {
-    if (!attendances || attendances.length === 0) {
-      toast({
-        variant: "destructive",
-        title: "No Data",
-        description: "There is no attendance data to export on this page.",
-      });
-      return;
-    }
-    const dataToExport = attendances.map(att => {
-      const record: {[key: string]: any} = {
-          'Student Name': att.studentName,
-          'Student ID': att.studentId,
-          'Class': att.classGroup,
-      };
-      if (programConfig?.fields?.customInput1Enabled) {
-          record[programConfig.fields.customInput1Label || 'Custom 1'] = att.customInput1 || '-';
+  const handleExport = async (format: 'csv' | 'pdf') => {
+    if (!firestore || !programId) return;
+
+    setIsExporting(true);
+
+    try {
+      const attendancesColRef = collection(firestore, 'programs', programId, 'attendances');
+      const attendancesSnapshot = await getDocs(query(attendancesColRef, orderBy('createdAt', 'asc')));
+      const allAttendances = attendancesSnapshot.docs.map(doc => doc.data() as Attendance);
+
+      if (allAttendances.length === 0) {
+        toast({
+          variant: "destructive",
+          title: "No Data",
+          description: "There is no attendance data to export for this program.",
+        });
+        return;
       }
-      if (programConfig?.fields?.customInput2Enabled) {
-          record[programConfig.fields.customInput2Label || 'Custom 2'] = att.customInput2 || '-';
-      }
-      record['Check-in Time'] = att.createdAt ? format(att.createdAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A';
-      record['Check-out Time'] = att.checkOutAt ? format(att.checkOutAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A';
       
-      return record;
-    });
-    
-    exportToCsv(`attendance_${program?.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`, dataToExport);
-  };
-  
-  const handleExportPdf = () => {
-    if (!attendances || attendances.length === 0) {
+      if (format === 'csv') {
+        const dataToExport = allAttendances.map(att => {
+          const record: {[key: string]: any} = {
+              'Student Name': att.studentName,
+              'Student ID': att.studentId,
+              'Class': att.classGroup,
+          };
+          if (programConfig?.fields?.customInput1Enabled) {
+              record[programConfig.fields.customInput1Label || 'Custom 1'] = att.customInput1 || '-';
+          }
+          if (programConfig?.fields?.customInput2Enabled) {
+              record[programConfig.fields.customInput2Label || 'Custom 2'] = att.customInput2 || '-';
+          }
+          record['Check-in Time'] = att.createdAt ? format(att.createdAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A';
+          record['Check-out Time'] = att.checkOutAt ? format(att.checkOutAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A';
+          
+          return record;
+        });
+        exportToCsv(`attendance_${program?.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`, dataToExport);
+      } else {
+        // PDF Export Logic
+        const doc = new jsPDF();
+        const tableColumns = ["Student Name", "Student ID", "Class"];
+        if (programConfig?.fields?.customInput1Enabled) tableColumns.push(programConfig.fields.customInput1Label || 'Custom 1');
+        if (programConfig?.fields?.customInput2Enabled) tableColumns.push(programConfig.fields.customInput2Label || 'Custom 2');
+        tableColumns.push("Check-in Time", "Check-out Time");
+
+        const tableRows = allAttendances.map(att => {
+            const row = [
+                att.studentName || '', att.studentId || '-', att.classGroup || '-',
+            ];
+            if (programConfig?.fields.customInput1Enabled) row.push(att.customInput1 || '-');
+            if (programConfig?.fields.customInput2Enabled) row.push(att.customInput2 || '-');
+            row.push(
+                att.createdAt ? format(att.createdAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A',
+                att.checkOutAt ? format(att.checkOutAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A'
+            );
+            return row;
+        });
+
+        doc.setFontSize(18);
+        doc.text(`Attendances: ${program?.title || 'Program'}`, 14, 22);
+        doc.setFontSize(11);
+        doc.text(`Date: ${format(new Date(), 'PPP')}`, 14, 30);
+
+        autoTable(doc, { startY: 35, head: [tableColumns], body: tableRows, theme: 'grid', headStyles: { fillColor: [37, 51, 89] } });
+        
+        const finalY = (doc as any).lastAutoTable.finalY || 100;
+        const addSignatureBlock = (startY: number) => {
+            doc.setFontSize(12);
+            doc.text('Pengesahan Kehadiran Program', 14, startY);
+            doc.setFontSize(10);
+            const signatureY = startY + 20;
+            doc.text('_______________________________', 14, signatureY);
+            doc.text('Pengarah Program', 14, signatureY + 5);
+            doc.text('Nama:', 14, signatureY + 10);
+            doc.text('Tarikh:', 14, signatureY + 15);
+            doc.text('_______________________________', 115, signatureY);
+            doc.text('Penyelaras Kelab ICT JTMK', 115, signatureY + 5);
+            doc.text('Nama:', 115, signatureY + 10);
+            doc.text('Tarikh:', 115, signatureY + 15);
+        };
+
+        if (finalY > 220) { doc.addPage(); addSignatureBlock(20); } 
+        else { addSignatureBlock(finalY + 15); }
+
+        doc.save(`attendance_${program?.title.replace(/\s+/g, '_') ?? 'export'}.pdf`);
+      }
+
+    } catch (error) {
+      console.error("Error exporting data:", error);
       toast({
         variant: "destructive",
-        title: "No Data",
-        description: "There is no attendance data to export for PDF.",
+        title: "Export Failed",
+        description: "An error occurred while fetching data for export.",
       });
-      return;
+    } finally {
+      setIsExporting(false);
     }
-    
-    const doc = new jsPDF();
-    
-    const tableColumns = ["Student Name", "Student ID", "Class"];
-    if (programConfig?.fields?.customInput1Enabled) {
-        tableColumns.push(programConfig.fields.customInput1Label || 'Custom 1');
-    }
-    if (programConfig?.fields?.customInput2Enabled) {
-        tableColumns.push(programConfig.fields.customInput2Label || 'Custom 2');
-    }
-    tableColumns.push("Check-in Time", "Check-out Time");
-
-    const tableRows = attendances.map(att => {
-        const row = [
-            att.studentName || '',
-            att.studentId || '-',
-            att.classGroup || '-',
-        ];
-        if (programConfig?.fields?.customInput1Enabled) {
-            row.push(att.customInput1 || '-');
-        }
-        if (programConfig?.fields?.customInput2Enabled) {
-            row.push(att.customInput2 || '-');
-        }
-        row.push(
-            att.createdAt ? format(att.createdAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A',
-            att.checkOutAt ? format(att.checkOutAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A'
-        );
-        return row;
-    });
-
-    doc.setFontSize(18);
-    doc.text(`Attendances: ${program?.title || 'Program'}`, 14, 22);
-    doc.setFontSize(11);
-    doc.text(`Date: ${format(new Date(), 'PPP')}`, 14, 30);
-
-    autoTable(doc, {
-      startY: 35,
-      head: [tableColumns],
-      body: tableRows,
-      theme: 'grid',
-      headStyles: {
-        fillColor: [37, 51, 89]
-      },
-    });
-
-    const finalY = (doc as any).lastAutoTable.finalY || 100;
-
-    const addSignatureBlock = (startY: number) => {
-        doc.setFontSize(12);
-        doc.text('Pengesahan Kehadiran Program', 14, startY);
-        doc.setFontSize(10);
-        const signatureY = startY + 20;
-        doc.text('_______________________________', 14, signatureY);
-        doc.text('Pengarah Program', 14, signatureY + 5);
-        doc.text('Nama:', 14, signatureY + 10);
-        doc.text('Tarikh:', 14, signatureY + 15);
-        doc.text('_______________________________', 115, signatureY);
-        doc.text('Penyelaras Kelab ICT JTMK', 115, signatureY + 5);
-        doc.text('Nama:', 115, signatureY + 10);
-        doc.text('Tarikh:', 115, signatureY + 15);
-    };
-
-    if (finalY > 220) {
-        doc.addPage();
-        addSignatureBlock(20);
-    } else {
-        addSignatureBlock(finalY + 15);
-    }
-
-    doc.save(`attendance_${program?.title.replace(/\s+/g, '_') ?? 'export'}.pdf`);
   };
+
 
   const handleDeleteAttendance = async (attendanceId: string) => {
     if (!firestore || !programId) return;
@@ -536,18 +526,18 @@ export default function ProgramDetailsPage() {
                         </Button>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="outline" disabled={isLoadingAttendances || !attendances || attendances.length === 0} className="w-full sm:w-auto">
-                                <Download className="mr-2 h-4 w-4" />
-                                Export
-                                <ChevronDown className="ml-2 h-4 w-4" />
+                                <Button variant="outline" disabled={isLoadingAttendances || isExporting} className="w-full sm:w-auto">
+                                    {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                                    Export
+                                    <ChevronDown className="ml-2 h-4 w-4" />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={handleExport}>
+                                <DropdownMenuItem onClick={() => handleExport('csv')}>
                                 <FileSpreadsheet className="mr-2 h-4 w-4" />
                                 Export as CSV
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={handleExportPdf}>
+                                <DropdownMenuItem onClick={() => handleExport('pdf')}>
                                 <FileText className="mr-2 h-4 w-4" />
                                 Export as PDF
                                 </DropdownMenuItem>
