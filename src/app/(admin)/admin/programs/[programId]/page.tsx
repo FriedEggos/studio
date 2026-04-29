@@ -248,7 +248,7 @@ export default function ProgramDetailsPage() {
     }
   };
 
-  const handleExport = async (format: 'csv' | 'pdf') => {
+  const handleExport = async (exportFormat: 'csv' | 'pdf') => {
     if (!firestore || !programId) return;
 
     setIsExporting(true);
@@ -267,7 +267,7 @@ export default function ProgramDetailsPage() {
         return;
       }
       
-      if (format === 'csv') {
+      if (exportFormat === 'csv') {
         const dataToExport = allAttendances.map(att => {
           const record: {[key: string]: any} = {
               'Student Name': att.studentName,
