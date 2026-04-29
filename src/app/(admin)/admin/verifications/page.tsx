@@ -38,6 +38,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 interface Position {
   id: string;
@@ -70,24 +71,56 @@ export default function VerificationsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   
+  // Search State
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
   // Pagination State
   const [page, setPage] = useState(1);
   const [pageCursors, setPageCursors] = useState<(QueryDocumentSnapshot | null)[]>([null]);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [totalRecords, setTotalRecords] = useState(0);
 
+  // Debounce search input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+        setDebouncedSearchQuery(searchQuery);
+        setPage(1);
+        setPageCursors([null]);
+    }, 500);
+
+    return () => {
+        clearTimeout(handler);
+    };
+  }, [searchQuery]);
+
   useEffect(() => {
     if (!firestore) return;
 
     setIsLoading(true);
 
-    const baseQuery = query(
-        collectionGroup(firestore, 'positions'),
-        where('verificationStatus', '==', 'pending'),
-        orderBy('createdAt', 'desc')
-    );
+    const baseCollectionRef = collectionGroup(firestore, 'positions');
+    let baseQuery: Query<DocumentData>;
+    let q: Query<DocumentData>;
     
-    let q: Query<DocumentData> = baseQuery;
+    if (debouncedSearchQuery) {
+        const searchQueryUpper = debouncedSearchQuery.toUpperCase();
+        baseQuery = query(
+            baseCollectionRef,
+            where('verificationStatus', '==', 'pending'),
+            orderBy('userName'),
+            where('userName', '>=', searchQueryUpper),
+            where('userName', '<=', searchQueryUpper + '\uf8ff')
+        );
+    } else {
+        baseQuery = query(
+            baseCollectionRef,
+            where('verificationStatus', '==', 'pending'),
+            orderBy('createdAt', 'desc')
+        );
+    }
+    
+    q = baseQuery;
     
     const cursor = pageCursors[page - 1];
     if (cursor) {
@@ -113,18 +146,23 @@ export default function VerificationsPage() {
       setError(null);
     }, (err) => {
       console.error("Error fetching pending verifications:", err);
+      let errorMessage = "Failed to load verifications.";
+      if ((err as any).code === 'failed-precondition') {
+          errorMessage = "A database index is required for this query. Please check your Firestore indexes.";
+      }
       setError(err);
-      toast({ variant: "destructive", title: "Failed to load verifications." });
+      toast({ variant: "destructive", title: "Error", description: errorMessage });
       setIsLoading(false);
     });
 
-    // Also get total count for display
-    getDocs(baseQuery).then(totalSnapshot => {
-        setTotalRecords(totalSnapshot.size);
-    });
+    if (page === 1) { 
+        getDocs(baseQuery).then(totalSnapshot => {
+            setTotalRecords(totalSnapshot.size);
+        });
+    }
     
     return () => unsubscribe();
-  }, [firestore, toast, page, pageCursors]);
+  }, [firestore, toast, page, pageCursors, debouncedSearchQuery]);
 
 
   const handleVerification = async (position: Position, newStatus: 'approved' | 'rejected', remark?: string) => {
@@ -191,10 +229,20 @@ export default function VerificationsPage() {
         </h1>
         <Card>
           <CardHeader>
-            <CardTitle>Applications</CardTitle>
-            <CardDescription>
-              Review and approve or reject position claims submitted by students.
-            </CardDescription>
+             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle>Applications</CardTitle>
+                  <CardDescription>
+                    Review and approve or reject position claims submitted by students.
+                  </CardDescription>
+                </div>
+                <Input
+                    placeholder="Search by student name..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full sm:w-64"
+                />
+            </div>
           </CardHeader>
           <CardContent>
             <Table>
@@ -280,7 +328,7 @@ export default function VerificationsPage() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={7} className="h-24 text-center">
-                      No pending verifications found.
+                       {debouncedSearchQuery ? "No results found." : "No pending verifications found."}
                     </TableCell>
                   </TableRow>
                 )}
