@@ -48,8 +48,8 @@ interface Position {
   customPositionDetail?: string;
   programName: string;
   peringkat?: string;
-  semester?: number;
-  className?: string;
+  semester: number;
+  className: string;
   verificationStatus: 'pending' | 'approved' | 'rejected';
   createdAt: { toDate: () => Date };
   evidenceUrl?: string;
@@ -57,7 +57,7 @@ interface Position {
 
 const POSITIONS_PER_PAGE = 20;
 
-export default function VerificationsPage() {
+export default function AdminVerificationsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -98,70 +98,128 @@ export default function VerificationsPage() {
     if (!firestore) return;
 
     setIsLoading(true);
+    setError(null);
 
-    const baseCollectionRef = collectionGroup(firestore, 'positions');
-    let baseQuery: Query<DocumentData>;
-    let q: Query<DocumentData>;
-    
+    // If there's a search query, perform a one-time fetch.
     if (debouncedSearchQuery) {
-        const searchQueryUpper = debouncedSearchQuery.toUpperCase();
-        baseQuery = query(
-            baseCollectionRef,
-            where('verificationStatus', '==', 'pending'),
-            orderBy('userName'),
-            where('userName', '>=', searchQueryUpper),
-            where('userName', '<=', searchQueryUpper + '\uf8ff')
-        );
+        const fetchSearchResults = async () => {
+            const results = new Map<string, Position>();
+            const searchQueryUpper = debouncedSearchQuery.toUpperCase();
+            const semesterQuery = parseInt(debouncedSearchQuery, 10);
+
+            // Query by name (prefix match)
+            const nameQuery = query(
+                collectionGroup(firestore, 'positions'),
+                where('verificationStatus', '==', 'pending'),
+                orderBy('userName'),
+                where('userName', '>=', searchQueryUpper),
+                where('userName', '<=', searchQueryUpper + '\uf8ff')
+            );
+
+            // Query by class (exact match)
+            const classQuery = query(
+                collectionGroup(firestore, 'positions'),
+                where('verificationStatus', '==', 'pending'),
+                where('className', '==', searchQueryUpper)
+            );
+            
+            // Query by semester (exact match, if query is a number)
+            const semesterPromise = !isNaN(semesterQuery) 
+                ? getDocs(query(
+                    collectionGroup(firestore, 'positions'),
+                    where('verificationStatus', '==', 'pending'),
+                    where('semester', '==', semesterQuery)
+                  ))
+                : Promise.resolve(null);
+
+            try {
+                const [nameSnap, classSnap, semesterSnap] = await Promise.all([
+                    getDocs(nameQuery),
+                    getDocs(classQuery),
+                    semesterPromise
+                ]);
+
+                const processSnapshot = (snap: any) => {
+                    if(!snap) return;
+                    snap.forEach((doc: any) => {
+                        if (!results.has(doc.id)) {
+                            results.set(doc.id, { id: doc.id, ...doc.data() } as Position);
+                        }
+                    });
+                };
+                
+                processSnapshot(nameSnap);
+                processSnapshot(classSnap);
+                if(semesterSnap) processSnapshot(semesterSnap);
+                
+                const sortedResults = Array.from(results.values()).sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
+                
+                setPendingPositions(sortedResults);
+                setHasNextPage(false);
+                setTotalRecords(sortedResults.length);
+
+            } catch (err: any) {
+                console.error("Error searching verifications:", err);
+                setError(err);
+                toast({ variant: "destructive", title: "Search Error", description: "Could not perform search. An index might be missing." });
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchSearchResults();
+        return () => {};
+
     } else {
-        baseQuery = query(
-            baseCollectionRef,
+        // If no search query, use the real-time paginated listener.
+        const baseQuery = query(
+            collectionGroup(firestore, 'positions'),
             where('verificationStatus', '==', 'pending'),
             orderBy('createdAt', 'desc')
         );
-    }
-    
-    q = baseQuery;
-    
-    const cursor = pageCursors[page - 1];
-    if (cursor) {
-      q = query(q, startAfter(cursor));
-    }
-    
-    q = query(q, limit(POSITIONS_PER_PAGE + 1));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedPositions = snapshot.docs.slice(0, POSITIONS_PER_PAGE).map(doc => ({ id: doc.id, ...doc.data() } as Position));
-      setPendingPositions(fetchedPositions);
-      
-      const hasMore = snapshot.docs.length > POSITIONS_PER_PAGE;
-      setHasNextPage(hasMore);
-
-      if (hasMore) {
-        const lastVisibleDoc = snapshot.docs[POSITIONS_PER_PAGE - 1];
-        if (page >= pageCursors.length) {
-            setPageCursors(prev => [...prev, lastVisibleDoc]);
+        
+        let q: Query<DocumentData> = baseQuery;
+        const cursor = pageCursors[page - 1];
+        if (cursor) {
+          q = query(q, startAfter(cursor));
         }
-      }
-      setIsLoading(false);
-      setError(null);
-    }, (err) => {
-      console.error("Error fetching pending verifications:", err);
-      let errorMessage = "Failed to load verifications.";
-      if ((err as any).code === 'failed-precondition') {
-          errorMessage = "A database index is required for this query. Please check your Firestore indexes.";
-      }
-      setError(err);
-      toast({ variant: "destructive", title: "Error", description: errorMessage });
-      setIsLoading(false);
-    });
+        
+        q = query(q, limit(POSITIONS_PER_PAGE + 1));
+        
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          const fetchedPositions = snapshot.docs.slice(0, POSITIONS_PER_PAGE).map(doc => ({ id: doc.id, ...doc.data() } as Position));
+          setPendingPositions(fetchedPositions);
+          
+          const hasMore = snapshot.docs.length > POSITIONS_PER_PAGE;
+          setHasNextPage(hasMore);
 
-    if (page === 1) { 
-        getDocs(baseQuery).then(totalSnapshot => {
-            setTotalRecords(totalSnapshot.size);
+          if (hasMore) {
+            const lastVisibleDoc = snapshot.docs[POSITIONS_PER_PAGE - 1];
+            if (page >= pageCursors.length) {
+                setPageCursors(prev => [...prev, lastVisibleDoc]);
+            }
+          }
+          setIsLoading(false);
+          setError(null);
+        }, (err) => {
+          console.error("Error fetching pending verifications:", err);
+          let errorMessage = "Failed to load verifications.";
+          if ((err as any).code === 'failed-precondition') {
+              errorMessage = "A database index is required for this query. Please check your Firestore indexes.";
+          }
+          setError(err);
+          toast({ variant: "destructive", title: "Error", description: errorMessage });
+          setIsLoading(false);
         });
+
+        if (page === 1) { 
+            getDocs(baseQuery).then(totalSnapshot => {
+                setTotalRecords(totalSnapshot.size);
+            });
+        }
+        
+        return () => unsubscribe();
     }
-    
-    return () => unsubscribe();
   }, [firestore, toast, page, pageCursors, debouncedSearchQuery]);
 
 
@@ -237,10 +295,10 @@ export default function VerificationsPage() {
                   </CardDescription>
                 </div>
                 <Input
-                    placeholder="Search by student name..."
+                    placeholder="Search by name, class, or semester..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full sm:w-64"
+                    className="w-full sm:w-72"
                 />
             </div>
           </CardHeader>
@@ -252,6 +310,8 @@ export default function VerificationsPage() {
                   <TableHead>Student</TableHead>
                   <TableHead>Program</TableHead>
                   <TableHead>Position</TableHead>
+                  <TableHead>Semester</TableHead>
+                  <TableHead>Class</TableHead>
                   <TableHead>Proof</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -265,6 +325,8 @@ export default function VerificationsPage() {
                       <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-40" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                       <TableCell><Skeleton className="h-9 w-20" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                       <TableCell className="text-right space-x-2"><Skeleton className="h-8 w-8 inline-block" /><Skeleton className="h-8 w-8 inline-block" /></TableCell>
@@ -272,7 +334,7 @@ export default function VerificationsPage() {
                   ))
                 ) : error ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center text-destructive">
+                    <TableCell colSpan={9} className="h-24 text-center text-destructive">
                       Error loading verifications. Please try again.
                     </TableCell>
                   </TableRow>
@@ -288,6 +350,8 @@ export default function VerificationsPage() {
                           <span className="text-muted-foreground ml-2">({pos.customPositionDetail})</span>
                         )}
                       </TableCell>
+                      <TableCell>{pos.semester}</TableCell>
+                      <TableCell>{pos.className}</TableCell>
                       <TableCell>
                         {pos.evidenceUrl ? (
                             <Button variant="outline" size="sm" onClick={() => setPreviewImageUrl(pos.evidenceUrl!)}>
@@ -327,29 +391,31 @@ export default function VerificationsPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                       {debouncedSearchQuery ? "No results found." : "No pending verifications found."}
+                    <TableCell colSpan={9} className="h-24 text-center">
+                       {debouncedSearchQuery ? "No results found for your search." : "No pending verifications found."}
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
           </CardContent>
-          <CardFooter className="flex items-center justify-between border-t pt-6">
-            <span className="text-sm text-muted-foreground">
-                Page {page}
-            </span>
-            <div className="flex items-center gap-2">
-                <Button onClick={() => handlePageChange('prev')} disabled={page <= 1 || isLoading} variant="outline" size="sm">
-                <ChevronLeft className="mr-1 h-4 w-4" />
-                Previous
-                </Button>
-                <Button onClick={() => handlePageChange('next')} disabled={!hasNextPage || isLoading} variant="outline" size="sm">
-                Next
-                <ChevronRight className="ml-1 h-4 w-4" />
-                </Button>
-            </div>
-          </CardFooter>
+          {!debouncedSearchQuery && (
+            <CardFooter className="flex items-center justify-between border-t pt-6">
+                <span className="text-sm text-muted-foreground">
+                    Page {page} of {Math.ceil(totalRecords / POSITIONS_PER_PAGE)}
+                </span>
+                <div className="flex items-center gap-2">
+                    <Button onClick={() => handlePageChange('prev')} disabled={page <= 1 || isLoading} variant="outline" size="sm">
+                    <ChevronLeft className="mr-1 h-4 w-4" />
+                    Previous
+                    </Button>
+                    <Button onClick={() => handlePageChange('next')} disabled={!hasNextPage || isLoading} variant="outline" size="sm">
+                    Next
+                    <ChevronRight className="ml-1 h-4 w-4" />
+                    </Button>
+                </div>
+            </CardFooter>
+          )}
         </Card>
       </div>
 

@@ -1,2 +1,10 @@
-// This file is unused and has been cleared to avoid confusion.
-// The correct and active verification page is located at /src/app/(admin)/verifications/page.tsx
+
+import { redirect } from 'next/navigation';
+
+/**
+ * This page is a leftover from a previous route structure.
+ * Redirecting to the correct admin verification page.
+ */
+export default function RedirectToVerifications() {
+  redirect('/admin/verifications');
+}
