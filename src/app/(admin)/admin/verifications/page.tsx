@@ -44,6 +44,7 @@ interface Position {
   id: string;
   userId: string;
   userName: string;
+  matricId: string;
   positionName: string;
   customPositionDetail?: string;
   programName: string;
@@ -116,6 +117,15 @@ export default function AdminVerificationsPage() {
                 where('userName', '<=', searchQueryUpper + '\uf8ff')
             );
 
+            // Query by Student ID (prefix match)
+            const matricIdQuery = query(
+                collectionGroup(firestore, 'positions'),
+                where('verificationStatus', '==', 'pending'),
+                orderBy('matricId'),
+                where('matricId', '>=', searchQueryUpper),
+                where('matricId', '<=', searchQueryUpper + '\uf8ff')
+            );
+
             // Query by class (exact match)
             const classQuery = query(
                 collectionGroup(firestore, 'positions'),
@@ -133,10 +143,11 @@ export default function AdminVerificationsPage() {
                 : Promise.resolve(null);
 
             try {
-                const [nameSnap, classSnap, semesterSnap] = await Promise.all([
+                const [nameSnap, classSnap, semesterSnap, matricIdSnap] = await Promise.all([
                     getDocs(nameQuery),
                     getDocs(classQuery),
-                    semesterPromise
+                    semesterPromise,
+                    getDocs(matricIdQuery)
                 ]);
 
                 const processSnapshot = (snap: any) => {
@@ -150,6 +161,7 @@ export default function AdminVerificationsPage() {
                 
                 processSnapshot(nameSnap);
                 processSnapshot(classSnap);
+                processSnapshot(matricIdSnap);
                 if(semesterSnap) processSnapshot(semesterSnap);
                 
                 const sortedResults = Array.from(results.values()).sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
@@ -295,10 +307,10 @@ export default function AdminVerificationsPage() {
                   </CardDescription>
                 </div>
                 <Input
-                    placeholder="Search by name, class, or semester..."
+                    placeholder="Search by ID, name, class, or semester..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full sm:w-72"
+                    className="w-full sm:w-80"
                 />
             </div>
           </CardHeader>
@@ -306,7 +318,8 @@ export default function AdminVerificationsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>No.</TableHead>
+                  <TableHead className="w-[50px]">No.</TableHead>
+                  <TableHead>Student ID</TableHead>
                   <TableHead>Student</TableHead>
                   <TableHead>Program</TableHead>
                   <TableHead>Position</TableHead>
@@ -322,6 +335,7 @@ export default function AdminVerificationsPage() {
                   [...Array(5)].map((_, i) => (
                     <TableRow key={i}>
                       <TableCell><Skeleton className="h-5 w-6" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-40" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-24" /></TableCell>
@@ -334,7 +348,7 @@ export default function AdminVerificationsPage() {
                   ))
                 ) : error ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="h-24 text-center text-destructive">
+                    <TableCell colSpan={10} className="h-24 text-center text-destructive">
                       Error loading verifications. Please try again.
                     </TableCell>
                   </TableRow>
@@ -342,6 +356,7 @@ export default function AdminVerificationsPage() {
                   pendingPositions.map((pos, index) => (
                     <TableRow key={pos.id}>
                       <TableCell>{((page - 1) * POSITIONS_PER_PAGE) + index + 1}</TableCell>
+                      <TableCell className="font-mono text-sm uppercase tracking-wider">{pos.matricId}</TableCell>
                       <TableCell className="font-medium">{pos.userName}</TableCell>
                       <TableCell>{pos.programName}</TableCell>
                       <TableCell>
@@ -391,7 +406,7 @@ export default function AdminVerificationsPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={9} className="h-24 text-center">
+                    <TableCell colSpan={10} className="h-24 text-center">
                        {debouncedSearchQuery ? "No results found for your search." : "No pending verifications found."}
                     </TableCell>
                   </TableRow>
