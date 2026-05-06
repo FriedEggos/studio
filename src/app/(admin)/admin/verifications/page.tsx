@@ -356,7 +356,7 @@ export default function AdminVerificationsPage() {
                   pendingPositions.map((pos, index) => (
                     <TableRow key={pos.id}>
                       <TableCell className="text-sm">{((page - 1) * POSITIONS_PER_PAGE) + index + 1}</TableCell>
-                      <TableCell className="font-mono text-sm uppercase tracking-wider">{pos.matricId}</TableCell>
+                      <TableCell className="text-sm">{pos.matricId}</TableCell>
                       <TableCell className="font-medium text-sm">{pos.userName}</TableCell>
                       <TableCell className="text-sm">{pos.programName}</TableCell>
                       <TableCell className="text-sm">
