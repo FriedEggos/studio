@@ -1,5 +1,8 @@
+'use client';
 
 import { redirect } from 'next/navigation';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * This page is a leftover from a previous route structure.
