@@ -318,16 +318,16 @@ export default function AdminVerificationsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[50px]">No.</TableHead>
-                  <TableHead>Student ID</TableHead>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Program</TableHead>
-                  <TableHead>Position</TableHead>
-                  <TableHead>Semester</TableHead>
-                  <TableHead>Class</TableHead>
-                  <TableHead>Proof</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="w-[50px] text-sm">No.</TableHead>
+                  <TableHead className="text-sm">Student ID</TableHead>
+                  <TableHead className="text-sm">Student</TableHead>
+                  <TableHead className="text-sm">Program</TableHead>
+                  <TableHead className="text-sm">Position</TableHead>
+                  <TableHead className="text-sm">Semester</TableHead>
+                  <TableHead className="text-sm">Class</TableHead>
+                  <TableHead className="text-sm">Proof</TableHead>
+                  <TableHead className="text-sm">Date</TableHead>
+                  <TableHead className="text-right text-sm">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -348,25 +348,25 @@ export default function AdminVerificationsPage() {
                   ))
                 ) : error ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="h-24 text-center text-destructive">
+                    <TableCell colSpan={10} className="h-24 text-center text-destructive text-sm font-medium">
                       Error loading verifications. Please try again.
                     </TableCell>
                   </TableRow>
                 ) : pendingPositions && pendingPositions.length > 0 ? (
                   pendingPositions.map((pos, index) => (
                     <TableRow key={pos.id}>
-                      <TableCell>{((page - 1) * POSITIONS_PER_PAGE) + index + 1}</TableCell>
+                      <TableCell className="text-sm">{((page - 1) * POSITIONS_PER_PAGE) + index + 1}</TableCell>
                       <TableCell className="font-mono text-sm uppercase tracking-wider">{pos.matricId}</TableCell>
-                      <TableCell className="font-medium">{pos.userName}</TableCell>
-                      <TableCell>{pos.programName}</TableCell>
-                      <TableCell>
+                      <TableCell className="font-medium text-sm">{pos.userName}</TableCell>
+                      <TableCell className="text-sm">{pos.programName}</TableCell>
+                      <TableCell className="text-sm">
                         {pos.positionName}
                         {pos.positionName === "AJK Lain-Lain" && pos.customPositionDetail && (
                           <span className="text-muted-foreground ml-2">({pos.customPositionDetail})</span>
                         )}
                       </TableCell>
-                      <TableCell>{pos.semester}</TableCell>
-                      <TableCell>{pos.className}</TableCell>
+                      <TableCell className="text-sm">{pos.semester}</TableCell>
+                      <TableCell className="text-sm">{pos.className}</TableCell>
                       <TableCell>
                         {pos.evidenceUrl ? (
                             <Button variant="outline" size="sm" onClick={() => setPreviewImageUrl(pos.evidenceUrl!)}>
@@ -374,17 +374,17 @@ export default function AdminVerificationsPage() {
                                 View
                             </Button>
                         ) : (
-                            'N/A'
+                            <span className="text-sm text-muted-foreground">N/A</span>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-sm">
                         {pos.createdAt ? format(pos.createdAt.toDate(), 'dd/MM/yyyy') : ''}
                       </TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button
                           variant="outline"
                           size="icon"
-                          className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
+                          className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200 h-8 w-8"
                           onClick={() => handleVerification(pos, 'approved')}
                           disabled={isSubmitting}
                         >
@@ -394,7 +394,7 @@ export default function AdminVerificationsPage() {
                         <Button
                           variant="outline"
                           size="icon"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 h-8 w-8"
                           onClick={() => setPositionToReject(pos)}
                           disabled={isSubmitting}
                         >
@@ -406,7 +406,7 @@ export default function AdminVerificationsPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={10} className="h-24 text-center">
+                    <TableCell colSpan={10} className="h-24 text-center text-sm text-muted-foreground">
                        {debouncedSearchQuery ? "No results found for your search." : "No pending verifications found."}
                     </TableCell>
                   </TableRow>
