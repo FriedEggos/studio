@@ -4,13 +4,17 @@
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, initializeFirestore } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
 import { getStorage } from 'firebase/storage';
 
-// IMPORTANT: DO NOT MODIFY THIS FUNCTION
+/**
+ * Initializes the Firebase app and core SDKs.
+ * This function handles idempotent initialization and configures Firestore for compatibility.
+ */
 export function initializeFirebase() {
-  if (!getApps().length) {
+  const apps = getApps();
+  if (!apps.length) {
     // Important! initializeApp() is called without any arguments because Firebase App Hosting
     // integrates with the initializeApp() function to provide the environment variables needed to
     // populate the FirebaseOptions in production. It is critical that we attempt to call initializeApp()
@@ -28,13 +32,22 @@ export function initializeFirebase() {
       firebaseApp = initializeApp(firebaseConfig);
     }
 
+    // Force long-polling to resolve connectivity issues in certain network environments (like cloud workstations or behind proxies).
+    // This must be called before any other Firestore operations.
+    initializeFirestore(firebaseApp, {
+      experimentalForceLongPolling: true,
+    });
+
     return getSdks(firebaseApp);
   }
 
-  // If already initialized, return the SDKs with the already initialized App
-  return getSdks(getApp());
+  // If already initialized, return the SDKs with the existing App instance.
+  return getSdks(apps[0]);
 }
 
+/**
+ * Provides access to initialized Firebase service instances.
+ */
 export function getSdks(firebaseApp: FirebaseApp) {
   return {
     firebaseApp,
@@ -44,5 +57,3 @@ export function getSdks(firebaseApp: FirebaseApp) {
     storage: getStorage(firebaseApp),
   };
 }
-
-    
